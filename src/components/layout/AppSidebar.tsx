@@ -28,14 +28,13 @@ const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Style Library", url: "/styles", icon: Shirt },
   { title: "Materials", url: "/materials", icon: Layers },
-  { title: "Colorways", url: "/colorways", icon: Palette },
+  { title: "Color Library", url: "/color-library", icon: Palette },
   { title: "BOMs", url: "/boms", icon: FileText },
   { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "Suppliers", url: "/suppliers", icon: Factory },
   { title: "RFQs", url: "/rfqs", icon: DollarSign },
   { title: "ECOs", url: "/ecos", icon: GitBranch },
   { title: "Samples", url: "/samples", icon: Beaker },
-  { title: "Team", url: "/team", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

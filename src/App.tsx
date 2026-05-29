@@ -9,6 +9,10 @@ import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import StyleLibrary from "@/pages/StyleLibrary";
 import Projects from "@/pages/Projects";
+import ColorLibrary from "@/pages/ColorLibrary";
+import Suppliers from "@/pages/Suppliers";
+import Ecos from "@/pages/Ecos";
+import Samples from "@/pages/Samples";
 import Stub from "@/pages/Stub";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -28,13 +32,12 @@ const App = () => (
               <Route path="/styles" element={<StyleLibrary />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/materials" element={<Stub title="Materials" />} />
-              <Route path="/colorways" element={<Stub title="Colorways" />} />
+              <Route path="/color-library" element={<ColorLibrary />} />
               <Route path="/boms" element={<Stub title="BOMs" />} />
-              <Route path="/suppliers" element={<Stub title="Suppliers" />} />
+              <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/rfqs" element={<Stub title="RFQs" />} />
-              <Route path="/ecos" element={<Stub title="ECOs" />} />
-              <Route path="/samples" element={<Stub title="Samples" />} />
-              <Route path="/team" element={<Stub title="Team" />} />
+              <Route path="/ecos" element={<Ecos />} />
+              <Route path="/samples" element={<Samples />} />
               <Route path="/settings" element={<Stub title="Settings" />} />
             </Route>
             <Route path="*" element={<NotFound />} />
