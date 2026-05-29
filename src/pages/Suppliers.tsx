@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -87,8 +87,8 @@ function Directory() {
           </TableHeader>
           <TableBody>
             {filtered.map((s) => (
-              <>
-                <TableRow key={s.id} className="cursor-pointer" onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
+              <Fragment key={s.id}>
+                <TableRow className="cursor-pointer" onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
                   <TableCell>{expanded === s.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</TableCell>
                   <TableCell className="font-mono text-xs">{s.code}</TableCell>
                   <TableCell className="font-medium">{s.name}</TableCell>
@@ -124,7 +124,7 @@ function Directory() {
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </Fragment>
             ))}
           </TableBody>
         </Table>
