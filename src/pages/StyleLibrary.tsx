@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ type Product = Record<string, any> & { id: string };
 const PAGE = 24;
 
 export default function StyleLibrary() {
+  const navigate = useNavigate();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [items, setItems] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -100,7 +102,7 @@ export default function StyleLibrary() {
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {items.map((p) => (
-            <Card key={p.id} className="overflow-hidden hover:shadow-md transition">
+            <Card key={p.id} onClick={() => navigate(`/styles/${p.id}`)} className="overflow-hidden hover:shadow-md transition cursor-pointer">
               <div className="aspect-square bg-muted grid place-items-center">
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
@@ -131,7 +133,7 @@ export default function StyleLibrary() {
             </TableHeader>
             <TableBody>
               {items.map((p) => (
-                <TableRow key={p.id}>
+                <TableRow key={p.id} onClick={() => navigate(`/styles/${p.id}`)} className="cursor-pointer">
                   <TableCell className="font-medium">{p.name ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{p.style_code ?? p.sku ?? "—"}</TableCell>
                   <TableCell>{p.category ?? "—"}</TableCell>

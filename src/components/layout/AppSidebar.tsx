@@ -10,7 +10,6 @@ import {
   GitBranch,
   Beaker,
   DollarSign,
-  Users,
   Settings,
 } from "lucide-react";
 import {
@@ -23,6 +22,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -35,12 +35,14 @@ const items = [
   { title: "RFQs", url: "/rfqs", icon: DollarSign },
   { title: "ECOs", url: "/ecos", icon: GitBranch },
   { title: "Samples", url: "/samples", icon: Beaker },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Settings", url: "/settings", icon: Settings, adminOnly: true },
 ];
 
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const { role } = useAuth();
   const isActive = (p: string) => (p === "/" ? pathname === "/" : pathname.startsWith(p));
+  const visible = items.filter((i) => !i.adminOnly || role === "admin");
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -55,7 +57,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {visible.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink to={item.url} className="flex items-center gap-3">
