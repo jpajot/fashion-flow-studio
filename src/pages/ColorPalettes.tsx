@@ -400,52 +400,98 @@ export default function ColorPalettes() {
                   <Plus className="h-4 w-4 mr-1" /> Add Color
                 </Button>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto space-y-6">
                 {selectedColors.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-muted-foreground">
                     No colors in this palette yet
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {selectedColors.map((pc) => {
-                      const r = resolveColor(pc);
-                      return (
-                        <Card
-                          key={pc.id}
-                          draggable
-                          onDragStart={() => onDragStart(pc.id)}
-                          onDragOver={onDragOver}
-                          onDrop={() => onDrop(pc.id)}
-                          className={cn(
-                            "overflow-hidden group relative",
-                            dragId === pc.id && "opacity-50",
-                          )}
-                        >
-                          <div className="aspect-square w-full" style={{ backgroundColor: r.hex }} />
-                          <div className="p-2 space-y-0.5">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="font-mono text-xs">{r.code}</span>
-                              <Badge variant="secondary" className="text-[10px] capitalize">
-                                {pc.color_type}
-                              </Badge>
-                            </div>
-                            <div className="text-sm font-medium truncate">{r.name}</div>
-                          </div>
-                          <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab">
-                            <GripVertical className="h-4 w-4 text-white drop-shadow" />
-                          </div>
-                          <button
-                            onClick={() => removeColor(pc)}
-                            className="absolute top-1 right-1 p-0.5 rounded bg-background/80 opacity-0 group-hover:opacity-100 hover:bg-background"
+                  <>
+                    {(() => {
+                      const commEntries = selectedColors.filter((c) => c.color_type === "commercial");
+                      const techEntries = selectedColors.filter((c) => c.color_type === "technical");
+                      const referencedTechIds = new Set<string>();
+                      commEntries.forEach((ce) => {
+                        const cc = commMap[ce.color_id];
+                        if (!cc) return;
+                        if (cc.main_technical_color_id) referencedTechIds.add(cc.main_technical_color_id);
+                        (cc.linked_technical_color_ids ?? []).forEach((id) => referencedTechIds.add(id));
+                      });
+                      const unlinkedTech = techEntries.filter((te) => !referencedTechIds.has(te.color_id));
+
+                      const renderCard = (pc: PaletteColor, opts?: { unlinked?: boolean }) => {
+                        const r = resolveColor(pc);
+                        const tech = pc.color_type === "technical" ? techMap[pc.color_id] : null;
+                        return (
+                          <Card
+                            key={pc.id}
+                            draggable
+                            onDragStart={() => onDragStart(pc.id)}
+                            onDragOver={onDragOver}
+                            onDrop={() => onDrop(pc.id)}
+                            className={cn(
+                              "overflow-hidden group relative",
+                              dragId === pc.id && "opacity-50",
+                              opts?.unlinked && "border-amber-300 border-2",
+                            )}
                           >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </Card>
+                            <div className="aspect-square w-full" style={{ backgroundColor: r.hex }} />
+                            <div className="p-2 space-y-0.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-mono text-xs">{r.code}</span>
+                                <Badge variant="secondary" className="text-[10px] capitalize">
+                                  {pc.color_type}
+                                </Badge>
+                              </div>
+                              <div className="text-sm font-medium truncate">{r.name}</div>
+                              {opts?.unlinked && tech && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setLinkingTechColor(tech)}
+                                  className="w-full mt-1 h-7 bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
+                                >
+                                  <LinkIcon className="h-3 w-3 mr-1" /> Link
+                                </Button>
+                              )}
+                            </div>
+                            <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab">
+                              <GripVertical className="h-4 w-4 text-white drop-shadow" />
+                            </div>
+                            <button
+                              onClick={() => removeColor(pc)}
+                              className="absolute top-1 right-1 p-0.5 rounded bg-background/80 opacity-0 group-hover:opacity-100 hover:bg-background"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </Card>
+                        );
+                      };
+
+                      return (
+                        <>
+                          {commEntries.length > 0 && (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                              {commEntries.map((pc) => renderCard(pc))}
+                            </div>
+                          )}
+                          {unlinkedTech.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Unlinked Technical Colors ({unlinkedTech.length})
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                                {unlinkedTech.map((pc) => renderCard(pc, { unlinked: true }))}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       );
-                    })}
-                  </div>
+                    })()}
+                  </>
                 )}
               </div>
+
             </>
           )}
         </Card>
