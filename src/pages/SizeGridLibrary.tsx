@@ -441,8 +441,17 @@ export default function SizeGridLibrary() {
           </Card>
 
           {/* Right: Grid sizes */}
-          <Card className="p-3 lg:col-span-2 space-y-3">
-            <div className="font-semibold text-sm">
+          <Card className={`p-3 lg:col-span-2 space-y-3 ${selectedGridId ? "block" : "hidden lg:block"}`}>
+            <div className="font-semibold text-sm flex items-center gap-2">
+              {selectedGrid && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedGridId(null)}
+                  className="lg:hidden text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 mr-1"
+                >
+                  ←
+                </button>
+              )}
               {selectedGrid
                 ? `Sizes — ${selectedGrid.name}`
                 : "Select a grid to manage its sizes"}
