@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SubNavProvider } from "@/contexts/SubNavContext";
+import { PageOptionsProvider } from "@/contexts/PageOptionsContext";
 import AppShell from "@/components/layout/AppShell";
 import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
@@ -29,29 +31,56 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route element={<AppShell />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/styles" element={<StyleLibrary />} />
-              <Route path="/styles/:id" element={<ProductDetail />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:id" element={<ProjectDetail />} />
-              <Route path="/materials" element={<Stub title="Materials" />} />
-              <Route path="/color-library" element={<ColorLibrary />} />
-              <Route path="/boms" element={<Stub title="BOMs" />} />
-              <Route path="/suppliers" element={<Suppliers />} />
-              <Route path="/rfqs" element={<Rfqs />} />
-              <Route path="/ecos" element={<Ecos />} />
-              <Route path="/samples" element={<Samples />} />
-              <Route path="/settings" element={<Admin />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <SubNavProvider>
+            <PageOptionsProvider>
+              <Routes>
+                <Route path="/auth" element={<AuthPage />} />
+                <Route element={<AppShell />}>
+                  <Route path="/" element={<Navigate to="/list-view" replace />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+
+                  <Route path="/list-view" element={<StyleLibrary />} />
+                  <Route path="/styles" element={<Navigate to="/list-view" replace />} />
+                  <Route path="/products/:id" element={<ProductDetail />} />
+                  <Route path="/styles/:id" element={<RedirectStyleToProduct />} />
+
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/projects/:id" element={<ProjectDetail />} />
+
+                  <Route path="/materials" element={<Stub title="Materials Lists" />} />
+
+                  <Route path="/color-palettes" element={<ColorLibrary />} />
+                  <Route path="/color-library" element={<ColorLibrary />} />
+
+                  <Route path="/size-grid-library" element={<Stub title="Size Studio" />} />
+
+                  <Route path="/suppliers" element={<Suppliers />} />
+                  <Route path="/suppliers/:id" element={<Stub title="Supplier Detail" />} />
+
+                  <Route path="/boms" element={<Stub title="BOMs" />} />
+
+                  <Route path="/change-management/ecos" element={<Ecos />} />
+                  <Route path="/ecos" element={<Navigate to="/change-management/ecos" replace />} />
+
+                  <Route path="/rfqs" element={<Rfqs />} />
+                  <Route path="/samples" element={<Samples />} />
+
+                  <Route path="/config" element={<Admin />} />
+                  <Route path="/settings" element={<Navigate to="/config" replace />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </PageOptionsProvider>
+          </SubNavProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
+
+function RedirectStyleToProduct() {
+  const id = window.location.pathname.split("/").pop();
+  return <Navigate to={`/products/${id}`} replace />;
+}
 
 export default App;
