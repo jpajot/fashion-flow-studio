@@ -295,8 +295,8 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection, styleQF, colorwayQF, variationQF, stylesView, colorwaysView, pinned, showQF, showViewMenu, stylesActiveViewId, colorwaysActiveViewId, variationsActiveViewId, products, colorwaysForType, variationsForType]);
 
-  // close QF when section changes
-  useEffect(() => { setShowQF(false); }, [activeSection]);
+  // close panels when section changes
+  useEffect(() => { setShowQF(false); setShowViewMenu(false); }, [activeSection]);
 
   return (
     <div className={`${PAGE_WRAPPER} space-y-4`}>
