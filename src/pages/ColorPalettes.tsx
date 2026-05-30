@@ -90,6 +90,12 @@ type PaletteColor = {
 
 const NONE = "__none__";
 
+const SIZE_CONFIGS = {
+  S: { cols: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5", cardClass: "text-[10px]", swatchSize: "w-5 h-5", codeClass: "text-[9px]" },
+  M: { cols: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4", cardClass: "text-xs", swatchSize: "w-6 h-6", codeClass: "text-[10px]" },
+  L: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", cardClass: "text-sm", swatchSize: "w-8 h-8", codeClass: "text-xs" },
+};
+
 export default function ColorPalettes() {
   const { toast } = useToast();
   const { setOptions } = usePageOptions();
