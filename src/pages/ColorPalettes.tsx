@@ -553,7 +553,7 @@ export default function ColorPalettes() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
         {/* LEFT — palette list */}
-        <Card className="p-3 space-y-3 h-[calc(100vh-220px)] flex flex-col">
+        <Card className={`p-3 space-y-3 h-[calc(100vh-220px)] flex-col ${selectedId ? "hidden lg:flex" : "flex"}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="font-semibold text-sm">Color Palettes ({palettes.length})</div>
             <Button size="sm" onClick={openNewPalette}>
