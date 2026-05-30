@@ -46,11 +46,14 @@ import {
   X,
   GripVertical,
   Search,
+  Link as LinkIcon,
+  RefreshCw as RefreshIcon,
 } from "lucide-react";
 import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
 import { usePageOptions } from "@/contexts/PageOptionsContext";
 import { cn } from "@/lib/utils";
-import { colorToHex } from "@/pages/ColorLibrary";
+import { colorToHex, TechPicker, TechDialog } from "@/pages/ColorLibrary";
+import LinkCommercialColorDialog from "@/components/LinkCommercialColorDialog";
 
 type Tech = { id: string; code: string; name: string; hex: string | null; rgb?: string | null; cmyk?: string | null };
 type Comm = {
