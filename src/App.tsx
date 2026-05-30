@@ -19,6 +19,8 @@ import Ecos from "@/pages/Ecos";
 import Samples from "@/pages/Samples";
 import Rfqs from "@/pages/Rfqs";
 import Admin from "@/pages/Admin";
+import SettingsHub from "@/pages/SettingsHub";
+import ListOfValuesLibrary from "@/pages/ListOfValuesLibrary";
 import Stub from "@/pages/Stub";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -65,7 +67,9 @@ const App = () => (
                   <Route path="/rfqs" element={<Rfqs />} />
                   <Route path="/samples" element={<Samples />} />
 
-                  <Route path="/config" element={<Admin />} />
+                  <Route path="/config" element={<SettingsHub />} />
+                  <Route path="/config/admin" element={<Admin />} />
+                  <Route path="/list-of-values" element={<ListOfValuesLibrary />} />
                   <Route path="/settings" element={<Navigate to="/config" replace />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
