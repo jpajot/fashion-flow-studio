@@ -70,6 +70,7 @@ export default function ViewDrawerContent({ pageKey, activeViewId, onSelectView,
     setRoleInput(""); setFieldSearch(""); setFormThumbSize("md");
     setEditingView(null); setMode("new"); setDialogTab("fields");
     setShowDialog(true);
+    onDrawerClose?.();
   };
 
   const openEdit = (e: React.MouseEvent, view: ViewConfig) => {
@@ -80,6 +81,7 @@ export default function ViewDrawerContent({ pageKey, activeViewId, onSelectView,
     setFormRoles(view.allowed_roles || []); setRoleInput(""); setFieldSearch("");
     setFormThumbSize(view.thumb_size || "md"); setEditingView(view);
     setMode("edit"); setDialogTab("fields"); setShowDialog(true);
+    onDrawerClose?.();
   };
 
   const handleSave = async (e: React.MouseEvent) => {
