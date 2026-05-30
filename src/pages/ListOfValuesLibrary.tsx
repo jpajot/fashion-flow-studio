@@ -115,6 +115,7 @@ export default function ListOfValuesLibrary() {
       const routes: Record<string, string> = {
         lov: "/list-of-values",
         codegen: "/code-generators",
+        colors: "/color-palettes",
       };
       navigate(routes[id] ?? "/config");
     },
