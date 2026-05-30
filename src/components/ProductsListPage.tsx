@@ -13,6 +13,7 @@ import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
 import { PAGE_WRAPPER } from "@/lib/utils";
 import { getPinnedItems, togglePin as togglePinItem, isPinned as checkPinned } from "@/lib/pinned";
 import QuickFiltersPanel, { applyQuickFilters, QFField, QuickFilter } from "@/components/QuickFiltersPanel";
+import ViewDrawerContent from "@/components/ViewDrawerContent";
 
 type Props = {
   type: "Product" | "Material";
@@ -49,6 +50,44 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [colorwayQF, setColorwayQF] = useState<QuickFilter[]>([]);
   const [variationQF, setVariationQF] = useState<QuickFilter[]>([]);
   const [showQF, setShowQF] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [stylesActiveViewId, setStylesActiveViewId] = useState("default");
+  const [colorwaysActiveViewId, setColorwaysActiveViewId] = useState("default");
+  const [variationsActiveViewId, setVariationsActiveViewId] = useState("default");
+
+  const styleTableColumns = useMemo(() => [
+    { id: "image", label: "Image" },
+    { id: "name", label: "Name" },
+    { id: "category", label: "Category" },
+    { id: "sub_category", label: "Sub-Category" },
+    { id: "customer_need", label: "Customer Need" },
+    { id: "colorways", label: "Colorways" },
+    { id: "count", label: "# Colorways" },
+  ], []);
+  const colorwayTableColumns = useMemo(() => [
+    { id: "product_image", label: "Product Image" },
+    { id: "product_name", label: "Product" },
+    { id: "category", label: "Category" },
+    { id: "swatch", label: "Swatch" },
+    { id: "color_name", label: "Colorway" },
+    { id: "colorway_code", label: "Code" },
+    { id: "commercial", label: "Commercial" },
+    { id: "technical", label: "Technical" },
+    { id: "project", label: "Project" },
+  ], []);
+  const variationTableColumns = useMemo(() => [
+    { id: "product_image", label: "Product Image" },
+    { id: "product_name", label: "Product" },
+    { id: "category", label: "Category" },
+    { id: "swatch", label: "Swatch" },
+    { id: "colorway_name", label: "Colorway" },
+    { id: "colorway_code", label: "Code" },
+    { id: "sequence", label: "Sequence" },
+    { id: "name", label: "Variation" },
+    { id: "pack_code", label: "Pack Code" },
+    { id: "variant", label: "Variant" },
+    { id: "project", label: "Project" },
+  ], []);
 
   // pin state
   const [pinned, setPinned] = useState(checkPinned(getPinnedItems(), pagePath));
@@ -180,8 +219,14 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     items.push({
       label: "Quick Filters",
       icon: Filter,
-      onClick: () => setShowQF((v) => !v),
+      onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); },
       badge: activeQF.length > 0 ? activeQF.length : undefined,
+    });
+
+    items.push({
+      label: "Manage Views",
+      icon: Pencil,
+      onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); },
     });
 
     if (activeSection !== "variations") {
@@ -201,6 +246,27 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     items.push({ divider: true });
     items.push({ label: "Refresh", icon: RefreshCw, onClick: () => setRefresh((r) => r + 1) });
 
+    const viewPageKey =
+      activeSection === "styles" ? "styles_list"
+        : activeSection === "colorways" ? "styles_colorways_list"
+        : "styles_variations_list";
+    const viewAllFields =
+      activeSection === "styles" ? styleTableColumns
+        : activeSection === "colorways" ? colorwayTableColumns
+        : variationTableColumns;
+    const viewActiveId =
+      activeSection === "styles" ? stylesActiveViewId
+        : activeSection === "colorways" ? colorwaysActiveViewId
+        : variationsActiveViewId;
+    const setViewActiveId =
+      activeSection === "styles" ? setStylesActiveViewId
+        : activeSection === "colorways" ? setColorwaysActiveViewId
+        : setVariationsActiveViewId;
+    const currentViewType: "grid" | null =
+      activeSection === "styles" ? (stylesView === "grid" ? "grid" : null)
+        : activeSection === "colorways" ? (colorwaysView === "grid" ? "grid" : null)
+        : null;
+
     const customContent = showQF ? (
       <div className="p-3 border-t">
         <QuickFiltersPanel
@@ -214,15 +280,23 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
           }}
         />
       </div>
+    ) : showViewMenu ? (
+      <ViewDrawerContent
+        pageKey={viewPageKey}
+        activeViewId={viewActiveId}
+        onSelectView={setViewActiveId}
+        allFields={viewAllFields}
+        currentViewType={currentViewType}
+      />
     ) : null;
 
     setOptions({ items, customContent });
     return () => setOptions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection, styleQF, colorwayQF, variationQF, stylesView, colorwaysView, pinned, showQF, products, colorwaysForType, variationsForType]);
+  }, [activeSection, styleQF, colorwayQF, variationQF, stylesView, colorwaysView, pinned, showQF, showViewMenu, stylesActiveViewId, colorwaysActiveViewId, variationsActiveViewId, products, colorwaysForType, variationsForType]);
 
-  // close QF when section changes
-  useEffect(() => { setShowQF(false); }, [activeSection]);
+  // close panels when section changes
+  useEffect(() => { setShowQF(false); setShowViewMenu(false); }, [activeSection]);
 
   return (
     <div className={`${PAGE_WRAPPER} space-y-4`}>

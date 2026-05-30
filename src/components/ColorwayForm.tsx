@@ -46,6 +46,7 @@ export default function ColorwayForm({
       color_name: "",
       colorway_code: "",
       color_hex: "#000000",
+      colorway_status: "",
       linked_tech_color_id: null,
       linked_color_type: null,
       linked_color_id: null,
@@ -60,8 +61,11 @@ export default function ColorwayForm({
   const [pendingPayload, setPendingPayload] = useState<any>(null);
 
   const techOptions: InlineColorOption[] = useMemo(
-    () => techColors.map((t) => ({ id: t.id, code: t.code, name: t.name, hex: t.hex })),
-    [techColors],
+    () => techColors.map((t) => {
+      const linkedComm = commColors.find((c) => c.main_technical_color_id === t.id);
+      return { id: t.id, code: t.code, name: t.name, hex: t.hex, meta: linkedComm?.code || null };
+    }),
+    [techColors, commColors],
   );
   const commOptions: InlineColorOption[] = useMemo(
     () =>
@@ -141,6 +145,7 @@ export default function ColorwayForm({
       color_name: form.color_name,
       colorway_code: form.colorway_code || null,
       color_hex: form.color_hex || null,
+      colorway_status: form.colorway_status || null,
       linked_tech_color_id: form.linked_tech_color_id || null,
       linked_color_type: form.linked_color_type || null,
       linked_color_id: form.linked_color_id || null,
@@ -244,6 +249,24 @@ export default function ColorwayForm({
         <div>
           <Label>Colorway Code</Label>
           <Input value={form.colorway_code || ""} onChange={(e) => setForm({ ...form, colorway_code: e.target.value })} />
+        </div>
+        <div className="sm:col-span-2 space-y-1.5">
+          <Label className="text-xs">Status</Label>
+          <Select
+            value={form.colorway_status || "none"}
+            onValueChange={(v) => setForm((f: any) => ({ ...f, colorway_status: v === "none" ? "" : v }))}
+          >
+            <SelectTrigger><SelectValue placeholder="No status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No status</SelectItem>
+              <SelectItem value="requested">Requested</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="submitted_for_approval">Submitted for Approval</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="obsolete">Obsolete</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label>Color</Label>
