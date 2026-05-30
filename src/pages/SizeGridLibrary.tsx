@@ -335,7 +335,7 @@ export default function SizeGridLibrary() {
   }, [activeSection]);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="px-3 py-3 sm:px-4 md:px-6 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Size Studio</h1>

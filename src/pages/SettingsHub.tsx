@@ -27,7 +27,7 @@ const SECTIONS = [
 
 export default function SettingsHub() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-3 py-3 sm:px-4 md:px-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
