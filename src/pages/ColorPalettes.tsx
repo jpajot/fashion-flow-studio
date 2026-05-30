@@ -105,6 +105,7 @@ export default function ColorPalettes() {
   const [palForm, setPalForm] = useState({ name: "", project_id: NONE });
   const [deletePal, setDeletePal] = useState<Palette | null>(null);
   const [showAddColor, setShowAddColor] = useState(false);
+  const [linkingTechColor, setLinkingTechColor] = useState<Tech | null>(null);
 
   const loadData = async () => {
     const [p, pc, t, c, pr] = await Promise.all([
