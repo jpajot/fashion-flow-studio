@@ -14,6 +14,8 @@ import { PAGE_WRAPPER } from "@/lib/utils";
 import { getPinnedItems, togglePin as togglePinItem, isPinned as checkPinned } from "@/lib/pinned";
 import QuickFiltersPanel, { applyQuickFilters, QFField, QuickFilter } from "@/components/QuickFiltersPanel";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
+import DataTable from "@/components/shared/DataTable";
+import GalleryView from "@/components/GalleryView";
 
 type Props = {
   type: "Product" | "Material";
