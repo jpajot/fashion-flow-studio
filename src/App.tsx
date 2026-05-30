@@ -10,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import StyleLibrary from "@/pages/StyleLibrary";
 import ProductDetail from "@/pages/ProductDetail";
 import Projects from "@/pages/Projects";
+import ProjectDetail from "@/pages/ProjectDetail";
 import ColorLibrary from "@/pages/ColorLibrary";
 import Suppliers from "@/pages/Suppliers";
 import Ecos from "@/pages/Ecos";
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/styles" element={<StyleLibrary />} />
               <Route path="/styles/:id" element={<ProductDetail />} />
               <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/materials" element={<Stub title="Materials" />} />
               <Route path="/color-library" element={<ColorLibrary />} />
               <Route path="/boms" element={<Stub title="BOMs" />} />
