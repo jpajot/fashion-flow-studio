@@ -437,14 +437,12 @@ export default function ProductDetail() {
                 <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
               </label>
             )}
-            {!isNew && (
-              <ProductUOMSection
-                product={product}
-                lovTypes={lovTypes}
-                lovValues={lovValues}
-                onUpdate={updateField}
-              />
-            )}
+            <ProductUOMSection
+              product={product}
+              lovTypes={lovTypes}
+              lovValues={lovValues}
+              onUpdate={updateField}
+            />
           </div>
 
           {/* Fields panel */}
