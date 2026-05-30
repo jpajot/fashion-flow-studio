@@ -54,7 +54,7 @@ const App = () => (
                   <Route path="/materials" element={<Stub title="Materials Lists" />} />
 
                   <Route path="/color-palettes" element={<ColorPalettes />} />
-                  <Route path="/color-library" element={<ColorLibrary />} />
+                  <Route path="/color-library" element={<Navigate to="/color-palettes" replace />} />
 
                   <Route path="/size-grid-library" element={<Stub title="Size Studio" />} />
 
