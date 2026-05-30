@@ -24,6 +24,7 @@ const STATUSES = ["Planning", "Active", "Archived"];
 const empty = { name: "", type: "", season: "", status: "Planning", description: "" };
 
 export default function Projects() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
