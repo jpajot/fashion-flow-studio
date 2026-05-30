@@ -725,14 +725,14 @@ export default function ColorPalettes() {
                           ) : (
                             <div className="aspect-square w-full" style={{ backgroundColor: r.hex }} />
                           )}
-                          <div className="p-2 space-y-0.5">
+                          <div className={cn("p-2 space-y-0.5", SIZE_CONFIGS[paletteCardSize].cardClass)}>
                             <div className="flex items-center justify-between gap-1">
-                              <span className="font-mono text-xs">{r.code}</span>
+                              <span className={cn("font-mono", SIZE_CONFIGS[paletteCardSize].codeClass)}>{r.code}</span>
                               <Badge variant="secondary" className="text-[10px] capitalize">
                                 {pc.color_type}
                               </Badge>
                             </div>
-                            <div className="text-sm font-medium truncate">{r.name}</div>
+                            <div className="font-medium truncate">{r.name}</div>
                             {opts?.unlinked && techRow && (
                               <Button
                                 size="sm"
