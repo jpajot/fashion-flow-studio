@@ -50,6 +50,44 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [colorwayQF, setColorwayQF] = useState<QuickFilter[]>([]);
   const [variationQF, setVariationQF] = useState<QuickFilter[]>([]);
   const [showQF, setShowQF] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [stylesActiveViewId, setStylesActiveViewId] = useState("default");
+  const [colorwaysActiveViewId, setColorwaysActiveViewId] = useState("default");
+  const [variationsActiveViewId, setVariationsActiveViewId] = useState("default");
+
+  const styleTableColumns = useMemo(() => [
+    { id: "image", label: "Image" },
+    { id: "name", label: "Name" },
+    { id: "category", label: "Category" },
+    { id: "sub_category", label: "Sub-Category" },
+    { id: "customer_need", label: "Customer Need" },
+    { id: "colorways", label: "Colorways" },
+    { id: "count", label: "# Colorways" },
+  ], []);
+  const colorwayTableColumns = useMemo(() => [
+    { id: "product_image", label: "Product Image" },
+    { id: "product_name", label: "Product" },
+    { id: "category", label: "Category" },
+    { id: "swatch", label: "Swatch" },
+    { id: "color_name", label: "Colorway" },
+    { id: "colorway_code", label: "Code" },
+    { id: "commercial", label: "Commercial" },
+    { id: "technical", label: "Technical" },
+    { id: "project", label: "Project" },
+  ], []);
+  const variationTableColumns = useMemo(() => [
+    { id: "product_image", label: "Product Image" },
+    { id: "product_name", label: "Product" },
+    { id: "category", label: "Category" },
+    { id: "swatch", label: "Swatch" },
+    { id: "colorway_name", label: "Colorway" },
+    { id: "colorway_code", label: "Code" },
+    { id: "sequence", label: "Sequence" },
+    { id: "name", label: "Variation" },
+    { id: "pack_code", label: "Pack Code" },
+    { id: "variant", label: "Variant" },
+    { id: "project", label: "Project" },
+  ], []);
 
   // pin state
   const [pinned, setPinned] = useState(checkPinned(getPinnedItems(), pagePath));
