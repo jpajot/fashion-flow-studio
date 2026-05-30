@@ -546,7 +546,7 @@ export default function ColorPalettes() {
               <div className="text-sm text-muted-foreground text-center py-6">No palettes</div>
             )}
             {filteredPalettes.map((p) => {
-              const chips = getSwatchData(p.id).slice(0, 8);
+              const chips = getSwatchDataByPaletteId(p.id).slice(0, 8);
               const selected = p.id === selectedId;
               return (
                 <div
