@@ -60,8 +60,11 @@ export default function ColorwayForm({
   const [pendingPayload, setPendingPayload] = useState<any>(null);
 
   const techOptions: InlineColorOption[] = useMemo(
-    () => techColors.map((t) => ({ id: t.id, code: t.code, name: t.name, hex: t.hex })),
-    [techColors],
+    () => techColors.map((t) => {
+      const linkedComm = commColors.find((c) => c.main_technical_color_id === t.id);
+      return { id: t.id, code: t.code, name: t.name, hex: t.hex, meta: linkedComm?.code || null };
+    }),
+    [techColors, commColors],
   );
   const commOptions: InlineColorOption[] = useMemo(
     () =>
