@@ -232,11 +232,44 @@ export default function ColorPalettes() {
     return { hex: mainHex, code: c.code, name: c.color_name, linkedHexes };
   };
 
-  const getSwatchData = (paletteId: string): Swatch[] =>
-    paletteColors
+  const getSwatchData = (colors: PaletteColor[]): Swatch[] => {
+    const commEntries = colors.filter((e) => e.color_type === "commercial");
+    const commColorIdsInPalette = new Set(commEntries.map((e) => e.color_id));
+    const result: Swatch[] = [];
+
+    for (const e of commEntries) {
+      const c = commMap[e.color_id];
+      if (!c) continue;
+      const linkedIds =
+        c.sub_type?.toLowerCase() === "combined" && c.linked_technical_color_ids?.length
+          ? c.linked_technical_color_ids
+          : null;
+      const linkedHexes = linkedIds ? linkedIds.map((id) => colorToHex(techMap[id])) : undefined;
+      const mainHex = colorToHex(c.main_technical_color_id ? techMap[c.main_technical_color_id] : null);
+      result.push({ hex: mainHex, name: c.color_name, code: c.code, linkedHexes });
+    }
+
+    for (const e of colors.filter((e) => e.color_type === "technical")) {
+      const linkedComm = comm.find(
+        (c) =>
+          (c.main_technical_color_id === e.color_id ||
+            (c.linked_technical_color_ids ?? []).includes(e.color_id)) &&
+          commColorIdsInPalette.has(c.id),
+      );
+      if (linkedComm) continue;
+      const t = techMap[e.color_id];
+      if (!t) continue;
+      result.push({ hex: colorToHex(t), name: t.name, code: t.code });
+    }
+    return result;
+  };
+
+  const getSwatchDataByPaletteId = (paletteId: string): Swatch[] => {
+    const colors = paletteColors
       .filter((c) => c.palette_id === paletteId)
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map(resolveSwatch);
+      .sort((a, b) => a.sort_order - b.sort_order);
+    return getSwatchData(colors);
+  };
 
   const filteredPalettes = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -251,7 +284,11 @@ export default function ColorPalettes() {
         .sort((a, b) => a.sort_order - b.sort_order),
     [paletteColors, selectedId],
   );
-  const selectedSwatches = useMemo(() => selectedColors.map(resolveSwatch), [selectedColors, techMap, commMap]);
+  const selectedSwatches = useMemo(
+    () => getSwatchData(selectedColors),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedColors, techMap, commMap, comm],
+  );
 
   const colorsCountByPalette = useMemo(() => {
     const m: Record<string, number> = {};
@@ -509,7 +546,7 @@ export default function ColorPalettes() {
               <div className="text-sm text-muted-foreground text-center py-6">No palettes</div>
             )}
             {filteredPalettes.map((p) => {
-              const chips = getSwatchData(p.id).slice(0, 8);
+              const chips = getSwatchDataByPaletteId(p.id).slice(0, 8);
               const selected = p.id === selectedId;
               return (
                 <div
