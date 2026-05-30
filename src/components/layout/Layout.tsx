@@ -84,6 +84,8 @@ function usePopover() {
       if (panelRef.current?.contains(t)) return;
       if (desktopBtn.current?.contains(t) || mobileBtn.current?.contains(t)) return;
       if (t.closest("[data-radix-popper-content-wrapper]")) return;
+      if (t.closest("[role='dialog']")) return;
+      if (t.closest("[data-radix-dialog-overlay]")) return;
       setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
@@ -460,7 +462,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           title="Options"
           pos={optsPop.pos}
           panelRef={optsPop.panelRef}
-          zIndex={10000}
+          zIndex={options.customContent ? 40 : 10000}
           onClose={() => optsPop.setOpen(false)}
         >
           {options.items?.map((it, i) => {
