@@ -219,8 +219,14 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     items.push({
       label: "Quick Filters",
       icon: Filter,
-      onClick: () => setShowQF((v) => !v),
+      onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); },
       badge: activeQF.length > 0 ? activeQF.length : undefined,
+    });
+
+    items.push({
+      label: "Manage Views",
+      icon: Pencil,
+      onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); },
     });
 
     if (activeSection !== "variations") {
@@ -240,6 +246,27 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     items.push({ divider: true });
     items.push({ label: "Refresh", icon: RefreshCw, onClick: () => setRefresh((r) => r + 1) });
 
+    const viewPageKey =
+      activeSection === "styles" ? "styles_list"
+        : activeSection === "colorways" ? "styles_colorways_list"
+        : "styles_variations_list";
+    const viewAllFields =
+      activeSection === "styles" ? styleTableColumns
+        : activeSection === "colorways" ? colorwayTableColumns
+        : variationTableColumns;
+    const viewActiveId =
+      activeSection === "styles" ? stylesActiveViewId
+        : activeSection === "colorways" ? colorwaysActiveViewId
+        : variationsActiveViewId;
+    const setViewActiveId =
+      activeSection === "styles" ? setStylesActiveViewId
+        : activeSection === "colorways" ? setColorwaysActiveViewId
+        : setVariationsActiveViewId;
+    const currentViewType: "grid" | null =
+      activeSection === "styles" ? (stylesView === "grid" ? "grid" : null)
+        : activeSection === "colorways" ? (colorwaysView === "grid" ? "grid" : null)
+        : null;
+
     const customContent = showQF ? (
       <div className="p-3 border-t">
         <QuickFiltersPanel
@@ -253,12 +280,20 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
           }}
         />
       </div>
+    ) : showViewMenu ? (
+      <ViewDrawerContent
+        pageKey={viewPageKey}
+        activeViewId={viewActiveId}
+        onSelectView={setViewActiveId}
+        allFields={viewAllFields}
+        currentViewType={currentViewType}
+      />
     ) : null;
 
     setOptions({ items, customContent });
     return () => setOptions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection, styleQF, colorwayQF, variationQF, stylesView, colorwaysView, pinned, showQF, products, colorwaysForType, variationsForType]);
+  }, [activeSection, styleQF, colorwayQF, variationQF, stylesView, colorwaysView, pinned, showQF, showViewMenu, stylesActiveViewId, colorwaysActiveViewId, variationsActiveViewId, products, colorwaysForType, variationsForType]);
 
   // close QF when section changes
   useEffect(() => { setShowQF(false); }, [activeSection]);
