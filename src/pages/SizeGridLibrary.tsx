@@ -375,7 +375,7 @@ export default function SizeGridLibrary() {
       {activeSection === "grids" ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left: Grids list */}
-          <Card className="p-3 space-y-3">
+          <Card className={`p-3 space-y-3 ${selectedGridId ? "hidden lg:block" : "block"}`}>
             <div className="flex items-center justify-between gap-2">
               <div className="font-semibold text-sm">Grids ({filteredGrids.length})</div>
               <Button size="sm" onClick={openNewGrid}>
@@ -441,8 +441,17 @@ export default function SizeGridLibrary() {
           </Card>
 
           {/* Right: Grid sizes */}
-          <Card className="p-3 lg:col-span-2 space-y-3">
-            <div className="font-semibold text-sm">
+          <Card className={`p-3 lg:col-span-2 space-y-3 ${selectedGridId ? "block" : "hidden lg:block"}`}>
+            <div className="font-semibold text-sm flex items-center gap-2">
+              {selectedGrid && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedGridId(null)}
+                  className="lg:hidden text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 mr-1"
+                >
+                  ←
+                </button>
+              )}
               {selectedGrid
                 ? `Sizes — ${selectedGrid.name}`
                 : "Select a grid to manage its sizes"}
