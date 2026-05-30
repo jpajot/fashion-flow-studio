@@ -546,7 +546,7 @@ export default function ColorPalettes() {
               <div className="text-sm text-muted-foreground text-center py-6">No palettes</div>
             )}
             {filteredPalettes.map((p) => {
-              const chips = getSwatchDataByPaletteId(p.id).slice(0, 8);
+              const swatches = getSwatchDataByPaletteId(p.id);
               const selected = p.id === selectedId;
               return (
                 <div
@@ -564,7 +564,7 @@ export default function ColorPalettes() {
                         <div className="text-xs text-muted-foreground truncate">{p.projects.name}</div>
                       )}
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {colorsCountByPalette[p.id] ?? 0} colors
+                        {swatches.length} color{swatches.length !== 1 ? "s" : ""}
                       </div>
                     </div>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
@@ -586,18 +586,23 @@ export default function ColorPalettes() {
                       </Button>
                     </div>
                   </div>
-                  {chips.length > 0 && (
-                    <div className="flex gap-1 mt-2">
-                      {chips.map((s, i) => (
-                        <div
-                          key={i}
-                          className="w-3.5 h-3.5 rounded-sm border"
-                          style={{ backgroundColor: s.hex }}
-                          title={s.name}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <div className="h-6 rounded-md overflow-hidden flex mb-2">
+                    {swatches.length === 0 ? (
+                      <div className="w-full bg-muted rounded-md" />
+                    ) : (
+                      swatches.slice(0, 10).map((s, i) =>
+                        s.linkedHexes && s.linkedHexes.length > 1 ? (
+                          <div key={i} className="flex-1 flex overflow-hidden">
+                            {s.linkedHexes.map((h, j) => (
+                              <div key={j} className="flex-1 h-full" style={{ backgroundColor: h }} />
+                            ))}
+                          </div>
+                        ) : (
+                          <div key={i} className="flex-1" style={{ backgroundColor: s.hex }} />
+                        )
+                      )
+                    )}
+                  </div>
                 </div>
               );
             })}
