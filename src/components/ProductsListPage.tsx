@@ -24,13 +24,8 @@ type Props = {
   pagePath: string; // "/list-view" or "/materials"
 };
 
-const THUMB_SIZES: Record<string, { cols: string; height: string }> = {
-  xs: { cols: "grid-cols-3 sm:grid-cols-5 lg:grid-cols-7", height: "h-24" },
-  sm: { cols: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5", height: "h-32" },
-  md: { cols: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4", height: "h-44" },
-  lg: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", height: "h-60" },
-  xl: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2", height: "h-80" },
-};
+
+
 
 async function applyViewConfig(
   viewId: string,
