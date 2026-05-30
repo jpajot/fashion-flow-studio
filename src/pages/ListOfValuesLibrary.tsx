@@ -458,7 +458,10 @@ export default function ListOfValuesLibrary() {
             <DataTable
               columns={valueColumns}
               rows={valueRows}
-              filterFields={["name", "__parentName"]}
+              filterFields={[
+                { id: "name", getValue: (r) => r.name },
+                { id: "__parentName", getValue: (r) => r.__parentName },
+              ]}
               emptyMessage="No values"
             />
           )}
