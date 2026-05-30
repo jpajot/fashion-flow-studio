@@ -25,6 +25,7 @@ interface Props {
   onSelectView: (id: string) => void;
   allFields?: Field[];
   currentViewType?: "grid" | null;
+  onDrawerClose?: () => void;
 }
 
 const THUMB_SIZES = [
