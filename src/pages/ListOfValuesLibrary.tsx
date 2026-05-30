@@ -116,6 +116,9 @@ export default function ListOfValuesLibrary() {
         lov: "/list-of-values",
         codegen: "/code-generators",
         colors: "/color-palettes",
+        sizes: "/size-studio",
+        currencies: "/currencies",
+        config: "/app-config",
       };
       navigate(routes[id] ?? "/config");
     },
