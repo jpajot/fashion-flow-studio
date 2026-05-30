@@ -329,7 +329,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex w-full bg-background">
       {Rail}
-      <div className="flex-1 min-w-0 flex flex-col pb-14 md:pb-0">{children}</div>
+      {/*
+        PAGE PADDING RULE: All pages must use px-3 py-3 sm:px-4 md:px-6 at their outermost wrapper.
+        Never use p-6, px-8, or max-w-*xl mx-auto at the page root — too much padding on mobile.
+        Two-panel layouts: use gap-3 sm:gap-4, panel content p-3 sm:p-4.
+      */}
+      <div className="flex-1 min-w-0 flex flex-col pb-14 md:pb-0 overflow-x-hidden">{children}</div>
       {MobileTabBar}
 
       {pinnedPop.open && (
