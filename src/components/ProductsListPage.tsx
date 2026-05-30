@@ -486,65 +486,42 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
         filteredStyles.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">Nothing here yet</CardContent></Card>
         ) : stylesView === "grid" ? (
-          <div className={`grid ${thumb.cols} gap-3`}>
-            {filteredStyles.map((p) => {
+          <GalleryView
+            pageKey="styles_list"
+            allFields={[
+              { id: "name", label: "Name", getValue: (p) => p.name, render: (p) => <span className="font-medium text-sm">{p.name || "—"}</span> },
+              { id: "code", label: "Code", getValue: (p) => p.code, render: (p) => <span className="font-mono text-xs text-muted-foreground">{p.code || "—"}</span> },
+              { id: "category", label: "Category", getValue: (p) => p.category, render: (p) => p.category || "—" },
+              { id: "sub_category", label: "Sub-Category", getValue: (p) => p.sub_category, render: (p) => p.sub_category || "—" },
+              { id: "customer_need", label: "Customer Need", getValue: (p) => p.customer_need, render: (p) => p.customer_need || "—" },
+              { id: "colorways", label: "Colorways", getValue: (p) => cwByProduct[p.id]?.length, render: (p) => {
+                const cws = (cwByProduct[p.id] || []).slice(0, 4);
+                return <div className="flex gap-1">{cws.map((c) => (
+                  <div key={c.id} className="h-3.5 w-3.5 rounded-full border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+                ))}</div>;
+              }},
+            ]}
+            filterableFields={stylesFields as any}
+            rows={filteredStyles}
+            renderThumbnail={(p) => {
               const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
-              const cws = (cwByProduct[p.id] || []).slice(0, 4);
-              const bodyCols = visibleStyleColumns.filter(c => c.id !== "image");
-              const useViewBody = stylesVisibleColumnIds !== null;
-              return (
-                <Card key={p.id} onClick={() => navigate(`/products/${p.id}`)} className="overflow-hidden cursor-pointer hover:shadow-md transition">
-                  <div className={`${thumb.height} bg-muted grid place-items-center`}>
-                    {img ? <img src={img} alt={p.name} className="w-full h-full object-cover" />
-                      : <span className="text-3xl font-semibold text-muted-foreground/50">{initials(p.name)}</span>}
-                  </div>
-                  <CardContent className="p-3 space-y-1">
-                    {useViewBody ? (
-                      bodyCols.map(col => (
-                        <div key={col.id} className="text-xs truncate">
-                          {col.label && <span className="text-muted-foreground mr-1">{col.label}:</span>}
-                          {col.render(p)}
-                        </div>
-                      ))
-                    ) : (
-                      <>
-                        <div className="font-semibold text-sm truncate">{p.name || "—"}</div>
-                        <div className="text-xs text-muted-foreground font-mono truncate">{p.code || "—"}</div>
-                        {p.category && <div className="text-xs text-muted-foreground truncate">{p.category}</div>}
-                        {cws.length > 0 && (
-                          <div className="flex gap-1 pt-1">
-                            {cws.map((c) => (
-                              <div key={c.id} className="h-4 w-4 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
-                            ))}
-                            {(cwByProduct[p.id]?.length || 0) > 4 && <span className="text-xs text-muted-foreground">+{(cwByProduct[p.id]?.length || 0) - 4}</span>}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+              return img
+                ? <img src={img} alt={p.name} className="w-full h-full object-cover" />
+                : <div className="w-full h-full bg-muted flex items-center justify-center text-2xl font-semibold text-muted-foreground/50">{initials(p.name)}</div>;
+            }}
+            onClickItem={(p) => navigate(`/products/${p.id}`)}
+            activeViewId={stylesActiveViewId}
+          />
         ) : (
-          <Card className="overflow-x-auto">
-            <Table>
-              <TableHeader><TableRow>
-                {visibleStyleColumns.map(col => (
-                  <TableHead key={col.id} className={col.className}>{col.label}</TableHead>
-                ))}
-              </TableRow></TableHeader>
-              <TableBody>
-                {filteredStyles.map((p) => (
-                  <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
-                    {visibleStyleColumns.map(col => (
-                      <TableCell key={col.id} className={col.className}>{col.render(p)}</TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
+          <DataTable
+            columns={visibleStyleColumns.map((c) => ({
+              ...c,
+              width: ({ image: 60, name: 200, category: 140, sub_category: 150, customer_need: 160, colorways: 160, count: 60 } as Record<string, number>)[c.id] ?? 140,
+            }))}
+            rows={filteredStyles}
+            fixedColumns={["image"]}
+            onRowClick={(p) => navigate(`/products/${p.id}`)}
+          />
         )
       )}
 
@@ -553,56 +530,41 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
         filteredColorways.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">No colorways</CardContent></Card>
         ) : colorwaysView === "grid" ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {filteredColorways.map((c) => {
+          <GalleryView
+            pageKey="styles_colorways_list"
+            allFields={[
+              { id: "color_name", label: "Colorway", getValue: (c) => c.color_name, render: (c) => <span className="font-medium text-sm">{c.color_name || "—"}</span> },
+              { id: "colorway_code", label: "Code", getValue: (c) => c.colorway_code, render: (c) => <span className="font-mono text-xs text-muted-foreground">{c.colorway_code || "—"}</span> },
+              { id: "product_name", label: "Product", getValue: (c) => productById[c.product_id]?.name, render: (c) => <span className="text-xs text-muted-foreground">{productById[c.product_id]?.name || "—"}</span> },
+              { id: "category", label: "Category", getValue: (c) => productById[c.product_id]?.category, render: (c) => <span className="text-xs">{productById[c.product_id]?.category || "—"}</span> },
+            ]}
+            filterableFields={colorwayFields as any}
+            rows={filteredColorways}
+            renderThumbnail={(c) => {
               const prod = productById[c.product_id];
               const prodImg = Array.isArray(prod?.images) && prod.images[0];
-              return (
-                <Card
-                  key={c.id}
-                  onClick={() => navigate(`/products/${c.product_id}`)}
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition"
-                >
-                  <div className="aspect-square bg-muted relative">
-                    {c.image_url ? (
-                      <img src={c.image_url} className="w-full h-full object-cover" alt={c.color_name} />
-                    ) : prodImg ? (
-                      <>
-                        <img src={prodImg} className="w-full h-full object-cover" alt="" />
-                        <div className="absolute bottom-1 left-1 h-6 w-6 rounded border-2 border-white shadow" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
-                      </>
-                    ) : (
-                      <div className="w-full h-full" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
-                    )}
-                  </div>
-                  <CardContent className="p-3 space-y-1">
-                    <div className="text-sm font-medium truncate">{c.color_name}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{c.colorway_code || "—"}</div>
-                    <div className="text-xs text-muted-foreground truncate">{prod?.name || "—"}</div>
-                  </CardContent>
-                </Card>
+              if (c.image_url) return <img src={c.image_url} className="w-full h-full object-cover" alt={c.color_name} />;
+              if (prodImg) return (
+                <>
+                  <img src={prodImg} className="w-full h-full object-cover" alt="" />
+                  <div className="absolute bottom-1 left-1 h-6 w-6 rounded border-2 border-white shadow" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+                </>
               );
-            })}
-          </div>
+              return <div className="w-full h-full" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />;
+            }}
+            onClickItem={(c) => navigate(`/products/${c.product_id}`)}
+            activeViewId={colorwaysActiveViewId}
+          />
         ) : (
-          <Card className="overflow-x-auto">
-            <Table>
-              <TableHeader><TableRow>
-                {visibleColorwayColumns.map(col => (
-                  <TableHead key={col.id} className={col.className}>{col.label}</TableHead>
-                ))}
-              </TableRow></TableHeader>
-              <TableBody>
-                {filteredColorways.map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/products/${c.product_id}`)}>
-                    {visibleColorwayColumns.map(col => (
-                      <TableCell key={col.id} className={col.className}>{col.render(c)}</TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
+          <DataTable
+            columns={visibleColorwayColumns.map((c) => ({
+              ...c,
+              width: ({ product_image: 60, product_name: 180, category: 140, swatch: 60, color_name: 160, colorway_code: 120, commercial: 140, technical: 120, project: 140 } as Record<string, number>)[c.id] ?? 140,
+            }))}
+            rows={filteredColorways}
+            fixedColumns={["product_image"]}
+            onRowClick={(c) => navigate(`/products/${c.product_id}`)}
+          />
         )
       )}
 
@@ -611,32 +573,19 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
         filteredVariations.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">No variations</CardContent></Card>
         ) : (
-          <Card className="overflow-x-auto">
-            <Table>
-              <TableHeader><TableRow>
-                {visibleVariationColumns.map(col => (
-                  <TableHead key={col.id} className={col.className}>{col.label}</TableHead>
-                ))}
-              </TableRow></TableHeader>
-              <TableBody>
-                {filteredVariations.map((v) => {
-                  const cw = cwById[v.product_color_id];
-                  const prod = cw ? productById[cw.product_id] : null;
-                  return (
-                    <TableRow
-                      key={v.id}
-                      className="cursor-pointer"
-                      onClick={() => prod && navigate(`/products/${prod.id}`)}
-                    >
-                      {visibleVariationColumns.map(col => (
-                        <TableCell key={col.id} className={col.className}>{col.render(v)}</TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
+          <DataTable
+            columns={visibleVariationColumns.map((c) => ({
+              ...c,
+              width: ({ product_image: 60, product_name: 180, category: 140, swatch: 60, colorway_name: 150, colorway_code: 120, sequence: 100, name: 160, pack_code: 120, variant: 120, project: 140 } as Record<string, number>)[c.id] ?? 140,
+            }))}
+            rows={filteredVariations}
+            fixedColumns={["product_image"]}
+            onRowClick={(v) => {
+              const cw = cwById[v.product_color_id];
+              const prod = cw ? productById[cw.product_id] : null;
+              if (prod) navigate(`/products/${prod.id}`);
+            }}
+          />
         )
       )}
     </div>
