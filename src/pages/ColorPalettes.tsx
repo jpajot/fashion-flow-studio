@@ -112,6 +112,10 @@ export default function ColorPalettes() {
   const [deletePal, setDeletePal] = useState<Palette | null>(null);
   const [showAddColor, setShowAddColor] = useState(false);
   const [linkingTechColor, setLinkingTechColor] = useState<Tech | null>(null);
+  const [paletteCardSize, setPaletteCardSize] = useState<"S" | "M" | "L">(() => {
+    try { return (localStorage.getItem("palette_card_size") as "S" | "M" | "L") || "M"; }
+    catch { return "M"; }
+  });
 
   // Library-section dialogs
   const [editingTech, setEditingTech] = useState<Tech | null>(null);
