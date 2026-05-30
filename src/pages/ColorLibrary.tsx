@@ -362,7 +362,7 @@ export default function ColorLibrary() {
 
 /* ============================== Technical Tab ============================== */
 
-function TechnicalTab({
+export function TechnicalTab({
   rows,
   groups,
   commByTechId,
