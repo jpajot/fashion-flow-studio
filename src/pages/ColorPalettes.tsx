@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,12 +36,8 @@ import {
   Pencil,
   Trash2,
   RefreshCw,
-  ListChecks,
-  Hash,
   SwatchBook,
-  Ruler,
-  CircleDollarSign,
-  Settings,
+  Palette as PaletteIcon,
   X,
   GripVertical,
   Search,
@@ -51,17 +46,37 @@ import {
 import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
 import { usePageOptions } from "@/contexts/PageOptionsContext";
 import { cn } from "@/lib/utils";
-import { colorToHex, TechPicker, TechDialog } from "@/pages/ColorLibrary";
+import {
+  colorToHex,
+  TechDialog,
+  CommDialog,
+  TechnicalTab,
+  CommercialTab,
+} from "@/pages/ColorLibrary";
 import LinkCommercialColorDialog from "@/components/LinkCommercialColorDialog";
 
-type Tech = { id: string; code: string; name: string; hex: string | null; rgb?: string | null; cmyk?: string | null };
+type Tech = {
+  id: string;
+  code: string;
+  name: string;
+  hex: string | null;
+  rgb: string | null;
+  cmyk: string | null;
+  rgb_r?: number | null;
+  rgb_g?: number | null;
+  rgb_b?: number | null;
+  color_group: string | null;
+  color_sub_group: string | null;
+};
 type Comm = {
   id: string;
+  sub_type: string;
   code: string;
   color_name: string;
   main_technical_color_id: string | null;
   linked_technical_color_ids: string[] | null;
 };
+type Lov = { id: string; name: string; depends_on_value_id: string | null };
 type Project = { id: string; name: string };
 type Palette = { id: string; name: string; project_id: string | null; projects?: { name: string } | null };
 type PaletteColor = {
@@ -72,30 +87,20 @@ type PaletteColor = {
   sort_order: number;
 };
 
-const SUB_NAV_ITEMS = [
-  { id: "lov", label: "List of Values", icon: ListChecks },
-  { id: "codegen", label: "Code Generators", icon: Hash },
-  { id: "colors", label: "Color Studio", icon: SwatchBook },
-  { id: "sizes", label: "Size Studio", icon: Ruler },
-  { id: "currencies", label: "Currencies", icon: CircleDollarSign },
-  { id: "config", label: "App Config", icon: Settings },
-];
-const SUB_NAV_ROUTES: Record<string, string> = {
-  lov: "/list-of-values",
-  codegen: "/code-generators",
-  colors: "/color-palettes",
-};
 const NONE = "__none__";
 
 export default function ColorPalettes() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { setOptions } = usePageOptions();
 
+  const [activeSection, setActiveSection] = useState<"palettes" | "technical" | "commercial">("palettes");
+
   const [palettes, setPalettes] = useState<Palette[]>([]);
-  const [colors, setColors] = useState<PaletteColor[]>([]);
+  const [paletteColors, setPaletteColors] = useState<PaletteColor[]>([]);
   const [tech, setTech] = useState<Tech[]>([]);
   const [comm, setComm] = useState<Comm[]>([]);
+  const [groups, setGroups] = useState<Lov[]>([]);
+  const [subGroups, setSubGroups] = useState<Lov[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -107,33 +112,66 @@ export default function ColorPalettes() {
   const [showAddColor, setShowAddColor] = useState(false);
   const [linkingTechColor, setLinkingTechColor] = useState<Tech | null>(null);
 
+  // Library-section dialogs
+  const [editingTech, setEditingTech] = useState<Tech | null>(null);
+  const [showTechDialog, setShowTechDialog] = useState(false);
+  const [deleteTech, setDeleteTech] = useState<Tech | null>(null);
+  const [editingComm, setEditingComm] = useState<Comm | null>(null);
+  const [showCommDialog, setShowCommDialog] = useState(false);
+  const [deleteComm, setDeleteComm] = useState<Comm | null>(null);
+
   const loadData = async () => {
     const [p, pc, t, c, pr] = await Promise.all([
       supabase.from("color_palettes").select("*, projects(name)").order("name"),
       supabase.from("color_palette_colors").select("*").order("sort_order"),
-      supabase.from("technical_colors").select("id, code, name, hex, rgb, cmyk").order("code"),
-      supabase
-        .from("commercial_colors")
-        .select("id, code, color_name, main_technical_color_id, linked_technical_color_ids")
-        .order("code"),
+      supabase.from("technical_colors").select("*").order("code"),
+      supabase.from("commercial_colors").select("*").order("code"),
       supabase.from("projects").select("id, name").eq("status", "Active").order("name"),
     ]);
     setPalettes((p.data ?? []) as any);
-    setColors((pc.data ?? []) as any);
+    setPaletteColors((pc.data ?? []) as any);
     setTech((t.data ?? []) as any);
     setComm((c.data ?? []) as any);
     setProjects((pr.data ?? []) as any);
+
+    const { data: typeRows } = await supabase
+      .from("type_of_lov")
+      .select("id, code")
+      .or("code.eq.ColorGroup,code.eq.ColorSubGroup");
+    const groupId = (typeRows ?? []).find((r: any) => r.code === "ColorGroup")?.id;
+    const subId = (typeRows ?? []).find((r: any) => r.code === "ColorSubGroup")?.id;
+    if (groupId) {
+      const { data } = await supabase
+        .from("list_of_values")
+        .select("id,name,depends_on_value_id")
+        .eq("type_of_lov_id", groupId)
+        .order("name");
+      setGroups((data ?? []) as Lov[]);
+    }
+    if (subId) {
+      const { data } = await supabase
+        .from("list_of_values")
+        .select("id,name,depends_on_value_id")
+        .eq("type_of_lov_id", subId)
+        .order("name");
+      setSubGroups((data ?? []) as Lov[]);
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Color Studio internal sub-nav
   useRegisterSubNav(
-    SUB_NAV_ITEMS,
-    "colors",
-    (id) => navigate(SUB_NAV_ROUTES[id] ?? "/config"),
-    "Settings",
+    [
+      { id: "palettes", label: "Palettes", count: palettes.length, icon: PaletteIcon },
+      { id: "technical", label: "Technical Colors", count: tech.length, icon: SwatchBook },
+      { id: "commercial", label: "Commercial Colors", count: comm.length, icon: SwatchBook },
+    ],
+    activeSection,
+    (id) => setActiveSection(id as any),
+    "Color Studio",
   );
 
   const openNewPalette = () => {
@@ -147,30 +185,57 @@ export default function ColorPalettes() {
     setPalDialog(true);
   };
 
+  // Options drawer adapts to active section
   useEffect(() => {
-    setOptions({
-      items: [
-        { label: "New Palette", icon: Plus, onClick: openNewPalette },
-        { divider: true },
-        { label: "Refresh", icon: RefreshCw, onClick: loadData },
-      ],
-    });
+    const items =
+      activeSection === "palettes"
+        ? [
+            { label: "New Palette", icon: Plus, onClick: openNewPalette },
+            { divider: true },
+            { label: "Refresh", icon: RefreshCw, onClick: loadData },
+          ]
+        : activeSection === "technical"
+        ? [
+            { label: "Add Technical Color", icon: Plus, onClick: () => { setEditingTech(null); setShowTechDialog(true); } },
+            { divider: true },
+            { label: "Refresh", icon: RefreshCw, onClick: loadData },
+          ]
+        : [
+            { label: "Add Commercial Color", icon: Plus, onClick: () => { setEditingComm(null); setShowCommDialog(true); } },
+            { divider: true },
+            { label: "Refresh", icon: RefreshCw, onClick: loadData },
+          ];
+    setOptions({ items });
     return () => setOptions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeSection]);
 
   const techMap = useMemo(() => Object.fromEntries(tech.map((t) => [t.id, t])), [tech]);
   const commMap = useMemo(() => Object.fromEntries(comm.map((c) => [c.id, c])), [comm]);
 
-  const resolveColor = (pc: PaletteColor): { hex: string; code: string; name: string } => {
+  // Resolve a palette entry to display info (incl. multi-hex segments for combined comm)
+  type Swatch = { hex: string; code: string; name: string; linkedHexes?: string[] };
+  const resolveSwatch = (pc: PaletteColor): Swatch => {
     if (pc.color_type === "technical") {
       const t = techMap[pc.color_id];
       return { hex: colorToHex(t), code: t?.code ?? "?", name: t?.name ?? "Unknown" };
     }
     const c = commMap[pc.color_id];
-    const t = c?.main_technical_color_id ? techMap[c.main_technical_color_id] : null;
-    return { hex: colorToHex(t), code: c?.code ?? "?", name: c?.color_name ?? "Unknown" };
+    if (!c) return { hex: "#cccccc", code: "?", name: "Unknown" };
+    const mainHex = colorToHex(c.main_technical_color_id ? techMap[c.main_technical_color_id] : null);
+    const ids =
+      c.sub_type?.toLowerCase() === "combined" && c.linked_technical_color_ids?.length
+        ? c.linked_technical_color_ids
+        : null;
+    const linkedHexes = ids ? ids.map((id) => colorToHex(techMap[id])) : undefined;
+    return { hex: mainHex, code: c.code, name: c.color_name, linkedHexes };
   };
+
+  const getSwatchData = (paletteId: string): Swatch[] =>
+    paletteColors
+      .filter((c) => c.palette_id === paletteId)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(resolveSwatch);
 
   const filteredPalettes = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -180,17 +245,18 @@ export default function ColorPalettes() {
   const selectedPal = palettes.find((p) => p.id === selectedId) ?? null;
   const selectedColors = useMemo(
     () =>
-      colors
+      paletteColors
         .filter((c) => c.palette_id === selectedId)
         .sort((a, b) => a.sort_order - b.sort_order),
-    [colors, selectedId],
+    [paletteColors, selectedId],
   );
+  const selectedSwatches = useMemo(() => selectedColors.map(resolveSwatch), [selectedColors, techMap, commMap]);
 
   const colorsCountByPalette = useMemo(() => {
     const m: Record<string, number> = {};
-    colors.forEach((c) => (m[c.palette_id] = (m[c.palette_id] ?? 0) + 1));
+    paletteColors.forEach((c) => (m[c.palette_id] = (m[c.palette_id] ?? 0) + 1));
     return m;
-  }, [colors]);
+  }, [paletteColors]);
 
   const savePalette = async () => {
     if (!palForm.name.trim()) {
@@ -239,7 +305,7 @@ export default function ColorPalettes() {
     else loadData();
   };
 
-  // Drag and drop reordering
+  // Drag and drop reordering with optimistic state update
   const [dragId, setDragId] = useState<string | null>(null);
   const onDragStart = (id: string) => setDragId(id);
   const onDragOver = (e: React.DragEvent) => e.preventDefault();
@@ -251,17 +317,27 @@ export default function ColorPalettes() {
     const reordered = [...selectedColors];
     const fromIdx = reordered.findIndex((c) => c.id === dragId);
     const toIdx = reordered.findIndex((c) => c.id === targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
+    if (fromIdx === -1 || toIdx === -1) {
+      setDragId(null);
+      return;
+    }
     const [moved] = reordered.splice(fromIdx, 1);
     reordered.splice(toIdx, 0, moved);
+    const orderedIds = reordered.map((c) => c.id);
     setDragId(null);
-    // persist sort_order
+    // Optimistic update
+    setPaletteColors((prev) =>
+      prev.map((pc) => {
+        const newIdx = orderedIds.indexOf(pc.id);
+        return newIdx !== -1 ? { ...pc, sort_order: newIdx } : pc;
+      }),
+    );
+    // Persist in background
     await Promise.all(
       reordered.map((c, i) =>
         supabase.from("color_palette_colors").update({ sort_order: i }).eq("id", c.id),
       ),
     );
-    loadData();
   };
 
   const addColorToPalette = async (type: "technical" | "commercial", colorId: string) => {
@@ -279,6 +355,127 @@ export default function ColorPalettes() {
     else loadData();
   };
 
+  // ============ Section: Technical Colors ============
+  if (activeSection === "technical") {
+    return (
+      <div className="p-6 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Technical Colors</h1>
+          <p className="text-sm text-muted-foreground">Pantone TCX color library.</p>
+        </div>
+        <TechnicalTab
+          rows={tech as any}
+          groups={groups as any}
+          commByTechId={(() => {
+            const m: Record<string, Comm[]> = {};
+            comm.forEach((c) => {
+              const ids = new Set<string>();
+              if (c.main_technical_color_id) ids.add(c.main_technical_color_id);
+              (c.linked_technical_color_ids ?? []).forEach((id) => ids.add(id));
+              ids.forEach((id) => {
+                m[id] = m[id] ?? [];
+                m[id].push(c as any);
+              });
+            });
+            return m;
+          })()}
+          onAdd={() => { setEditingTech(null); setShowTechDialog(true); }}
+          onEdit={(r) => { setEditingTech(r as any); setShowTechDialog(true); }}
+          onDelete={(r) => setDeleteTech(r as any)}
+        />
+        {showTechDialog && (
+          <TechDialog
+            open={showTechDialog}
+            onOpenChange={setShowTechDialog}
+            editing={editingTech as any}
+            groups={groups as any}
+            subGroups={subGroups as any}
+            onSaved={() => { setShowTechDialog(false); loadData(); }}
+          />
+        )}
+        <AlertDialog open={!!deleteTech} onOpenChange={(o) => !o && setDeleteTech(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete technical color?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTech?.code} — {deleteTech?.name}. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!deleteTech) return;
+                  const { error } = await supabase.from("technical_colors").delete().eq("id", deleteTech.id);
+                  if (error) toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+                  else toast({ title: "Technical color deleted" });
+                  setDeleteTech(null);
+                  loadData();
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
+  // ============ Section: Commercial Colors ============
+  if (activeSection === "commercial") {
+    return (
+      <div className="p-6 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Commercial Colors</h1>
+          <p className="text-sm text-muted-foreground">Commercial color definitions used on products.</p>
+        </div>
+        <CommercialTab
+          rows={comm as any}
+          techById={techMap as any}
+          onAdd={() => { setEditingComm(null); setShowCommDialog(true); }}
+          onEdit={(r) => { setEditingComm(r as any); setShowCommDialog(true); }}
+          onDelete={(r) => setDeleteComm(r as any)}
+        />
+        {showCommDialog && (
+          <CommDialog
+            open={showCommDialog}
+            onOpenChange={setShowCommDialog}
+            editing={editingComm as any}
+            tech={tech as any}
+            onSaved={() => { setShowCommDialog(false); loadData(); }}
+          />
+        )}
+        <AlertDialog open={!!deleteComm} onOpenChange={(o) => !o && setDeleteComm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete commercial color?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteComm?.code} — {deleteComm?.color_name}. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!deleteComm) return;
+                  const { error } = await supabase.from("commercial_colors").delete().eq("id", deleteComm.id);
+                  if (error) toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+                  else toast({ title: "Commercial color deleted" });
+                  setDeleteComm(null);
+                  loadData();
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
+  // ============ Section: Palettes (default) ============
   return (
     <div className="p-6 space-y-4">
       <div>
@@ -311,7 +508,7 @@ export default function ColorPalettes() {
               <div className="text-sm text-muted-foreground text-center py-6">No palettes</div>
             )}
             {filteredPalettes.map((p) => {
-              const pcs = colors.filter((c) => c.palette_id === p.id).slice(0, 8);
+              const chips = getSwatchData(p.id).slice(0, 8);
               const selected = p.id === selectedId;
               return (
                 <div
@@ -337,10 +534,7 @@ export default function ColorPalettes() {
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditPalette(p);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); openEditPalette(p); }}
                       >
                         <Pencil className="h-3 w-3" />
                       </Button>
@@ -348,28 +542,22 @@ export default function ColorPalettes() {
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6 text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeletePal(p);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); setDeletePal(p); }}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
-                  {pcs.length > 0 && (
+                  {chips.length > 0 && (
                     <div className="flex gap-1 mt-2">
-                      {pcs.map((pc) => {
-                        const r = resolveColor(pc);
-                        return (
-                          <div
-                            key={pc.id}
-                            className="w-3.5 h-3.5 rounded-sm border"
-                            style={{ backgroundColor: r.hex }}
-                            title={r.name}
-                          />
-                        );
-                      })}
+                      {chips.map((s, i) => (
+                        <div
+                          key={i}
+                          className="w-3.5 h-3.5 rounded-sm border"
+                          style={{ backgroundColor: s.hex }}
+                          title={s.name}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -400,98 +588,126 @@ export default function ColorPalettes() {
                   <Plus className="h-4 w-4 mr-1" /> Add Color
                 </Button>
               </div>
+
+              {/* Palette color strip */}
+              {selectedSwatches.length > 0 && (
+                <div className="h-12 rounded-lg overflow-hidden flex border border-border mb-4">
+                  {selectedSwatches.map((s, i) =>
+                    s.linkedHexes && s.linkedHexes.length > 1 ? (
+                      <div key={i} className="flex-1 flex overflow-hidden" title={s.name || s.code}>
+                        {s.linkedHexes.map((h, j) => (
+                          <div key={j} className="flex-1 h-full" style={{ backgroundColor: h }} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div
+                        key={i}
+                        className="flex-1"
+                        style={{ backgroundColor: s.hex }}
+                        title={s.name || s.code}
+                      />
+                    ),
+                  )}
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto space-y-6">
                 {selectedColors.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-muted-foreground">
                     No colors in this palette yet
                   </div>
                 ) : (
-                  <>
-                    {(() => {
-                      const commEntries = selectedColors.filter((c) => c.color_type === "commercial");
-                      const techEntries = selectedColors.filter((c) => c.color_type === "technical");
-                      const referencedTechIds = new Set<string>();
-                      commEntries.forEach((ce) => {
-                        const cc = commMap[ce.color_id];
-                        if (!cc) return;
-                        if (cc.main_technical_color_id) referencedTechIds.add(cc.main_technical_color_id);
-                        (cc.linked_technical_color_ids ?? []).forEach((id) => referencedTechIds.add(id));
-                      });
-                      const unlinkedTech = techEntries.filter((te) => !referencedTechIds.has(te.color_id));
+                  (() => {
+                    const commEntries = selectedColors.filter((c) => c.color_type === "commercial");
+                    const techEntries = selectedColors.filter((c) => c.color_type === "technical");
+                    const referencedTechIds = new Set<string>();
+                    commEntries.forEach((ce) => {
+                      const cc = commMap[ce.color_id];
+                      if (!cc) return;
+                      if (cc.main_technical_color_id) referencedTechIds.add(cc.main_technical_color_id);
+                      (cc.linked_technical_color_ids ?? []).forEach((id) => referencedTechIds.add(id));
+                    });
+                    const unlinkedTech = techEntries.filter((te) => !referencedTechIds.has(te.color_id));
 
-                      const renderCard = (pc: PaletteColor, opts?: { unlinked?: boolean }) => {
-                        const r = resolveColor(pc);
-                        const tech = pc.color_type === "technical" ? techMap[pc.color_id] : null;
-                        return (
-                          <Card
-                            key={pc.id}
-                            draggable
-                            onDragStart={() => onDragStart(pc.id)}
-                            onDragOver={onDragOver}
-                            onDrop={() => onDrop(pc.id)}
-                            className={cn(
-                              "overflow-hidden group relative",
-                              dragId === pc.id && "opacity-50",
-                              opts?.unlinked && "border-amber-300 border-2",
-                            )}
-                          >
-                            <div className="aspect-square w-full" style={{ backgroundColor: r.hex }} />
-                            <div className="p-2 space-y-0.5">
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-mono text-xs">{r.code}</span>
-                                <Badge variant="secondary" className="text-[10px] capitalize">
-                                  {pc.color_type}
-                                </Badge>
-                              </div>
-                              <div className="text-sm font-medium truncate">{r.name}</div>
-                              {opts?.unlinked && tech && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setLinkingTechColor(tech)}
-                                  className="w-full mt-1 h-7 bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
-                                >
-                                  <LinkIcon className="h-3 w-3 mr-1" /> Link
-                                </Button>
-                              )}
-                            </div>
-                            <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab">
-                              <GripVertical className="h-4 w-4 text-white drop-shadow" />
-                            </div>
-                            <button
-                              onClick={() => removeColor(pc)}
-                              className="absolute top-1 right-1 p-0.5 rounded bg-background/80 opacity-0 group-hover:opacity-100 hover:bg-background"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </Card>
-                        );
-                      };
-
+                    const renderCard = (pc: PaletteColor, opts?: { unlinked?: boolean }) => {
+                      const r = resolveSwatch(pc);
+                      const techRow = pc.color_type === "technical" ? techMap[pc.color_id] : null;
                       return (
-                        <>
-                          {commEntries.length > 0 && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                              {commEntries.map((pc) => renderCard(pc))}
-                            </div>
+                        <Card
+                          key={pc.id}
+                          draggable
+                          onDragStart={() => onDragStart(pc.id)}
+                          onDragOver={onDragOver}
+                          onDrop={() => onDrop(pc.id)}
+                          className={cn(
+                            "overflow-hidden group relative",
+                            dragId === pc.id && "opacity-50",
+                            opts?.unlinked && "border-amber-300 border-2",
                           )}
-                          {unlinkedTech.length > 0 && (
-                            <div className="space-y-2">
-                              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Unlinked Technical Colors ({unlinkedTech.length})
-                              </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                                {unlinkedTech.map((pc) => renderCard(pc, { unlinked: true }))}
-                              </div>
+                        >
+                          {r.linkedHexes && r.linkedHexes.length > 1 ? (
+                            <div className="aspect-square w-full flex">
+                              {r.linkedHexes.map((h, j) => (
+                                <div key={j} className="flex-1 h-full" style={{ backgroundColor: h }} />
+                              ))}
                             </div>
+                          ) : (
+                            <div className="aspect-square w-full" style={{ backgroundColor: r.hex }} />
                           )}
-                        </>
+                          <div className="p-2 space-y-0.5">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-mono text-xs">{r.code}</span>
+                              <Badge variant="secondary" className="text-[10px] capitalize">
+                                {pc.color_type}
+                              </Badge>
+                            </div>
+                            <div className="text-sm font-medium truncate">{r.name}</div>
+                            {opts?.unlinked && techRow && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setLinkingTechColor(techRow as any)}
+                                className="w-full mt-1 h-7 bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100"
+                              >
+                                <LinkIcon className="h-3 w-3 mr-1" /> Link
+                              </Button>
+                            )}
+                          </div>
+                          <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab">
+                            <GripVertical className="h-4 w-4 text-white drop-shadow" />
+                          </div>
+                          <button
+                            onClick={() => removeColor(pc)}
+                            className="absolute top-1 right-1 p-0.5 rounded bg-background/80 opacity-0 group-hover:opacity-100 hover:bg-background"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </Card>
                       );
-                    })()}
-                  </>
+                    };
+
+                    return (
+                      <>
+                        {commEntries.length > 0 && (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                            {commEntries.map((pc) => renderCard(pc))}
+                          </div>
+                        )}
+                        {unlinkedTech.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Unlinked Technical Colors ({unlinkedTech.length})
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                              {unlinkedTech.map((pc) => renderCard(pc, { unlinked: true }))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
                 )}
               </div>
-
             </>
           )}
         </Card>
@@ -558,10 +774,10 @@ export default function ColorPalettes() {
             loadData();
           }}
           paletteId={selectedId}
-          setPaletteColors={(updater) => setColors((prev) => updater(prev))}
+          setPaletteColors={(updater) => setPaletteColors((prev) => updater(prev))}
+          tech={tech as any}
         />
       )}
-
 
       <AlertDialog open={!!deletePal} onOpenChange={(o) => !o && setDeletePal(null)}>
         <AlertDialogContent>
@@ -610,11 +826,11 @@ function AddColorDialog({
   const [showTechNew, setShowTechNew] = useState(false);
   const [showCommNew, setShowCommNew] = useState(false);
 
-  // mini commercial create form
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
   const [newSubType, setNewSubType] = useState("Solid");
   const [newMainTech, setNewMainTech] = useState<Tech | null>(null);
+  const [newLinkedIds, setNewLinkedIds] = useState<string[]>([]);
   const [newCodeError, setNewCodeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -635,11 +851,20 @@ function AddColorDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showCommNew]);
 
+  // Keep linked list in sync with main when switching sub-type
+  useEffect(() => {
+    if (newSubType === "Combined" && newMainTech && !newLinkedIds.includes(newMainTech.id)) {
+      setNewLinkedIds([newMainTech.id, ...newLinkedIds]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newSubType, newMainTech]);
+
   const resetCommForm = () => {
     setNewCode("");
     setNewName("");
     setNewSubType("Solid");
     setNewMainTech(null);
+    setNewLinkedIds([]);
     setNewCodeError(null);
   };
 
@@ -657,12 +882,18 @@ function AddColorDialog({
       return;
     }
     setSaving(true);
+    const linkedIds =
+      newSubType === "Combined"
+        ? newLinkedIds
+        : newMainTech
+        ? [newMainTech.id]
+        : [];
     const payload: any = {
       sub_type: newSubType,
       code: newCode.trim(),
       color_name: newName.trim(),
       main_technical_color_id: newMainTech?.id ?? null,
-      linked_technical_color_ids: newMainTech ? [newMainTech.id] : [],
+      linked_technical_color_ids: linkedIds,
     };
     const { data, error } = await supabase
       .from("commercial_colors")
@@ -697,6 +928,10 @@ function AddColorDialog({
     return list.slice(0, 300);
   }, [comm, q]);
 
+  // Lazy-load TechPicker via dynamic import not needed; reuse via static import
+  // Import locally to avoid circular concerns
+  const { TechPicker } = require("@/pages/ColorLibrary") as { TechPicker: any };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -722,19 +957,14 @@ function AddColorDialog({
                 <div className="flex gap-2">
                   <Input
                     value={newCode}
-                    onChange={(e) => {
-                      setNewCode(e.target.value);
-                      setNewCodeError(null);
-                    }}
+                    onChange={(e) => { setNewCode(e.target.value); setNewCodeError(null); }}
                     className="font-mono"
                   />
                   <Button variant="outline" size="icon" onClick={regenCommCode} title="Regenerate">
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 </div>
-                {newCodeError && (
-                  <p className="text-xs text-destructive mt-1">{newCodeError}</p>
-                )}
+                {newCodeError && <p className="text-xs text-destructive mt-1">{newCodeError}</p>}
               </div>
               <div>
                 <Label>Color Name *</Label>
@@ -745,10 +975,58 @@ function AddColorDialog({
                 <TechPicker
                   tech={tech as any}
                   selected={newMainTech as any}
-                  onPick={(t: any) => setNewMainTech(t)}
+                  onPick={(t: any) => {
+                    setNewMainTech(t);
+                    if (newSubType === "Combined" && !newLinkedIds.includes(t.id)) {
+                      setNewLinkedIds([t.id, ...newLinkedIds.filter((x) => x !== t.id)]);
+                    }
+                  }}
                   placeholder="Select technical color"
                 />
               </div>
+              {newSubType === "Combined" && (
+                <div>
+                  <Label>Linked Technical Colors</Label>
+                  <div className="flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[44px]">
+                    {newLinkedIds.map((id) => {
+                      const t = techMap[id];
+                      if (!t) return null;
+                      const isMain = newMainTech?.id === id;
+                      return (
+                        <div
+                          key={id}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary text-secondary-foreground text-xs"
+                        >
+                          <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: colorToHex(t) }} />
+                          <span className="font-mono">{t.code}</span>
+                          <span className="truncate max-w-[120px]">{t.name}</span>
+                          {isMain && <Badge variant="outline" className="text-[10px] py-0 px-1">main</Badge>}
+                          <button
+                            onClick={() => setNewLinkedIds(newLinkedIds.filter((x) => x !== id))}
+                            disabled={isMain}
+                            className="ml-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                            type="button"
+                            title={isMain ? "Main color cannot be removed" : "Remove"}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {newLinkedIds.length === 0 && (
+                      <span className="text-xs text-muted-foreground py-1">No linked colors</span>
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <TechPicker
+                      tech={tech.filter((t) => !newLinkedIds.includes(t.id)) as any}
+                      selected={null}
+                      onPick={(t: any) => setNewLinkedIds([...newLinkedIds, t.id])}
+                      placeholder="Add linked technical color"
+                    />
+                  </div>
+                </div>
+              )}
               <DialogFooter>
                 <Button variant="ghost" onClick={() => { resetCommForm(); setShowCommNew(false); }}>
                   Back
