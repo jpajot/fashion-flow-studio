@@ -36,7 +36,7 @@ export default function ProductDetail() {
   const location = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const isNew = id === "new";
+  const isNew = id === "new" || location.pathname === "/products/new" || !id;
   const qsType = new URLSearchParams(location.search).get("type") || "Product";
 
   const [product, setProduct] = useState<any>(isNew ? { type: qsType, name: "", description: "" } : null);
