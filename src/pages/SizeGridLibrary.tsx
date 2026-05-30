@@ -375,7 +375,7 @@ export default function SizeGridLibrary() {
       {activeSection === "grids" ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left: Grids list */}
-          <Card className="p-3 space-y-3">
+          <Card className={`p-3 space-y-3 ${selectedGridId ? "hidden lg:block" : "block"}`}>
             <div className="flex items-center justify-between gap-2">
               <div className="font-semibold text-sm">Grids ({filteredGrids.length})</div>
               <Button size="sm" onClick={openNewGrid}>
