@@ -306,6 +306,7 @@ export default function ProductDetail() {
       return;
     }
     toast({ title: "Created" });
+    await new Promise((r) => setTimeout(r, 100));
     navigate(`/products/${data.id}`);
   };
 
