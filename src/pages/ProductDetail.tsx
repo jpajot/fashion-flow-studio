@@ -1,447 +1,669 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { RowActions } from "@/components/ui/RowActions";
-import { StatusBadge } from "@/lib/badges";
-import { ArrowLeft, Shirt, Check, Plus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, GitCommit, Info, Trash2, Upload, X, Star } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
+import { PAGE_WRAPPER } from "@/lib/utils";
+import RevisionContextModal from "@/components/RevisionContextModal";
+import { detectTrackedFieldChanges, createProductRevision } from "@/lib/revisions";
+import ColorwaySection from "@/components/ColorwaySection";
+import StyleSizesSection from "@/components/StyleSizesSection";
+import MoreVariationsSection from "@/components/MoreVariationsSection";
+import ProductSuppliersTab from "@/components/ProductSuppliersTab";
+import ProductBomsTab from "@/components/ProductBomsTab";
+import ProductSamplesTab from "@/components/ProductSamplesTab";
 
-function fmtDate(d?: string | null) {
-  return d ? new Date(d).toLocaleDateString() : "—";
-}
+const NONE = "__none__";
 
-const COLORWAY_STATUSES = ["approved", "requested", "in_progress", "rejected", "obsolete"];
+type LovType = { id: string; code: string; name: string | null };
+type LovValue = { id: string; type_of_lov_id: string; name: string; depends_on_value_id: string | null };
 
-function ColorwaysTab({ id, product }: { id: string; product: any }) {
-  const [rows, setRows] = useState<any[]>([]);
-  const [refresh, setRefresh] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [delId, setDelId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const empty = { color_name: "", colorway_code: "", color_hex: "#000000", colorway_status: "approved", image_url: "" };
-  const [form, setForm] = useState<any>(empty);
+export default function ProductDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const isNew = id === "new";
+  const qsType = new URLSearchParams(location.search).get("type") || "Product";
+
+  const [product, setProduct] = useState<any>(isNew ? { type: qsType, name: "", description: "" } : null);
+  const [loading, setLoading] = useState(!isNew);
+  const [activeTab, setActiveTab] = useState("details");
+  const [colorwayCount, setColorwayCount] = useState(0);
+  const [bomCount, setBomCount] = useState(0);
+
+  const [sizeGrids, setSizeGrids] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [lovTypes, setLovTypes] = useState<LovType[]>([]);
+  const [lovValues, setLovValues] = useState<LovValue[]>([]);
+  const [styleSizes, setStyleSizes] = useState<any[]>([]);
+
+  const [delOpen, setDelOpen] = useState(false);
+  const [revOpen, setRevOpen] = useState(false);
+  const [revDiffs, setRevDiffs] = useState<any[]>([]);
+  const [pendingSave, setPendingSave] = useState<any | null>(null);
+  const [manualRevOpen, setManualRevOpen] = useState(false);
+  const [revHistoryOpen, setRevHistoryOpen] = useState(false);
+  const [revHistory, setRevHistory] = useState<any[]>([]);
+
+  const productBeforeRef = useRef<any | null>(null);
+  const saveTimer = useRef<any>(null);
+
+  // ── data loading ──
+  const loadProduct = useCallback(async () => {
+    if (isNew) return;
+    setLoading(true);
+    const [p, cw, bm, ss] = await Promise.all([
+      supabase.from("products").select("*").eq("id", id).single(),
+      supabase.from("product_colors").select("id").eq("product_id", id),
+      supabase.from("boms").select("id").eq("product_id", id),
+      supabase.from("style_sizes").select("*").eq("product_id", id),
+    ]);
+    setProduct(p.data ?? null);
+    setColorwayCount((cw.data ?? []).length);
+    setBomCount((bm.data ?? []).length);
+    setStyleSizes(ss.data ?? []);
+    setLoading(false);
+  }, [id, isNew]);
+
+  useEffect(() => { loadProduct(); }, [loadProduct]);
 
   useEffect(() => {
-    supabase.from("product_colors").select("*").eq("product_id", id).then(({ data }) => setRows(data ?? []));
-  }, [id, refresh]);
+    (async () => {
+      const [sg, prj, lt, lv] = await Promise.all([
+        supabase.from("size_grids").select("id, name").order("name"),
+        supabase.from("projects").select("id, name").order("name"),
+        supabase.from("type_of_lov").select("*"),
+        supabase.from("list_of_values").select("*").order("name"),
+      ]);
+      setSizeGrids(sg.data ?? []);
+      setProjects(prj.data ?? []);
+      setLovTypes((lt.data ?? []) as LovType[]);
+      setLovValues((lv.data ?? []) as LovValue[]);
+    })();
+  }, []);
 
-  const openNew = () => {
-    setEditId(null);
-    const next = `${product?.code ?? product?.style_code ?? "CW"}-${String(rows.length + 1).padStart(3, "0")}`;
-    setForm({ ...empty, colorway_code: next });
-    setOpen(true);
+  // ── sub-nav ──
+  const subNavItems = useMemo(
+    () => [
+      { id: "details", label: "Details" },
+      { id: "colorways", label: "Colorways", count: colorwayCount },
+      { id: "sizes", label: "Sizes" },
+      { id: "more", label: "More Variations" },
+      { id: "suppliers", label: "Suppliers" },
+      { id: "boms", label: "BOMs", count: bomCount },
+      { id: "samples", label: "Samples" },
+    ],
+    [colorwayCount, bomCount],
+  );
+  const pageTitle = isNew
+    ? `New ${qsType}`
+    : product ? `${product.code || ""} ${product.name || ""}`.trim() : "Product";
+  useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, pageTitle);
+
+  // ── LOV helpers ──
+  const lovTypeByCode = useMemo(() => Object.fromEntries(lovTypes.map((t) => [t.code, t])), [lovTypes]);
+  const lovValuesByTypeCode = useCallback(
+    (typeCode: string, dependsOnValueId?: string | null): LovValue[] => {
+      const t = lovTypeByCode[typeCode];
+      if (!t) return [];
+      return lovValues.filter(
+        (v) => v.type_of_lov_id === t.id && (dependsOnValueId == null || v.depends_on_value_id === dependsOnValueId),
+      );
+    },
+    [lovTypeByCode, lovValues],
+  );
+  // Resolve an LOV value by code+name (used to chain Category → SubCategory by value name)
+  const lovValueByName = useCallback(
+    (typeCode: string, name: string | null | undefined) => {
+      if (!name) return null;
+      const t = lovTypeByCode[typeCode];
+      if (!t) return null;
+      return lovValues.find((v) => v.type_of_lov_id === t.id && v.name === name) || null;
+    },
+    [lovTypeByCode, lovValues],
+  );
+
+  const entityValue = useMemo(
+    () => lovValueByName("Entities", product?.type),
+    [lovValueByName, product?.type],
+  );
+  const typeOptions = useMemo(
+    () => lovValuesByTypeCode("EntityTypes", entityValue?.id),
+    [lovValuesByTypeCode, entityValue?.id],
+  );
+  const subTypeOptions = useMemo(() => lovValuesByTypeCode("Entity Sub-Types"), [lovValuesByTypeCode]);
+  const categoryOptions = useMemo(() => {
+    const dep = lovValueByName("EntityTypes", product?.type);
+    return lovValuesByTypeCode("Category", dep?.id);
+  }, [lovValuesByTypeCode, lovValueByName, product?.type]);
+  const subCategoryOptions = useMemo(() => {
+    const dep = lovValueByName("Category", product?.category);
+    return lovValuesByTypeCode("Sub-Category", dep?.id);
+  }, [lovValuesByTypeCode, lovValueByName, product?.category]);
+  const customerNeedOptions = useMemo(() => lovValuesByTypeCode("Customer Need"), [lovValuesByTypeCode]);
+
+  // ── auto-save with revision detection (existing only) ──
+  const autoSave = useCallback(
+    async (data: any) => {
+      if (!data?.id) return;
+      const before = productBeforeRef.current ?? data;
+      const detect = await detectTrackedFieldChanges("product", before, data);
+      if (detect.has_tracked_changes) {
+        setRevDiffs(detect.field_diffs);
+        setPendingSave({ data, detect });
+        setRevOpen(true);
+        return;
+      }
+      const { id: pid, ...fields } = data;
+      const { error } = await supabase.from("products").update(fields).eq("id", pid);
+      if (error) {
+        toast({ title: "Save failed", description: error.message, variant: "destructive" });
+        return;
+      }
+      productBeforeRef.current = null;
+    },
+    [toast],
+  );
+
+  const updateField = useCallback(
+    (field: string, value: any) => {
+      setProduct((prev: any) => {
+        if (!prev) return prev;
+        if (productBeforeRef.current == null && !isNew) productBeforeRef.current = { ...prev };
+        const next = { ...prev, [field]: value };
+        // category change resets sub_category + customer_need
+        if (field === "category") {
+          next.sub_category = null;
+        }
+        if (field === "type") {
+          next.category = null;
+          next.sub_category = null;
+        }
+
+        if (!isNew) {
+          if (saveTimer.current) clearTimeout(saveTimer.current);
+          saveTimer.current = setTimeout(() => autoSave(next), 800);
+        }
+        return next;
+      });
+    },
+    [autoSave, isNew],
+  );
+
+  // ── size grid change handler (rebuild style_sizes) ──
+  const handleSizeGridChange = async (newGridId: string | null) => {
+    const oldGridId = product?.size_grid_id;
+    updateField("size_grid_id", newGridId);
+    if (isNew || oldGridId === newGridId) return;
+    if (styleSizes.length > 0) {
+      await supabase.from("style_sizes").delete().eq("product_id", id);
+    }
+    if (newGridId) {
+      const { data: gridSizes } = await supabase
+        .from("size_grid_sizes")
+        .select("size_id, sort_order")
+        .eq("size_grid_id", newGridId)
+        .order("sort_order");
+      if (gridSizes?.length) {
+        await supabase.from("style_sizes").insert(
+          gridSizes.map((g) => ({
+            product_id: id,
+            size_id: g.size_id,
+            sort_order: g.sort_order,
+            is_active: true,
+          })),
+        );
+      }
+    }
+    const { data: ss } = await supabase.from("style_sizes").select("*").eq("product_id", id);
+    setStyleSizes(ss ?? []);
   };
-  const openEdit = (c: any) => {
-    setEditId(c.id);
-    setForm({
-      color_name: c.color_name ?? "", colorway_code: c.colorway_code ?? "",
-      color_hex: c.color_hex ?? "#000000", colorway_status: c.colorway_status ?? "approved", image_url: c.image_url ?? "",
+
+  // ── revision confirm ──
+  const handleRevConfirm = async (ctx: string) => {
+    if (!pendingSave) return;
+    const { data, detect } = pendingSave;
+    const { id: pid, ...fields } = data;
+    const { error } = await supabase.from("products").update(fields).eq("id", pid);
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    await createProductRevision({
+      product_id: pid,
+      target_type: "product",
+      target_id: pid,
+      revision_context: ctx,
+      before_snapshot: detect.before_snapshot,
+      after_snapshot: detect.after_snapshot,
+      field_diffs: detect.field_diffs,
+      triggered_by: user?.email || "system",
     });
-    setOpen(true);
+    productBeforeRef.current = null;
+    setPendingSave(null);
+    setRevOpen(false);
+    toast({ title: "Revision recorded" });
   };
 
-  const submit = async () => {
-    if (!form.color_name) return toast.error("Color name required");
-    setSaving(true);
-    const payload: any = { ...form, product_id: id };
-    Object.keys(payload).forEach((k) => payload[k] === "" && (payload[k] = null));
-    const res = editId
-      ? await supabase.from("product_colors").update(payload).eq("id", editId)
-      : await supabase.from("product_colors").insert(payload);
-    setSaving(false);
-    if (res.error) return toast.error(res.error.message);
-    toast.success(editId ? "Colorway updated" : "Colorway created");
-    setOpen(false);
-    setRefresh((r) => r + 1);
+  // ── manual "New Revision" ──
+  const handleManualRevConfirm = async (ctx: string) => {
+    if (!product?.id) return;
+    await createProductRevision({
+      product_id: product.id,
+      target_type: "product",
+      target_id: product.id,
+      revision_context: ctx,
+      before_snapshot: product,
+      after_snapshot: product,
+      field_diffs: [],
+      triggered_by: user?.email || "system",
+    });
+    setManualRevOpen(false);
+    toast({ title: "Revision created" });
   };
 
-  const doDelete = async () => {
-    if (!delId) return;
-    const { error } = await supabase.from("product_colors").delete().eq("id", delId);
-    if (error) return toast.error(error.message);
-    toast.success("Colorway deleted");
-    setDelId(null);
-    setRefresh((r) => r + 1);
+  // ── revision history ──
+  const openRevHistory = async () => {
+    if (!product?.id) return;
+    const { data } = await supabase
+      .from("product_revisions")
+      .select("*")
+      .eq("product_id", product.id)
+      .order("created_at", { ascending: false });
+    setRevHistory(data ?? []);
+    setRevHistoryOpen(true);
   };
+
+  // ── create flow ──
+  const handleCreate = async () => {
+    if (!product?.name?.trim()) {
+      toast({ title: "Name is required", variant: "destructive" });
+      return;
+    }
+    const { data: codeData, error: codeErr } = await supabase.rpc("generate_code", {
+      p_entity_name: "Product",
+      p_entity_type: product.type || "Product",
+    });
+    if (codeErr) toast({ title: "Code generation failed", description: codeErr.message });
+    const payload: any = { ...product, code: product.code || codeData || null, created_by: user?.email };
+    delete payload.id;
+    const { data, error } = await supabase.from("products").insert(payload).select("id").single();
+    if (error) {
+      toast({ title: "Create failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Created" });
+    navigate(`/products/${data.id}`);
+  };
+
+  // ── delete ──
+  const handleDelete = async () => {
+    if (!product?.id) return;
+    const { error } = await supabase.from("products").delete().eq("id", product.id);
+    if (error) {
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Deleted" });
+    navigate(product.type === "Material" ? "/materials" : "/list-view");
+  };
+
+  // ── image management ──
+  const updateImages = (next: string[]) => updateField("images", next);
+  const removeImage = (i: number) => updateImages(((product?.images || []) as string[]).filter((_: any, idx: number) => idx !== i));
+  const setMain = (i: number) => {
+    const imgs = [...((product?.images || []) as string[])];
+    const [chosen] = imgs.splice(i, 1);
+    imgs.unshift(chosen);
+    updateImages(imgs);
+  };
+  const handleUpload = async (files: FileList | null) => {
+    if (!files?.length || !product?.id) return;
+    const urls: string[] = [];
+    for (const file of Array.from(files)) {
+      const path = `${product.id}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      if (error) {
+        toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+        continue;
+      }
+      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+    if (urls.length) updateImages([...((product?.images || []) as string[]), ...urls]);
+  };
+
+  if (loading) return <div className={PAGE_WRAPPER}>Loading…</div>;
+  if (!isNew && !product) return <div className={PAGE_WRAPPER}>Not found</div>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> New Colorway</Button>
+    <div className={`${PAGE_WRAPPER} space-y-4`}>
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-2">
+        <div className="flex items-start gap-2 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 mt-1"
+            onClick={() => navigate(product?.type === "Material" ? "/materials" : "/list-view")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold truncate">{pageTitle || "Untitled"}</h1>
+            {!isNew && product?.type && <Badge variant="outline" className="mt-1">{product.type}</Badge>}
+          </div>
+        </div>
+        {!isNew && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setManualRevOpen(true)}>
+              <GitCommit className="h-4 w-4 mr-2" /> New Revision
+            </Button>
+            <Button variant="outline" size="sm" onClick={openRevHistory}>
+              <Info className="h-4 w-4 mr-2" /> History
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDelOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" /> Delete
+            </Button>
+          </div>
+        )}
       </div>
-      {rows.length === 0 ? (
-        <div className="text-muted-foreground py-8 text-center">No colorways</div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {rows.map((c) => (
-            <Card key={c.id}>
-              <div className="aspect-square bg-muted overflow-hidden">
-                {c.image_url ? (
-                  <img src={c.image_url} alt={c.color_name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full" style={{ backgroundColor: c.color_hex ?? "#e5e7eb" }} />
-                )}
-              </div>
-              <CardContent className="p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="h-4 w-4 rounded-full border shrink-0" style={{ backgroundColor: c.color_hex ?? "#e5e7eb" }} />
-                    <div className="font-medium text-sm truncate">{c.color_name}</div>
-                  </div>
-                  <RowActions onEdit={() => openEdit(c)} onDelete={() => setDelId(c.id)} />
+
+      {/* Tab content */}
+      {activeTab === "details" && (
+        <div className="grid grid-cols-1 lg:grid-cols-[18rem_1fr] gap-4">
+          {/* Image panel */}
+          <div className="space-y-2 lg:sticky lg:top-4 self-start">
+            <Card className="overflow-hidden relative aspect-square">
+              {(product?.images?.[0]) ? (
+                <>
+                  <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
+                  <Badge className="absolute top-2 left-2">Main</Badge>
+                </>
+              ) : (
+                <div className="w-full h-full bg-muted grid place-items-center text-muted-foreground text-sm">
+                  No image
                 </div>
-                <div className="text-xs text-muted-foreground font-mono">{c.colorway_code}</div>
-                <StatusBadge value={c.colorway_status} className="text-xs" />
-              </CardContent>
+              )}
             </Card>
-          ))}
+            {Array.isArray(product?.images) && product.images.length > 1 && (
+              <div className="grid grid-cols-4 gap-1">
+                {product.images.slice(1).map((src: string, idx: number) => (
+                  <div key={idx} className="relative aspect-square group">
+                    <img src={src} alt="" className="w-full h-full object-cover rounded" />
+                    <button
+                      onClick={() => setMain(idx + 1)}
+                      className="absolute inset-0 bg-black/0 hover:bg-black/40 grid place-items-center opacity-0 hover:opacity-100 transition rounded"
+                      title="Set as main"
+                    >
+                      <Star className="h-4 w-4 text-white" />
+                    </button>
+                    <button
+                      onClick={() => removeImage(idx + 1)}
+                      className="absolute top-0 right-0 bg-black/60 text-white rounded-bl p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {product?.images?.length > 0 && (
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => removeImage(0)}
+              >
+                Remove main
+              </button>
+            )}
+            {!isNew && (
+              <label className="flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed rounded-md py-3 text-sm hover:bg-muted/50">
+                <Upload className="h-4 w-4" /> Upload images
+                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+              </label>
+            )}
+          </div>
+
+          {/* Fields panel */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label>Code</Label>
+              <Input
+                value={product?.code || ""}
+                onChange={(e) => updateField("code", e.target.value)}
+                placeholder={isNew ? "Auto-generated on creation" : ""}
+              />
+            </div>
+            {typeOptions.length > 0 && (
+              <div>
+                <Label>Type</Label>
+                <Select value={product?.sub_entity_type_id || NONE} onValueChange={(v) => updateField("sub_entity_type_id", v === NONE ? null : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>None</SelectItem>
+                    {typeOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="sm:col-span-2">
+              <Label>Name *</Label>
+              <Input value={product?.name || ""} onChange={(e) => updateField("name", e.target.value)} />
+            </div>
+            <div>
+              <Label>Category</Label>
+              <Select value={product?.category || NONE} onValueChange={(v) => updateField("category", v === NONE ? null : v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>None</SelectItem>
+                  {categoryOptions.map((o) => <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Sub-Category</Label>
+              <Select
+                value={product?.sub_category || NONE}
+                onValueChange={(v) => updateField("sub_category", v === NONE ? null : v)}
+                disabled={!product?.category}
+              >
+                <SelectTrigger><SelectValue placeholder={product?.category ? "Select" : "Pick a category first"} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>None</SelectItem>
+                  {subCategoryOptions.map((o) => <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {subTypeOptions.length > 0 && (
+              <div>
+                <Label>Sub-type</Label>
+                <Select value={product?.sub_type || NONE} onValueChange={(v) => updateField("sub_type", v === NONE ? null : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>None</SelectItem>
+                    {subTypeOptions.map((o) => <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {product?.type === "Product" && (
+              <div>
+                <Label>Customer Need</Label>
+                <Select value={product?.customer_need || NONE} onValueChange={(v) => updateField("customer_need", v === NONE ? null : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>None</SelectItem>
+                    {customerNeedOptions.map((o) => <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label>Size Grid</Label>
+              <Select
+                value={product?.size_grid_id || NONE}
+                onValueChange={(v) => handleSizeGridChange(v === NONE ? null : v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>None</SelectItem>
+                  {sizeGrids.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Creation Project</Label>
+              <Select value={product?.creation_project_id || NONE} onValueChange={(v) => updateField("creation_project_id", v === NONE ? null : v)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>None</SelectItem>
+                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Linked Projects</Label>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {((product?.linked_project_ids || []) as string[]).map((pid) => {
+                  const p = projects.find((x) => x.id === pid);
+                  return (
+                    <Badge key={pid} variant="secondary" className="gap-1">
+                      {p?.name || pid}
+                      <button
+                        onClick={() =>
+                          updateField("linked_project_ids", (product.linked_project_ids || []).filter((x: string) => x !== pid))
+                        }
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+              <Select
+                value=""
+                onValueChange={(v) => {
+                  if (!v) return;
+                  const cur = (product?.linked_project_ids || []) as string[];
+                  if (!cur.includes(v)) updateField("linked_project_ids", [...cur, v]);
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="+ Add project" /></SelectTrigger>
+                <SelectContent>
+                  {projects.filter((p) => !(product?.linked_project_ids || []).includes(p.id)).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Description</Label>
+              <Textarea
+                value={product?.description || ""}
+                onChange={(e) => updateField("description", e.target.value)}
+                rows={4}
+              />
+            </div>
+            {isNew && (
+              <div className="sm:col-span-2 flex justify-end pt-2">
+                <Button onClick={handleCreate}>Create {qsType}</Button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editId ? "Edit Colorway" : "New Colorway"}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div><Label>Color Name *</Label><Input value={form.color_name} onChange={(e) => setForm({ ...form, color_name: e.target.value })} /></div>
-            <div><Label>Colorway Code</Label><Input value={form.colorway_code} onChange={(e) => setForm({ ...form, colorway_code: e.target.value })} /></div>
-            <div>
-              <Label>Color Hex</Label>
-              <div className="flex gap-2">
-                <Input type="color" value={form.color_hex} onChange={(e) => setForm({ ...form, color_hex: e.target.value })} className="w-16 p-1 h-10" />
-                <Input value={form.color_hex} onChange={(e) => setForm({ ...form, color_hex: e.target.value })} />
-              </div>
+      {!isNew && activeTab === "colorways" && (
+        <ColorwaySection
+          productId={product.id}
+          product={product}
+          styleSizes={styleSizes}
+          projects={projects}
+          onCountChange={setColorwayCount}
+        />
+      )}
+      {!isNew && activeTab === "sizes" && (
+        <StyleSizesSection productId={product.id} sizeGridName={sizeGrids.find((g) => g.id === product?.size_grid_id)?.name} />
+      )}
+      {!isNew && activeTab === "more" && <MoreVariationsSection productId={product.id} />}
+      {!isNew && activeTab === "suppliers" && <ProductSuppliersTab productId={product.id} />}
+      {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} />}
+      {!isNew && activeTab === "samples" && <ProductSamplesTab productId={product.id} />}
+
+      {/* Modals */}
+      <RevisionContextModal
+        open={revOpen}
+        onOpenChange={setRevOpen}
+        fieldDiffs={revDiffs}
+        onConfirm={handleRevConfirm}
+        onCancel={() => {
+          setPendingSave(null);
+          loadProduct();
+        }}
+      />
+      <RevisionContextModal
+        open={manualRevOpen}
+        onOpenChange={setManualRevOpen}
+        fieldDiffs={[]}
+        onConfirm={handleManualRevConfirm}
+      />
+
+      <Dialog open={revHistoryOpen} onOpenChange={setRevHistoryOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Revision History</DialogTitle></DialogHeader>
+          {revHistory.length === 0 ? (
+            <div className="text-muted-foreground text-sm py-4 text-center">No revisions yet</div>
+          ) : (
+            <div className="space-y-2">
+              {revHistory.map((r) => (
+                <Card key={r.id}>
+                  <CardContent className="p-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge>{r.revision_code}</Badge>
+                      {r.is_current && <Badge variant="outline">current</Badge>}
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {new Date(r.created_at).toLocaleString()} · {r.created_by}
+                      </span>
+                    </div>
+                    <div className="text-sm">{r.revision_context || <span className="text-muted-foreground">No context</span>}</div>
+                    {Array.isArray(r.field_diffs) && r.field_diffs.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        {r.field_diffs.map((d: any) => d.label).join(", ")}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={form.colorway_status} onValueChange={(v) => setForm({ ...form, colorway_status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{COLORWAY_STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>Image URL</Label><Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : editId ? "Save" : "Create"}</Button>
-          </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)}>
+      <AlertDialog open={delOpen} onOpenChange={setDelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete colorway?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {product?.type?.toLowerCase()}?</AlertDialogTitle>
             <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={doDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-function VariationsTab({ id }: { id: string }) {
-  const [rows, setRows] = useState<any[]>([]);
-  const [colorways, setColorways] = useState<any[]>([]);
-  const [refresh, setRefresh] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [delId, setDelId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const empty = { product_color_id: "", sequence: "", name: "", description: "", color_hex: "#000000", pack_code: "", variant: "" };
-  const [form, setForm] = useState<any>(empty);
-
-  useEffect(() => {
-    (async () => {
-      const { data: cws } = await supabase.from("product_colors").select("id,color_name,colorway_code").eq("product_id", id);
-      setColorways(cws ?? []);
-      const ids = (cws ?? []).map((c) => c.id);
-      if (ids.length === 0) { setRows([]); return; }
-      const { data } = await supabase.from("product_color_and_more")
-        .select("*, product_colors(product_id, color_name, colorway_code)")
-        .in("product_color_id", ids);
-      setRows(data ?? []);
-    })();
-  }, [id, refresh]);
-
-  const openNew = () => { setEditId(null); setForm(empty); setOpen(true); };
-  const openEdit = (v: any) => {
-    setEditId(v.id);
-    setForm({
-      product_color_id: v.product_color_id ?? "", sequence: v.sequence ?? "", name: v.name ?? "",
-      description: v.description ?? "", color_hex: v.color_hex ?? "#000000", pack_code: v.pack_code ?? "", variant: v.variant ?? "",
-    });
-    setOpen(true);
-  };
-
-  const submit = async () => {
-    if (!form.product_color_id) return toast.error("Colorway required");
-    setSaving(true);
-    const payload: any = { ...form };
-    Object.keys(payload).forEach((k) => payload[k] === "" && (payload[k] = null));
-    const res = editId
-      ? await supabase.from("product_color_and_more").update(payload).eq("id", editId)
-      : await supabase.from("product_color_and_more").insert(payload);
-    setSaving(false);
-    if (res.error) return toast.error(res.error.message);
-    toast.success(editId ? "Variation updated" : "Variation created");
-    setOpen(false);
-    setRefresh((r) => r + 1);
-  };
-
-  const doDelete = async () => {
-    if (!delId) return;
-    const { error } = await supabase.from("product_color_and_more").delete().eq("id", delId);
-    if (error) return toast.error(error.message);
-    toast.success("Variation deleted");
-    setDelId(null);
-    setRefresh((r) => r + 1);
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openNew} disabled={colorways.length === 0}><Plus className="h-4 w-4 mr-2" /> New Variation</Button>
-      </div>
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Colorway</TableHead><TableHead>Seq</TableHead><TableHead>Name</TableHead><TableHead>Description</TableHead><TableHead>Pack</TableHead><TableHead>Variant</TableHead><TableHead>Color</TableHead><TableHead>Created</TableHead><TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No variations</TableCell></TableRow>
-            ) : rows.map((v) => (
-              <TableRow key={v.id}>
-                <TableCell className="text-sm">{v.product_colors?.color_name} <span className="text-muted-foreground font-mono text-xs">{v.product_colors?.colorway_code}</span></TableCell>
-                <TableCell>{v.sequence ?? "—"}</TableCell>
-                <TableCell className="font-medium">{v.name ?? "—"}</TableCell>
-                <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{v.description ?? "—"}</TableCell>
-                <TableCell className="font-mono text-xs">{v.pack_code ?? "—"}</TableCell>
-                <TableCell>{v.variant ?? "—"}</TableCell>
-                <TableCell><div className="h-5 w-5 rounded border" style={{ backgroundColor: v.color_hex ?? "#e5e7eb" }} /></TableCell>
-                <TableCell className="text-xs text-muted-foreground">{fmtDate(v.created_at)}</TableCell>
-                <TableCell><RowActions onEdit={() => openEdit(v)} onDelete={() => setDelId(v.id)} /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editId ? "Edit Variation" : "New Variation"}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Colorway *</Label>
-              <Select value={form.product_color_id} onValueChange={(v) => setForm({ ...form, product_color_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{colorways.map((c) => <SelectItem key={c.id} value={c.id}>{c.color_name} ({c.colorway_code})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Sequence</Label><Input value={form.sequence} onChange={(e) => setForm({ ...form, sequence: e.target.value })} /></div>
-              <div><Label>Pack Code</Label><Input value={form.pack_code} onChange={(e) => setForm({ ...form, pack_code: e.target.value })} /></div>
-            </div>
-            <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Variant</Label><Input value={form.variant} onChange={(e) => setForm({ ...form, variant: e.target.value })} /></div>
-              <div>
-                <Label>Color Hex</Label>
-                <div className="flex gap-2">
-                  <Input type="color" value={form.color_hex} onChange={(e) => setForm({ ...form, color_hex: e.target.value })} className="w-16 p-1 h-10" />
-                  <Input value={form.color_hex} onChange={(e) => setForm({ ...form, color_hex: e.target.value })} />
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : editId ? "Save" : "Create"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete variation?</AlertDialogTitle>
-            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={doDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
-
-function SizesTab({ id }: { id: string }) {
-  const [rows, setRows] = useState<any[]>([]);
-  useEffect(() => {
-    supabase.from("style_sizes").select("*, sizes(size_code,name)").eq("product_id", id).then(({ data }) => setRows(data ?? []));
-  }, [id]);
-  return (
-    <Card>
-      <Table>
-        <TableHeader><TableRow><TableHead>Size Code</TableHead><TableHead>Name</TableHead><TableHead>Active</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {rows.length === 0 ? <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">No sizes</TableCell></TableRow>
-            : rows.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="font-mono">{s.sizes?.size_code}</TableCell>
-                <TableCell>{s.sizes?.name}</TableCell>
-                <TableCell>{s.active !== false && <Check className="h-4 w-4 text-emerald-600" />}</TableCell>
-              </TableRow>
-            ))}
-        </TableBody>
-      </Table>
-    </Card>
-  );
-}
-
-function BomsTab({ id }: { id: string }) {
-  const [rows, setRows] = useState<any[]>([]);
-  useEffect(() => {
-    supabase.from("boms").select("*").eq("product_id", id).order("version", { ascending: false }).then(({ data }) => setRows(data ?? []));
-  }, [id]);
-  return (
-    <Card>
-      <Table>
-        <TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Revision</TableHead><TableHead>Version</TableHead><TableHead>Status</TableHead><TableHead>Released</TableHead><TableHead>Notes</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {rows.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No BOMs</TableCell></TableRow>
-            : rows.map((b) => (
-              <TableRow key={b.id}>
-                <TableCell><Badge variant="outline">{b.bom_type}</Badge></TableCell>
-                <TableCell className="font-mono text-xs">{b.revision_code}</TableCell>
-                <TableCell>v{b.version}</TableCell>
-                <TableCell><StatusBadge value={b.status} /></TableCell>
-                <TableCell>{fmtDate(b.released_at)}</TableCell>
-                <TableCell className="text-muted-foreground text-sm max-w-xs truncate">{b.notes ?? "—"}</TableCell>
-              </TableRow>
-            ))}
-        </TableBody>
-      </Table>
-    </Card>
-  );
-}
-
-function RoutingTab({ id }: { id: string }) {
-  const [rows, setRows] = useState<any[]>([]);
-  useEffect(() => {
-    supabase.from("supplier_routings").select("*").eq("product_id", id).order("version", { ascending: false }).then(({ data }) => setRows(data ?? []));
-  }, [id]);
-  return (
-    <Card>
-      <Table>
-        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Revision</TableHead><TableHead>Version</TableHead><TableHead>Status</TableHead><TableHead>Default</TableHead></TableRow></TableHeader>
-        <TableBody>
-          {rows.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No routings</TableCell></TableRow>
-            : rows.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.name}</TableCell>
-                <TableCell><Badge variant="outline">{r.routing_type}</Badge></TableCell>
-                <TableCell className="font-mono text-xs">{r.revision_code}</TableCell>
-                <TableCell>v{r.version}</TableCell>
-                <TableCell><StatusBadge value={r.status} /></TableCell>
-                <TableCell>{r.is_default && <Check className="h-4 w-4 text-emerald-600" />}</TableCell>
-              </TableRow>
-            ))}
-        </TableBody>
-      </Table>
-    </Card>
-  );
-}
-
-export default function ProductDetail() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [product, setProduct] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!id) return;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase.from("products").select("*").eq("id", id).maybeSingle();
-      setProduct(data);
-      setLoading(false);
-    })();
-  }, [id]);
-
-  if (loading) return <div className="text-muted-foreground">Loading…</div>;
-  if (!product) return <div>Product not found</div>;
-
-  const firstImage = Array.isArray(product.images) ? product.images[0] : product.image_url;
-
-  return (
-    <div className="space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => navigate("/styles")}>
-        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Style Library
-      </Button>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[340px,1fr] gap-6">
-        <Card>
-          <div className="aspect-square bg-muted grid place-items-center overflow-hidden">
-            {firstImage ? <img src={firstImage} alt={product.name} className="w-full h-full object-cover" /> : <Shirt className="h-20 w-20 text-muted-foreground/40" />}
-          </div>
-          <CardContent className="p-5 space-y-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
-              <p className="text-sm font-mono text-muted-foreground">{product.style_code ?? product.code}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {product.type && <Badge variant="outline">{product.type}</Badge>}
-              {product.sub_type && <Badge variant="secondary">{product.sub_type}</Badge>}
-              {product.status && <StatusBadge value={product.status} />}
-            </div>
-            <div className="space-y-2 text-sm pt-2 border-t">
-              {product.category && <div><span className="text-muted-foreground">Category: </span>{product.category}</div>}
-              {product.sub_category && <div><span className="text-muted-foreground">Sub-category: </span>{product.sub_category}</div>}
-              {product.customer_need && <div><span className="text-muted-foreground">Customer need: </span>{product.customer_need}</div>}
-              {product.bom_workflow_pattern && (
-                <div className="pt-2"><Badge variant="outline">BOM: {product.bom_workflow_pattern}</Badge></div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Tabs defaultValue="colorways">
-          <TabsList>
-            <TabsTrigger value="colorways">Colorways</TabsTrigger>
-            <TabsTrigger value="variations">Variations</TabsTrigger>
-            <TabsTrigger value="sizes">Sizes</TabsTrigger>
-            <TabsTrigger value="boms">BOMs</TabsTrigger>
-            <TabsTrigger value="routing">Routing</TabsTrigger>
-          </TabsList>
-          <TabsContent value="colorways" className="mt-6"><ColorwaysTab id={id!} product={product} /></TabsContent>
-          <TabsContent value="variations" className="mt-6"><VariationsTab id={id!} /></TabsContent>
-          <TabsContent value="sizes" className="mt-6"><SizesTab id={id!} /></TabsContent>
-          <TabsContent value="boms" className="mt-6"><BomsTab id={id!} /></TabsContent>
-          <TabsContent value="routing" className="mt-6"><RoutingTab id={id!} /></TabsContent>
-        </Tabs>
-      </div>
     </div>
   );
 }
