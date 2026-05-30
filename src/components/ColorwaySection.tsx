@@ -13,6 +13,25 @@ import { usePageOptions } from "@/contexts/PageOptionsContext";
 
 const VIEW_KEY = "colorway_section_view";
 
+const STATUS_COLORS: Record<string, string> = {
+  requested: "bg-blue-100 text-blue-700 border-blue-200",
+  in_progress: "bg-amber-100 text-amber-700 border-amber-200",
+  submitted_for_approval: "bg-purple-100 text-purple-700 border-purple-200",
+  approved: "bg-green-100 text-green-700 border-green-200",
+  rejected: "bg-red-100 text-red-700 border-red-200",
+  obsolete: "bg-gray-100 text-gray-500 border-gray-200",
+};
+
+function renderStatusBadge(status: string | null | undefined) {
+  if (!status) return <span className="text-xs text-muted-foreground">—</span>;
+  const cls = STATUS_COLORS[status] || "bg-muted text-muted-foreground";
+  return (
+    <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border ${cls}`}>
+      {status.replace(/_/g, " ")}
+    </span>
+  );
+}
+
 function SwatchBlock({ cw, product, comm }: { cw: any; product: any; comm: any }) {
   // 1) colorway image
   if (cw.image_url) {
