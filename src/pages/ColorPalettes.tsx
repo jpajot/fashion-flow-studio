@@ -760,7 +760,7 @@ export default function ColorPalettes() {
                     return (
                       <>
                         {commEntries.length > 0 && (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                          <div className={cn("grid gap-3", SIZE_CONFIGS[paletteCardSize].cols)}>
                             {commEntries.map((pc) => renderCard(pc))}
                           </div>
                         )}
