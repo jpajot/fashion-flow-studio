@@ -198,6 +198,24 @@ export default function ColorPalettes() {
             { label: "New Palette", icon: Plus, onClick: openNewPalette },
             { divider: true },
             { label: "Refresh", icon: RefreshCw, onClick: loadData },
+            ...(selectedId ? [
+              { divider: true },
+              {
+                label: "S",
+                onClick: () => { setPaletteCardSize("S"); try { localStorage.setItem("palette_card_size", "S"); } catch {} },
+                className: `px-2 py-1 text-xs font-medium rounded border ${paletteCardSize === "S" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`
+              },
+              {
+                label: "M",
+                onClick: () => { setPaletteCardSize("M"); try { localStorage.setItem("palette_card_size", "M"); } catch {} },
+                className: `px-2 py-1 text-xs font-medium rounded border ${paletteCardSize === "M" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`
+              },
+              {
+                label: "L",
+                onClick: () => { setPaletteCardSize("L"); try { localStorage.setItem("palette_card_size", "L"); } catch {} },
+                className: `px-2 py-1 text-xs font-medium rounded border ${paletteCardSize === "L" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`
+              },
+            ] : []),
           ]
         : activeSection === "technical"
         ? [
@@ -213,7 +231,7 @@ export default function ColorPalettes() {
     setOptions({ items });
     return () => setOptions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection]);
+  }, [activeSection, paletteCardSize, selectedId]);
 
   const techMap = useMemo(() => Object.fromEntries(tech.map((t) => [t.id, t])), [tech]);
   const commMap = useMemo(() => Object.fromEntries(comm.map((c) => [c.id, c])), [comm]);
