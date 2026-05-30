@@ -47,7 +47,6 @@ import {
   GripVertical,
   Search,
   Link as LinkIcon,
-  RefreshCw as RefreshIcon,
 } from "lucide-react";
 import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
 import { usePageOptions } from "@/contexts/PageOptionsContext";
