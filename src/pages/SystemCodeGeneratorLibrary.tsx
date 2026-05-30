@@ -84,6 +84,9 @@ const SUB_NAV_ROUTES: Record<string, string> = {
   lov: "/list-of-values",
   codegen: "/code-generators",
   colors: "/color-palettes",
+  sizes: "/size-studio",
+  currencies: "/currencies",
+  config: "/app-config",
 };
 
 function nextCodePreview(g: {
