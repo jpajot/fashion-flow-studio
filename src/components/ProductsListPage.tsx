@@ -247,6 +247,109 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     return m;
   }, [colorwaysForType]);
 
+  // ── column specs (drive both view-visibility and rendering) ──
+  type ColSpec = { id: string; label: string; className?: string; render: (row: any) => React.ReactNode };
+
+  const allStyleColumns: ColSpec[] = useMemo(() => [
+    { id: "image", label: "", className: "w-12", render: (p) => {
+      const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
+      return img ? <img src={img} className="h-10 w-10 object-cover rounded" alt="" />
+        : <div className="h-10 w-10 bg-muted rounded grid place-items-center text-xs">{initials(p.name)}</div>;
+    }},
+    { id: "name", label: "Name", render: (p) => (
+      <><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground font-mono">{p.code}</div></>
+    )},
+    { id: "category", label: "Category", render: (p) => p.category || "—" },
+    { id: "sub_category", label: "Sub-Category", render: (p) => p.sub_category || "—" },
+    { id: "customer_need", label: "Customer Need", render: (p) => p.customer_need || "—" },
+    { id: "colorways", label: "Colorways", render: (p) => {
+      const cws = (cwByProduct[p.id] || []).slice(0, 4);
+      return <div className="flex gap-1">{cws.map((c) => (
+        <div key={c.id} className="h-5 w-5 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
+      ))}</div>;
+    }},
+    { id: "count", label: "#", className: "text-right", render: (p) => (
+      <span className="text-muted-foreground text-xs">{cwByProduct[p.id]?.length || 0}</span>
+    )},
+  ], [cwByProduct]);
+
+  const allColorwayColumns: ColSpec[] = useMemo(() => [
+    { id: "product_image", label: "", className: "w-12", render: (c) => {
+      const prod = productById[c.product_id];
+      const prodImg = Array.isArray(prod?.images) && prod.images[0];
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+        : <div className="h-10 w-10 bg-muted rounded" />;
+    }},
+    { id: "product_name", label: "Product", render: (c) => <span className="font-medium">{productById[c.product_id]?.name || "—"}</span> },
+    { id: "category", label: "Category", render: (c) => <span className="text-xs">{productById[c.product_id]?.category || "—"}</span> },
+    { id: "swatch", label: "", className: "w-12", render: (c) => (
+      c.image_url ? <img src={c.image_url} className="h-7 w-7 rounded border object-cover" alt="" />
+        : <div className="h-7 w-7 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+    )},
+    { id: "color_name", label: "Colorway", render: (c) => c.color_name },
+    { id: "colorway_code", label: "Code", render: (c) => <span className="font-mono text-xs">{c.colorway_code || "—"}</span> },
+    { id: "commercial", label: "Commercial", render: (c) => (
+      c.linked_color_id ? <span className="text-xs">linked</span>
+        : <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px]">⚠ none</Badge>
+    )},
+    { id: "technical", label: "Technical", render: (c) => <span className="text-xs">{c.linked_tech_color_id ? "linked" : "—"}</span> },
+    { id: "project", label: "Project", render: (c) => {
+      const proj = c.creation_project_id ? projectById[c.creation_project_id] : null;
+      return <span className="text-xs">{proj?.name || "—"}</span>;
+    }},
+  ], [productById, projectById]);
+
+  const allVariationColumns: ColSpec[] = useMemo(() => [
+    { id: "product_image", label: "", className: "w-12", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const prod = cw ? productById[cw.product_id] : null;
+      const prodImg = Array.isArray(prod?.images) && prod.images[0];
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+        : <div className="h-10 w-10 bg-muted rounded" />;
+    }},
+    { id: "product_name", label: "Product", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const prod = cw ? productById[cw.product_id] : null;
+      return <span className="font-medium">{prod?.name || "—"}</span>;
+    }},
+    { id: "category", label: "Category", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const prod = cw ? productById[cw.product_id] : null;
+      return <span className="text-xs">{prod?.category || "—"}</span>;
+    }},
+    { id: "swatch", label: "", className: "w-12", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      return <div className="h-7 w-7 rounded border" style={{ backgroundColor: cw?.color_hex || "#e5e7eb" }} />;
+    }},
+    { id: "colorway_name", label: "Colorway", render: (v) => cwById[v.product_color_id]?.color_name || "—" },
+    { id: "colorway_code", label: "Code", render: (v) => <span className="font-mono text-xs">{cwById[v.product_color_id]?.colorway_code || "—"}</span> },
+    { id: "sequence", label: "Sequence", render: (v) => <span className="font-mono text-xs">{v.sequence || "—"}</span> },
+    { id: "name", label: "Variation", render: (v) => v.name || "—" },
+    { id: "pack_code", label: "Pack Code", render: (v) => <span className="font-mono text-xs">{v.pack_code || "—"}</span> },
+    { id: "variant", label: "Variant", render: (v) => v.variant || "—" },
+    { id: "project", label: "Project", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const proj = cw?.creation_project_id ? projectById[cw.creation_project_id] : null;
+      return <span className="text-xs">{proj?.name || "—"}</span>;
+    }},
+  ], [cwById, productById, projectById]);
+
+  const visibleStyleColumns = useMemo(
+    () => stylesVisibleColumnIds ? allStyleColumns.filter(c => stylesVisibleColumnIds.includes(c.id)) : allStyleColumns,
+    [allStyleColumns, stylesVisibleColumnIds],
+  );
+  const visibleColorwayColumns = useMemo(
+    () => colorwaysVisibleColumnIds ? allColorwayColumns.filter(c => colorwaysVisibleColumnIds.includes(c.id)) : allColorwayColumns,
+    [allColorwayColumns, colorwaysVisibleColumnIds],
+  );
+  const visibleVariationColumns = useMemo(
+    () => variationsVisibleColumnIds ? allVariationColumns.filter(c => variationsVisibleColumnIds.includes(c.id)) : allVariationColumns,
+    [allVariationColumns, variationsVisibleColumnIds],
+  );
+
+  const thumb = THUMB_SIZES[stylesThumbSize] || THUMB_SIZES.md;
+
+
   // ── options drawer ──
   const handleTogglePin = () => {
     togglePinItem(pagePath, title);
