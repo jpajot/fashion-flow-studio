@@ -929,9 +929,6 @@ function AddColorDialog({
     return list.slice(0, 300);
   }, [comm, q]);
 
-  // Lazy-load TechPicker via dynamic import not needed; reuse via static import
-  // Import locally to avoid circular concerns
-  const { TechPicker } = require("@/pages/ColorLibrary") as { TechPicker: any };
 
   return (
     <>
