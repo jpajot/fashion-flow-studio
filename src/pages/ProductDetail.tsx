@@ -50,6 +50,7 @@ export default function ProductDetail() {
   const [lovTypes, setLovTypes] = useState<LovType[]>([]);
   const [lovValues, setLovValues] = useState<LovValue[]>([]);
   const [styleSizes, setStyleSizes] = useState<any[]>([]);
+  const [colorways, setColorways] = useState<any[]>([]);
 
   const [delOpen, setDelOpen] = useState(false);
   const [revOpen, setRevOpen] = useState(false);
@@ -68,11 +69,12 @@ export default function ProductDetail() {
     setLoading(true);
     const [p, cw, bm, ss] = await Promise.all([
       supabase.from("products").select("*").eq("id", id).single(),
-      supabase.from("product_colors").select("id").eq("product_id", id),
+      supabase.from("product_colors").select("*").eq("product_id", id),
       supabase.from("boms").select("id").eq("product_id", id),
       supabase.from("style_sizes").select("*").eq("product_id", id),
     ]);
     setProduct(p.data ?? null);
+    setColorways(cw.data ?? []);
     setColorwayCount((cw.data ?? []).length);
     setBomCount((bm.data ?? []).length);
     setStyleSizes(ss.data ?? []);
@@ -604,9 +606,18 @@ export default function ProductDetail() {
         />
       )}
       {!isNew && activeTab === "sizes" && (
-        <StyleSizesSection productId={product.id} sizeGridName={sizeGrids.find((g) => g.id === product?.size_grid_id)?.name} />
+        <StyleSizesSection
+          product={product}
+          onSizesChange={(hasSizes) => setStyleSizes((prev) => (hasSizes ? prev : []))}
+        />
       )}
-      {!isNew && activeTab === "more" && <MoreVariationsSection productId={product.id} />}
+      {!isNew && activeTab === "more" && (
+        <MoreVariationsSection
+          productId={product.id}
+          colorVariants={colorways}
+          projects={projects}
+        />
+      )}
       {!isNew && activeTab === "suppliers" && <ProductSuppliersTab productId={product.id} />}
       {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} />}
       {!isNew && activeTab === "samples" && <ProductSamplesTab productId={product.id} />}
