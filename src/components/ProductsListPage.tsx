@@ -88,6 +88,24 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [colorwaysActiveViewId, setColorwaysActiveViewId] = useState("default");
   const [variationsActiveViewId, setVariationsActiveViewId] = useState("default");
 
+  const [stylesVisibleColumnIds, setStylesVisibleColumnIds] = useState<string[] | null>(null);
+  const [colorwaysVisibleColumnIds, setColorwaysVisibleColumnIds] = useState<string[] | null>(null);
+  const [variationsVisibleColumnIds, setVariationsVisibleColumnIds] = useState<string[] | null>(null);
+  const [stylesViewFilters, setStylesViewFilters] = useState<any[]>([]);
+  const [colorwaysViewFilters, setColorwaysViewFilters] = useState<any[]>([]);
+  const [variationsViewFilters, setVariationsViewFilters] = useState<any[]>([]);
+  const [stylesThumbSize, setStylesThumbSize] = useState("md");
+
+  useEffect(() => {
+    applyViewConfig(stylesActiveViewId, setStylesVisibleColumnIds, setStylesViewFilters, setStylesThumbSize);
+  }, [stylesActiveViewId]);
+  useEffect(() => {
+    applyViewConfig(colorwaysActiveViewId, setColorwaysVisibleColumnIds, setColorwaysViewFilters);
+  }, [colorwaysActiveViewId]);
+  useEffect(() => {
+    applyViewConfig(variationsActiveViewId, setVariationsVisibleColumnIds, setVariationsViewFilters);
+  }, [variationsActiveViewId]);
+
   const styleTableColumns = useMemo(() => [
     { id: "image", label: "Image" },
     { id: "name", label: "Name" },
