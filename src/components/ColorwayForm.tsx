@@ -46,6 +46,7 @@ export default function ColorwayForm({
       color_name: "",
       colorway_code: "",
       color_hex: "#000000",
+      colorway_status: "",
       linked_tech_color_id: null,
       linked_color_type: null,
       linked_color_id: null,
