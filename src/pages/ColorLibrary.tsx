@@ -816,7 +816,7 @@ export function TechDialog({
 
 /* ============================== Commercial Dialog ============================== */
 
-function CommDialog({
+export function CommDialog({
   open,
   onOpenChange,
   editing,
