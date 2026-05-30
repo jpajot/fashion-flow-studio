@@ -23,6 +23,9 @@ import Admin from "@/pages/Admin";
 import SettingsHub from "@/pages/SettingsHub";
 import ListOfValuesLibrary from "@/pages/ListOfValuesLibrary";
 import SystemCodeGeneratorLibrary from "@/pages/SystemCodeGeneratorLibrary";
+import SizeGridLibrary from "@/pages/SizeGridLibrary";
+import Currencies from "@/pages/Currencies";
+import AppConfiguration from "@/pages/AppConfiguration";
 import Stub from "@/pages/Stub";
 import NotFound from "./pages/NotFound.tsx";
 
