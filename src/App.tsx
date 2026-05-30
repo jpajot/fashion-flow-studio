@@ -14,6 +14,7 @@ import ProductDetail from "@/pages/ProductDetail";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
 import ColorLibrary from "@/pages/ColorLibrary";
+import ColorPalettes from "@/pages/ColorPalettes";
 import Suppliers from "@/pages/Suppliers";
 import Ecos from "@/pages/Ecos";
 import Samples from "@/pages/Samples";
@@ -52,7 +53,7 @@ const App = () => (
 
                   <Route path="/materials" element={<Stub title="Materials Lists" />} />
 
-                  <Route path="/color-palettes" element={<ColorLibrary />} />
+                  <Route path="/color-palettes" element={<ColorPalettes />} />
                   <Route path="/color-library" element={<ColorLibrary />} />
 
                   <Route path="/size-grid-library" element={<Stub title="Size Studio" />} />
