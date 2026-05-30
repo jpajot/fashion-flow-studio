@@ -17,7 +17,7 @@ const SECTIONS = [
     icon: ListChecks,
     ready: true,
   },
-  { to: "/config", title: "Code Generators", desc: "Coming soon", icon: Hash, ready: false },
+  { to: "/code-generators", title: "Code Generators", desc: "System code generation rules", icon: Hash, ready: true },
   { to: "/color-palettes", title: "Color Studio", desc: "Manage colors and palettes", icon: SwatchBook, ready: true },
   { to: "/config", title: "Size Studio", desc: "Coming soon", icon: Ruler, ready: false },
   { to: "/config", title: "Currencies", desc: "Coming soon", icon: CircleDollarSign, ready: false },
