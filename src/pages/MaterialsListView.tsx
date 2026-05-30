@@ -1,5 +1,5 @@
-import ProductListView from "@/components/ProductListView";
+import ProductsListPage from "@/components/ProductsListPage";
 
 export default function MaterialsListView() {
-  return <ProductListView type="Material" title="Materials" newButtonLabel="New Material" />;
+  return <ProductsListPage type="Material" title="Materials" newButtonLabel="New Material" pagePath="/materials" />;
 }

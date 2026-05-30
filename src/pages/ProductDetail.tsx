@@ -23,6 +23,7 @@ import MoreVariationsSection from "@/components/MoreVariationsSection";
 import ProductSuppliersTab from "@/components/ProductSuppliersTab";
 import ProductBomsTab from "@/components/ProductBomsTab";
 import ProductSamplesTab from "@/components/ProductSamplesTab";
+import ProductUOMSection from "@/components/ProductUOMSection";
 
 const NONE = "__none__";
 
@@ -306,7 +307,7 @@ export default function ProductDetail() {
       return;
     }
     toast({ title: "Created" });
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 200));
     navigate(`/products/${data.id}`);
   };
 
@@ -435,6 +436,14 @@ export default function ProductDetail() {
                 <Upload className="h-4 w-4" /> Upload images
                 <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
               </label>
+            )}
+            {!isNew && (
+              <ProductUOMSection
+                product={product}
+                lovTypes={lovTypes}
+                lovValues={lovValues}
+                onUpdate={updateField}
+              />
             )}
           </div>
 
