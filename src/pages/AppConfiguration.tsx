@@ -217,7 +217,7 @@ export default function AppConfiguration() {
   };
 
   return (
-    <div className="p-6">
+    <div className="px-3 py-3 sm:px-4 md:px-6">
       <div className="max-w-3xl mx-auto space-y-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">App Configuration</h1>

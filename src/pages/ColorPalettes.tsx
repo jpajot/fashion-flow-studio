@@ -424,7 +424,7 @@ export default function ColorPalettes() {
   // ============ Section: Technical Colors ============
   if (activeSection === "technical") {
     return (
-      <div className="p-6 space-y-4">
+      <div className="px-3 py-3 sm:px-4 md:px-6 space-y-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Technical Colors</h1>
           <p className="text-sm text-muted-foreground">Pantone TCX color library.</p>
@@ -491,7 +491,7 @@ export default function ColorPalettes() {
   // ============ Section: Commercial Colors ============
   if (activeSection === "commercial") {
     return (
-      <div className="p-6 space-y-4">
+      <div className="px-3 py-3 sm:px-4 md:px-6 space-y-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Commercial Colors</h1>
           <p className="text-sm text-muted-foreground">Commercial color definitions used on products.</p>
@@ -543,7 +543,7 @@ export default function ColorPalettes() {
 
   // ============ Section: Palettes (default) ============
   return (
-    <div className="p-6 space-y-4">
+    <div className="px-3 py-3 sm:px-4 md:px-6 space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Color Studio</h1>
         <p className="text-sm text-muted-foreground">
