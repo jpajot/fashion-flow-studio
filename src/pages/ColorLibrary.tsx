@@ -495,7 +495,7 @@ export function TechnicalTab({
 
 /* ============================== Commercial Tab ============================== */
 
-function CommercialTab({
+export function CommercialTab({
   rows,
   techById,
   onAdd,
