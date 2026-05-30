@@ -876,14 +876,18 @@ function CommDialog({
       toast({ title: "Code and name are required", variant: "destructive" });
       return;
     }
+    const linkedIds =
+      form.sub_type === "combined"
+        ? form.linked_technical_color_ids ?? []
+        : form.main_technical_color_id
+        ? [form.main_technical_color_id]
+        : [];
     const payload: any = {
       sub_type: form.sub_type,
       code: form.code.trim(),
       color_name: form.color_name.trim(),
       main_technical_color_id: form.main_technical_color_id || null,
-      linked_technical_color_ids: form.linked_technical_color_ids?.length
-        ? form.linked_technical_color_ids
-        : null,
+      linked_technical_color_ids: linkedIds.length ? linkedIds : null,
     };
     const res = editing
       ? await supabase.from("commercial_colors").update(payload).eq("id", editing.id).select().single()
