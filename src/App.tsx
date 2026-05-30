@@ -9,7 +9,8 @@ import { PageOptionsProvider } from "@/contexts/PageOptionsContext";
 import AppShell from "@/components/layout/AppShell";
 import AuthPage from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import StyleLibrary from "@/pages/StyleLibrary";
+import Products from "@/pages/Products";
+import MaterialsListView from "@/pages/MaterialsListView";
 import ProductDetail from "@/pages/ProductDetail";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
@@ -46,15 +47,16 @@ const App = () => (
                   <Route path="/" element={<Navigate to="/list-view" replace />} />
                   <Route path="/dashboard" element={<Dashboard />} />
 
-                  <Route path="/list-view" element={<StyleLibrary />} />
+                  <Route path="/list-view" element={<Products />} />
                   <Route path="/styles" element={<Navigate to="/list-view" replace />} />
+                  <Route path="/products/new" element={<ProductDetail />} />
                   <Route path="/products/:id" element={<ProductDetail />} />
                   <Route path="/styles/:id" element={<RedirectStyleToProduct />} />
 
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
 
-                  <Route path="/materials" element={<Stub title="Materials Lists" />} />
+                  <Route path="/materials" element={<MaterialsListView />} />
 
                   <Route path="/color-palettes" element={<ColorPalettes />} />
                   <Route path="/color-library" element={<Navigate to="/color-palettes" replace />} />
