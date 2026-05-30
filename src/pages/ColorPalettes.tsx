@@ -589,6 +589,9 @@ function AddColorDialog({
   techMap,
   existing,
   onAdd,
+  onReload,
+  paletteId,
+  setCommColors,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
@@ -597,9 +600,86 @@ function AddColorDialog({
   techMap: Record<string, Tech>;
   existing: PaletteColor[];
   onAdd: (type: "technical" | "commercial", id: string) => void;
+  onReload: () => void | Promise<void>;
+  paletteId: string | null;
+  setCommColors: (next: Comm[]) => void;
 }) {
+  const { toast } = useToast();
   const [tab, setTab] = useState<"technical" | "commercial">("technical");
   const [q, setQ] = useState("");
+  const [showTechNew, setShowTechNew] = useState(false);
+  const [showCommNew, setShowCommNew] = useState(false);
+
+  // mini commercial create form
+  const [newCode, setNewCode] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newSubType, setNewSubType] = useState("Solid");
+  const [newMainTech, setNewMainTech] = useState<Tech | null>(null);
+  const [newCodeError, setNewCodeError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const regenCommCode = async () => {
+    const { data, error } = await supabase.rpc("generate_code", {
+      p_entity_name: "CommercialColor",
+      p_entity_type: "",
+    });
+    if (error) {
+      toast({ title: "Code generation failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (data) setNewCode(String(data));
+  };
+
+  useEffect(() => {
+    if (showCommNew && !newCode) regenCommCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCommNew]);
+
+  const resetCommForm = () => {
+    setNewCode("");
+    setNewName("");
+    setNewSubType("Solid");
+    setNewMainTech(null);
+    setNewCodeError(null);
+  };
+
+  const saveNewComm = async () => {
+    setNewCodeError(null);
+    if (!newCode.trim() || !newName.trim()) {
+      toast({ title: "Code and name required", variant: "destructive" });
+      return;
+    }
+    const dup = comm.find((c) => c.code.toLowerCase() === newCode.trim().toLowerCase());
+    if (dup) {
+      setNewCodeError(
+        `Code "${newCode.trim()}" is already used by "${dup.color_name}". Please use a different code.`,
+      );
+      return;
+    }
+    setSaving(true);
+    const payload: any = {
+      sub_type: newSubType,
+      code: newCode.trim(),
+      color_name: newName.trim(),
+      main_technical_color_id: newMainTech?.id ?? null,
+      linked_technical_color_ids: newMainTech ? [newMainTech.id] : [],
+    };
+    const { data, error } = await supabase
+      .from("commercial_colors")
+      .insert(payload)
+      .select()
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      toast({ title: "Create failed", description: error?.message, variant: "destructive" });
+      return;
+    }
+    setCommColors([...comm, data as Comm]);
+    if (paletteId) onAdd("commercial", (data as any).id);
+    toast({ title: "Commercial color created" });
+    resetCommForm();
+    setShowCommNew(false);
+  };
 
   const existingTech = new Set(existing.filter((x) => x.color_type === "technical").map((x) => x.color_id));
   const existingComm = new Set(existing.filter((x) => x.color_type === "commercial").map((x) => x.color_id));
@@ -618,76 +698,161 @@ function AddColorDialog({
   }, [comm, q]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Add Color to Palette</DialogTitle>
-        </DialogHeader>
-        <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
-          <TabsList>
-            <TabsTrigger value="technical">Technical</TabsTrigger>
-            <TabsTrigger value="commercial">Commercial</TabsTrigger>
-          </TabsList>
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search…"
-            className="mt-3 h-8"
-          />
-          <TabsContent value="technical" className="mt-3">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto">
-              {filteredTech.map((t) => {
-                const used = existingTech.has(t.id);
-                return (
-                  <button
-                    key={t.id}
-                    disabled={used}
-                    onClick={() => onAdd("technical", t.id)}
-                    className={cn(
-                      "rounded border overflow-hidden text-left hover:shadow-md transition",
-                      used && "opacity-40 cursor-not-allowed",
-                    )}
-                  >
-                    <div className="aspect-square w-full" style={{ backgroundColor: colorToHex(t) }} />
-                    <div className="p-1.5">
-                      <div className="font-mono text-[10px] truncate">{t.code}</div>
-                      <div className="text-[10px] text-muted-foreground truncate">{t.name}</div>
-                    </div>
-                  </button>
-                );
-              })}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Color to Palette</DialogTitle>
+          </DialogHeader>
+          {showCommNew ? (
+            <div className="space-y-3">
+              <div className="text-sm font-medium">New Commercial Color</div>
+              <div>
+                <Label>Sub-type</Label>
+                <Select value={newSubType} onValueChange={setNewSubType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Solid">Solid</SelectItem>
+                    <SelectItem value="Combined">Combined</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Code *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newCode}
+                    onChange={(e) => {
+                      setNewCode(e.target.value);
+                      setNewCodeError(null);
+                    }}
+                    className="font-mono"
+                  />
+                  <Button variant="outline" size="icon" onClick={regenCommCode} title="Regenerate">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                {newCodeError && (
+                  <p className="text-xs text-destructive mt-1">{newCodeError}</p>
+                )}
+              </div>
+              <div>
+                <Label>Color Name *</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
+              </div>
+              <div>
+                <Label>Main Technical Color</Label>
+                <TechPicker
+                  tech={tech as any}
+                  selected={newMainTech as any}
+                  onPick={(t: any) => setNewMainTech(t)}
+                  placeholder="Select technical color"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => { resetCommForm(); setShowCommNew(false); }}>
+                  Back
+                </Button>
+                <Button onClick={saveNewComm} disabled={saving}>
+                  {saving ? "Creating…" : "Create & Add"}
+                </Button>
+              </DialogFooter>
             </div>
-          </TabsContent>
-          <TabsContent value="commercial" className="mt-3">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto">
-              {filteredComm.map((c) => {
-                const used = existingComm.has(c.id);
-                const t = c.main_technical_color_id ? techMap[c.main_technical_color_id] : null;
-                return (
-                  <button
-                    key={c.id}
-                    disabled={used}
-                    onClick={() => onAdd("commercial", c.id)}
-                    className={cn(
-                      "rounded border overflow-hidden text-left hover:shadow-md transition",
-                      used && "opacity-40 cursor-not-allowed",
-                    )}
-                  >
-                    <div className="aspect-square w-full" style={{ backgroundColor: colorToHex(t) }} />
-                    <div className="p-1.5">
-                      <div className="font-mono text-[10px] truncate">{c.code}</div>
-                      <div className="text-[10px] text-muted-foreground truncate">{c.color_name}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </TabsContent>
-        </Tabs>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          ) : (
+            <>
+              <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
+                <TabsList>
+                  <TabsTrigger value="technical">Technical</TabsTrigger>
+                  <TabsTrigger value="commercial">Commercial</TabsTrigger>
+                </TabsList>
+                <Input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search…"
+                  className="mt-3 h-8"
+                />
+                <TabsContent value="technical" className="mt-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto">
+                    {filteredTech.map((t) => {
+                      const used = existingTech.has(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          disabled={used}
+                          onClick={() => onAdd("technical", t.id)}
+                          className={cn(
+                            "rounded border overflow-hidden text-left hover:shadow-md transition",
+                            used && "opacity-40 cursor-not-allowed",
+                          )}
+                        >
+                          <div className="aspect-square w-full" style={{ backgroundColor: colorToHex(t) }} />
+                          <div className="p-1.5">
+                            <div className="font-mono text-[10px] truncate">{t.code}</div>
+                            <div className="text-[10px] text-muted-foreground truncate">{t.name}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+                <TabsContent value="commercial" className="mt-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto">
+                    {filteredComm.map((c) => {
+                      const used = existingComm.has(c.id);
+                      const t = c.main_technical_color_id ? techMap[c.main_technical_color_id] : null;
+                      return (
+                        <button
+                          key={c.id}
+                          disabled={used}
+                          onClick={() => onAdd("commercial", c.id)}
+                          className={cn(
+                            "rounded border overflow-hidden text-left hover:shadow-md transition",
+                            used && "opacity-40 cursor-not-allowed",
+                          )}
+                        >
+                          <div className="aspect-square w-full" style={{ backgroundColor: colorToHex(t) }} />
+                          <div className="p-1.5">
+                            <div className="font-mono text-[10px] truncate">{c.code}</div>
+                            <div className="text-[10px] text-muted-foreground truncate">{c.color_name}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+              </Tabs>
+              <DialogFooter className="sm:justify-between">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (tab === "technical") setShowTechNew(true);
+                    else setShowCommNew(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> New
+                </Button>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {showTechNew && (
+        <TechDialog
+          open={showTechNew}
+          onOpenChange={setShowTechNew}
+          editing={null}
+          groups={[]}
+          subGroups={[]}
+          onSaved={async () => {
+            setShowTechNew(false);
+            await onReload();
+          }}
+        />
+      )}
+    </>
   );
+}
+
 }
