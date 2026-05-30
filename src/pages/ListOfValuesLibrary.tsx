@@ -112,8 +112,11 @@ export default function ListOfValuesLibrary() {
     SUB_NAV_ITEMS,
     "lov",
     (id) => {
-      if (id === "lov") return;
-      navigate("/config");
+      const routes: Record<string, string> = {
+        lov: "/list-of-values",
+        codegen: "/code-generators",
+      };
+      navigate(routes[id] ?? "/config");
     },
     "Settings",
   );

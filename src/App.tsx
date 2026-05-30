@@ -21,6 +21,7 @@ import Rfqs from "@/pages/Rfqs";
 import Admin from "@/pages/Admin";
 import SettingsHub from "@/pages/SettingsHub";
 import ListOfValuesLibrary from "@/pages/ListOfValuesLibrary";
+import SystemCodeGeneratorLibrary from "@/pages/SystemCodeGeneratorLibrary";
 import Stub from "@/pages/Stub";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -70,6 +71,7 @@ const App = () => (
                   <Route path="/config" element={<SettingsHub />} />
                   <Route path="/config/admin" element={<Admin />} />
                   <Route path="/list-of-values" element={<ListOfValuesLibrary />} />
+                  <Route path="/code-generators" element={<SystemCodeGeneratorLibrary />} />
                   <Route path="/settings" element={<Navigate to="/config" replace />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
