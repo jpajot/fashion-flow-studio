@@ -20,9 +20,9 @@ const SECTIONS = [
   },
   { to: "/code-generators", title: "Code Generators", desc: "System code generation rules", icon: Hash, ready: true },
   { to: "/color-palettes", title: "Color Studio", desc: "Palettes, technical & commercial colors", icon: SwatchBook, ready: true },
-  { to: "/config", title: "Size Studio", desc: "Coming soon", icon: Ruler, ready: false },
-  { to: "/config", title: "Currencies", desc: "Coming soon", icon: CircleDollarSign, ready: false },
-  { to: "/config", title: "App Config", desc: "Coming soon", icon: SettingsIcon, ready: false },
+  { to: "/size-studio", title: "Size Studio", desc: "Size grids and size library", icon: Ruler, ready: true },
+  { to: "/currencies", title: "Currencies", desc: "Currencies and pricing units", icon: CircleDollarSign, ready: true },
+  { to: "/app-config", title: "App Config", desc: "Application configuration values", icon: SettingsIcon, ready: true },
 ];
 
 export default function SettingsHub() {
