@@ -248,7 +248,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   }, [colorwaysForType]);
 
   // ── column specs (drive both view-visibility and rendering) ──
-  type ColSpec = { id: string; label: string; className?: string; render: (row: any) => React.ReactNode };
+  type ColSpec = { id: string; label: string; className?: string; render: (row: any) => ReactNode };
 
   const allStyleColumns: ColSpec[] = useMemo(() => [
     { id: "image", label: "", className: "w-12", render: (p) => {
