@@ -278,6 +278,7 @@ export default function ColorwaySection({
                 <TableHead className="w-12"></TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Code</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Tech</TableHead>
                 <TableHead>Commercial</TableHead>
                 <TableHead>Rev</TableHead>
