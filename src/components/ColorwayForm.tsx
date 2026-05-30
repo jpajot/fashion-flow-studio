@@ -250,6 +250,24 @@ export default function ColorwayForm({
           <Label>Colorway Code</Label>
           <Input value={form.colorway_code || ""} onChange={(e) => setForm({ ...form, colorway_code: e.target.value })} />
         </div>
+        <div className="sm:col-span-2 space-y-1.5">
+          <Label className="text-xs">Status</Label>
+          <Select
+            value={form.colorway_status || "none"}
+            onValueChange={(v) => setForm((f: any) => ({ ...f, colorway_status: v === "none" ? "" : v }))}
+          >
+            <SelectTrigger><SelectValue placeholder="No status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No status</SelectItem>
+              <SelectItem value="requested">Requested</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="submitted_for_approval">Submitted for Approval</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="obsolete">Obsolete</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div>
           <Label>Color</Label>
           <div className="flex gap-2">
