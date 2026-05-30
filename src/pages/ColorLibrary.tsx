@@ -632,7 +632,7 @@ function CommercialTab({
 
 /* ============================== Technical Dialog ============================== */
 
-function TechDialog({
+export function TechDialog({
   open,
   onOpenChange,
   editing,
