@@ -19,8 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Link as LinkIcon, Plus, RefreshCw, ArrowLeft, Search } from "lucide-react";
-import { colorToHex } from "@/pages/ColorLibrary";
+import { Link as LinkIcon, Plus, RefreshCw, ArrowLeft, Search, X } from "lucide-react";
+import { colorToHex, TechPicker } from "@/pages/ColorLibrary";
 
 type Tech = {
   id: string;
@@ -53,6 +53,7 @@ export default function LinkCommercialColorDialog({
   onClose,
   paletteId,
   setPaletteColors,
+  tech = [],
 }: {
   techColor: Tech;
   commColors: Comm[];
@@ -60,6 +61,7 @@ export default function LinkCommercialColorDialog({
   onClose: () => void;
   paletteId?: string | null;
   setPaletteColors?: (updater: (prev: PaletteColor[]) => PaletteColor[]) => void;
+  tech?: Tech[];
 }) {
   const { toast } = useToast();
   const [mode, setMode] = useState<"choose" | "link" | "create">("choose");
@@ -69,8 +71,11 @@ export default function LinkCommercialColorDialog({
   const [code, setCode] = useState("");
   const [name, setName] = useState(techColor.name);
   const [subType, setSubType] = useState("Solid");
+  const [linkedIds, setLinkedIds] = useState<string[]>([techColor.id]);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const techMap = useMemo(() => Object.fromEntries(tech.map((t) => [t.id, t])), [tech]);
 
   const regenerateCode = async () => {
     const { data, error } = await supabase.rpc("generate_code", {
@@ -152,12 +157,14 @@ export default function LinkCommercialColorDialog({
       return;
     }
     setSaving(true);
+    const finalLinkedIds =
+      subType === "Combined" ? linkedIds : [techColor.id];
     const payload = {
       sub_type: subType,
       code: code.trim(),
       color_name: name.trim(),
       main_technical_color_id: techColor.id,
-      linked_technical_color_ids: [techColor.id],
+      linked_technical_color_ids: finalLinkedIds,
     };
     const { data, error } = await supabase
       .from("commercial_colors")
@@ -267,7 +274,15 @@ export default function LinkCommercialColorDialog({
           <div className="space-y-3">
             <div>
               <Label>Sub-type</Label>
-              <Select value={subType} onValueChange={setSubType}>
+              <Select
+                value={subType}
+                onValueChange={(v) => {
+                  setSubType(v);
+                  if (v === "Combined" && !linkedIds.includes(techColor.id)) {
+                    setLinkedIds([techColor.id]);
+                  }
+                }}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Solid">Solid</SelectItem>
@@ -302,6 +317,47 @@ export default function LinkCommercialColorDialog({
               Main technical color will be set to{" "}
               <span className="font-mono">{techColor.code}</span> — {techColor.name}
             </div>
+
+            {subType === "Combined" && tech.length > 0 && (
+              <div>
+                <Label>Linked Technical Colors</Label>
+                <div className="flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[44px]">
+                  {linkedIds.map((id) => {
+                    const t = techMap[id] ?? (id === techColor.id ? techColor : null);
+                    if (!t) return null;
+                    const isMain = id === techColor.id;
+                    return (
+                      <div
+                        key={id}
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary text-secondary-foreground text-xs"
+                      >
+                        <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: colorToHex(t) }} />
+                        <span className="font-mono">{t.code}</span>
+                        <span className="truncate max-w-[120px]">{t.name}</span>
+                        {isMain && <Badge variant="outline" className="text-[10px] py-0 px-1">main</Badge>}
+                        <button
+                          onClick={() => setLinkedIds(linkedIds.filter((x) => x !== id))}
+                          disabled={isMain}
+                          className="ml-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                          type="button"
+                          title={isMain ? "Main color cannot be removed" : "Remove"}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2">
+                  <TechPicker
+                    tech={tech.filter((t) => !linkedIds.includes(t.id)) as any}
+                    selected={null}
+                    onPick={(t: any) => setLinkedIds([...linkedIds, t.id])}
+                    placeholder="Add linked technical color"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
