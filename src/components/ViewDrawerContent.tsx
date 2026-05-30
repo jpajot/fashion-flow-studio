@@ -33,7 +33,7 @@ const THUMB_SIZES = [
   { id: "lg", label: "L" }, { id: "xl", label: "XL" },
 ];
 
-export default function ViewDrawerContent({ pageKey, activeViewId, onSelectView, allFields = [], currentViewType = null }: Props) {
+export default function ViewDrawerContent({ pageKey, activeViewId, onSelectView, allFields = [], currentViewType = null, onDrawerClose }: Props) {
   const { user } = useAuth();
   const [views, setViews] = useState<ViewConfig[]>([]);
   const [loading, setLoading] = useState(true);
