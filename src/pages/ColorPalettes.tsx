@@ -90,6 +90,12 @@ type PaletteColor = {
 
 const NONE = "__none__";
 
+const SIZE_CONFIGS = {
+  S: { cols: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5", cardClass: "text-[10px]", swatchSize: "w-5 h-5", codeClass: "text-[9px]" },
+  M: { cols: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4", cardClass: "text-xs", swatchSize: "w-6 h-6", codeClass: "text-[10px]" },
+  L: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", cardClass: "text-sm", swatchSize: "w-8 h-8", codeClass: "text-xs" },
+};
+
 export default function ColorPalettes() {
   const { toast } = useToast();
   const { setOptions } = usePageOptions();
@@ -112,6 +118,10 @@ export default function ColorPalettes() {
   const [deletePal, setDeletePal] = useState<Palette | null>(null);
   const [showAddColor, setShowAddColor] = useState(false);
   const [linkingTechColor, setLinkingTechColor] = useState<Tech | null>(null);
+  const [paletteCardSize, setPaletteCardSize] = useState<"S" | "M" | "L">(() => {
+    try { return (localStorage.getItem("palette_card_size") as "S" | "M" | "L") || "M"; }
+    catch { return "M"; }
+  });
 
   // Library-section dialogs
   const [editingTech, setEditingTech] = useState<Tech | null>(null);
@@ -194,6 +204,24 @@ export default function ColorPalettes() {
             { label: "New Palette", icon: Plus, onClick: openNewPalette },
             { divider: true },
             { label: "Refresh", icon: RefreshCw, onClick: loadData },
+            ...(selectedId ? [
+              { divider: true },
+              {
+                label: "S",
+                onClick: () => { setPaletteCardSize("S"); try { localStorage.setItem("palette_card_size", "S"); } catch {} },
+                className: `px-2 py-1 text-xs font-medium rounded border ${paletteCardSize === "S" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`
+              },
+              {
+                label: "M",
+                onClick: () => { setPaletteCardSize("M"); try { localStorage.setItem("palette_card_size", "M"); } catch {} },
+                className: `px-2 py-1 text-xs font-medium rounded border ${paletteCardSize === "M" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`
+              },
+              {
+                label: "L",
+                onClick: () => { setPaletteCardSize("L"); try { localStorage.setItem("palette_card_size", "L"); } catch {} },
+                className: `px-2 py-1 text-xs font-medium rounded border ${paletteCardSize === "L" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`
+              },
+            ] : []),
           ]
         : activeSection === "technical"
         ? [
@@ -209,7 +237,7 @@ export default function ColorPalettes() {
     setOptions({ items });
     return () => setOptions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection]);
+  }, [activeSection, paletteCardSize, selectedId]);
 
   const techMap = useMemo(() => Object.fromEntries(tech.map((t) => [t.id, t])), [tech]);
   const commMap = useMemo(() => Object.fromEntries(comm.map((c) => [c.id, c])), [comm]);
@@ -697,14 +725,14 @@ export default function ColorPalettes() {
                           ) : (
                             <div className="aspect-square w-full" style={{ backgroundColor: r.hex }} />
                           )}
-                          <div className="p-2 space-y-0.5">
+                          <div className={cn("p-2 space-y-0.5", SIZE_CONFIGS[paletteCardSize].cardClass)}>
                             <div className="flex items-center justify-between gap-1">
-                              <span className="font-mono text-xs">{r.code}</span>
+                              <span className={cn("font-mono", SIZE_CONFIGS[paletteCardSize].codeClass)}>{r.code}</span>
                               <Badge variant="secondary" className="text-[10px] capitalize">
                                 {pc.color_type}
                               </Badge>
                             </div>
-                            <div className="text-sm font-medium truncate">{r.name}</div>
+                            <div className="font-medium truncate">{r.name}</div>
                             {opts?.unlinked && techRow && (
                               <Button
                                 size="sm"
@@ -732,7 +760,7 @@ export default function ColorPalettes() {
                     return (
                       <>
                         {commEntries.length > 0 && (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                          <div className={cn("grid gap-3", SIZE_CONFIGS[paletteCardSize].cols)}>
                             {commEntries.map((pc) => renderCard(pc))}
                           </div>
                         )}
@@ -741,7 +769,7 @@ export default function ColorPalettes() {
                             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                               Unlinked Technical Colors ({unlinkedTech.length})
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                            <div className={cn("grid gap-3", SIZE_CONFIGS[paletteCardSize].cols)}>
                               {unlinkedTech.map((pc) => renderCard(pc, { unlinked: true }))}
                             </div>
                           </div>
