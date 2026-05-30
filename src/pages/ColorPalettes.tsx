@@ -543,7 +543,25 @@ export default function ColorPalettes() {
         techMap={techMap}
         existing={selectedColors}
         onAdd={addColorToPalette}
+        onReload={loadData}
+        paletteId={selectedId}
+        setCommColors={setComm as any}
       />
+
+      {linkingTechColor && (
+        <LinkCommercialColorDialog
+          techColor={linkingTechColor}
+          commColors={comm as any}
+          setCommColors={(next) => setComm(next as any)}
+          onClose={() => {
+            setLinkingTechColor(null);
+            loadData();
+          }}
+          paletteId={selectedId}
+          setPaletteColors={(updater) => setColors((prev) => updater(prev))}
+        />
+      )}
+
 
       <AlertDialog open={!!deletePal} onOpenChange={(o) => !o && setDeletePal(null)}>
         <AlertDialogContent>
