@@ -52,6 +52,7 @@ import {
   CommDialog,
   TechnicalTab,
   CommercialTab,
+  TechPicker,
 } from "@/pages/ColorLibrary";
 import LinkCommercialColorDialog from "@/components/LinkCommercialColorDialog";
 
