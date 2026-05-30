@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -155,31 +155,31 @@ export function DataTable<T extends Record<string, any>>({
       const pathKey = [...path, key].join("/");
       const isCollapsed = collapsed.has(pathKey);
       const count = countRows(sub);
-      return (
-        <>
-          <TableRow key={`g-${pathKey}`} className="bg-muted/50">
-            <TableCell colSpan={visibleCols.length} style={{ paddingLeft: 12 + depth * 16 }}>
-              <button
-                className="inline-flex items-center gap-1 font-medium"
-                onClick={() => {
-                  const next = new Set(collapsed);
-                  next.has(pathKey) ? next.delete(pathKey) : next.add(pathKey);
-                  setCollapsed(next);
-                }}
-              >
-                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                <span>{groupBy[depth]}: {key}</span>
-                <span className="text-muted-foreground text-xs ml-2">({count})</span>
-              </button>
-            </TableCell>
-          </TableRow>
-          {!isCollapsed && (
-            depth + 1 < groupBy.length
+      return [
+        <TableRow key={`g-${pathKey}`} className="bg-muted/50">
+          <TableCell colSpan={visibleCols.length} style={{ paddingLeft: 12 + depth * 16 }}>
+            <button
+              className="inline-flex items-center gap-1 font-medium"
+              onClick={() => {
+                const next = new Set(collapsed);
+                next.has(pathKey) ? next.delete(pathKey) : next.add(pathKey);
+                setCollapsed(next);
+              }}
+            >
+              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              <span>{groupBy[depth]}: {key}</span>
+              <span className="text-muted-foreground text-xs ml-2">({count})</span>
+            </button>
+          </TableCell>
+        </TableRow>,
+        !isCollapsed && (
+          <React.Fragment key={`c-${pathKey}`}>
+            {depth + 1 < groupBy.length
               ? renderGroup(sub.__children, [...path, key], depth + 1)
-              : renderRows(sub.__rows)
-          )}
-        </>
-      );
+              : renderRows(sub.__rows)}
+          </React.Fragment>
+        ),
+      ];
     });
   };
 
