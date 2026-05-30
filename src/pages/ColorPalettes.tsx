@@ -638,7 +638,7 @@ export default function ColorPalettes() {
         </Card>
 
         {/* RIGHT — selected palette colors */}
-        <Card className="p-4 h-[calc(100vh-220px)] flex flex-col">
+        <Card className={`p-4 h-[calc(100vh-220px)] flex-col ${selectedId ? "flex" : "hidden lg:flex"}`}>
           {!selectedPal ? (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
               Select a palette to manage its colors
@@ -647,6 +647,13 @@ export default function ColorPalettes() {
             <>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(null)}
+                    className="lg:hidden text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 mr-1"
+                  >
+                    ←
+                  </button>
                   <h2 className="text-lg font-semibold truncate">{selectedPal.name}</h2>
                   {selectedPal.projects?.name && (
                     <Badge variant="secondary">{selectedPal.projects.name}</Badge>
