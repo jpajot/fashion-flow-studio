@@ -145,6 +145,7 @@ export default function ColorwayForm({
       color_name: form.color_name,
       colorway_code: form.colorway_code || null,
       color_hex: form.color_hex || null,
+      colorway_status: form.colorway_status || null,
       linked_tech_color_id: form.linked_tech_color_id || null,
       linked_color_type: form.linked_color_type || null,
       linked_color_id: form.linked_color_id || null,
