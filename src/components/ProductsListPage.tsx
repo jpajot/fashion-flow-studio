@@ -344,7 +344,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     [allVariationColumns, variationsVisibleColumnIds],
   );
 
-  const thumb = THUMB_SIZES[stylesThumbSize] || THUMB_SIZES.md;
+  
 
 
   // ── options drawer ──
