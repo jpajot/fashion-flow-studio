@@ -854,5 +854,3 @@ function AddColorDialog({
     </>
   );
 }
-
-}
