@@ -55,8 +55,8 @@ export default function ProductUOMSection({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">Purchasing UOM (optional)</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Purchasing UOM (optional)</Label>
           <Select
             value={purchUom || NONE}
             onValueChange={(v) => {
@@ -72,8 +72,8 @@ export default function ProductUOMSection({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
             Conversion Factor {hasPurch ? `(${defaultUom} per ${purchUom})` : "(X per Y)"}
           </Label>
           <Input
