@@ -112,7 +112,7 @@ export default function ProductDetail() {
   const pageTitle = isNew
     ? `New ${qsType}`
     : product ? `${product.code || ""} ${product.name || ""}`.trim() : "Product";
-  useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, pageTitle);
+  useRegisterSubNav(isNew ? [{ id: "details", label: "Details" }] : subNavItems, activeTab, setActiveTab, pageTitle);
 
   // ── LOV helpers ──
   const lovTypeByCode = useMemo(() => Object.fromEntries(lovTypes.map((t) => [t.code, t])), [lovTypes]);
