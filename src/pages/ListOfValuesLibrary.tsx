@@ -356,7 +356,7 @@ export default function ListOfValuesLibrary() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT: Types */}
-        <Card className="p-3 space-y-3">
+        <Card className={`p-3 space-y-3 ${selectedType ? "hidden lg:block" : "block"}`}>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Types ({types.length})</h2>
             <Button size="sm" variant="outline" onClick={openNewType}>
