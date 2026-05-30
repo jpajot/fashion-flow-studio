@@ -218,22 +218,28 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     const q = search.trim().toLowerCase();
     let list = products;
     if (q) list = list.filter((p) => (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q));
-    return applyQuickFilters(list, stylesFields, styleQF);
-  }, [products, search, styleQF, stylesFields]);
+    list = applyQuickFilters(list, stylesFields, styleQF);
+    if (stylesViewFilters.length > 0) list = applyQuickFilters(list, stylesFields, stylesViewFilters as any);
+    return list;
+  }, [products, search, styleQF, stylesFields, stylesViewFilters]);
 
   const filteredColorways = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = colorwaysForType;
     if (q) list = list.filter((c) => (c.color_name || "").toLowerCase().includes(q) || (c.colorway_code || "").toLowerCase().includes(q));
-    return applyQuickFilters(list, colorwayFields, colorwayQF);
-  }, [colorwaysForType, search, colorwayQF, colorwayFields]);
+    list = applyQuickFilters(list, colorwayFields, colorwayQF);
+    if (colorwaysViewFilters.length > 0) list = applyQuickFilters(list, colorwayFields, colorwaysViewFilters as any);
+    return list;
+  }, [colorwaysForType, search, colorwayQF, colorwayFields, colorwaysViewFilters]);
 
   const filteredVariations = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = variationsForType;
     if (q) list = list.filter((v) => (v.name || "").toLowerCase().includes(q) || (v.sequence || "").toLowerCase().includes(q));
-    return applyQuickFilters(list, variationFields, variationQF);
-  }, [variationsForType, search, variationQF, variationFields]);
+    list = applyQuickFilters(list, variationFields, variationQF);
+    if (variationsViewFilters.length > 0) list = applyQuickFilters(list, variationFields, variationsViewFilters as any);
+    return list;
+  }, [variationsForType, search, variationQF, variationFields, variationsViewFilters]);
 
   const cwByProduct = useMemo(() => {
     const m: Record<string, any[]> = {};
