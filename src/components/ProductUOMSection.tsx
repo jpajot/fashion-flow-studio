@@ -32,7 +32,7 @@ export default function ProductUOMSection({
   const hasPurch = !!purchUom && !sameUom;
 
   return (
-    <div className="space-y-3 bg-card rounded-xl border border-border p-4 mt-3">
+    <div className="space-y-3 bg-card rounded-lg border border-border p-4 mt-3">
       <div className="flex items-center gap-2 flex-wrap">
         <h3 className="text-sm font-semibold">Unit of Measure</h3>
         {!defaultUom && (
@@ -42,8 +42,8 @@ export default function ProductUOMSection({
         )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <Label className="text-xs">Default UOM (consumption)</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Default UOM (consumption)</Label>
           <Select
             value={defaultUom || NONE}
             onValueChange={(v) => onUpdate("default_uom", v === NONE ? "" : v)}
