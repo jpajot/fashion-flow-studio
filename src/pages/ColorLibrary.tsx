@@ -944,47 +944,51 @@ function CommDialog({
               onChange={(e) => setForm({ ...form, color_name: e.target.value })}
             />
           </div>
-          <div>
-            <Label>Linked Technical Colors</Label>
-            <div className="flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[44px]">
-              {(form.linked_technical_color_ids ?? []).map((id) => {
-                const t = techMap[id];
-                if (!t) return null;
-                const isMain = id === form.main_technical_color_id;
-                return (
-                  <div
-                    key={id}
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary text-secondary-foreground text-xs"
-                  >
-                    <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: colorToHex(t) }} />
-                    <span className="font-mono">{t.code}</span>
-                    <span className="truncate max-w-[120px]">{t.name}</span>
-                    {isMain && <Badge variant="outline" className="text-[10px] py-0 px-1">main</Badge>}
-                    <button
-                      onClick={() => removeLinked(id)}
-                      className="ml-0.5 text-muted-foreground hover:text-foreground"
-                      type="button"
+          {form.sub_type === "combined" && (
+            <div>
+              <Label>Linked Technical Colors</Label>
+              <div className="flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[44px]">
+                {(form.linked_technical_color_ids ?? []).map((id) => {
+                  const t = techMap[id];
+                  if (!t) return null;
+                  const isMain = id === form.main_technical_color_id;
+                  return (
+                    <div
+                      key={id}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary text-secondary-foreground text-xs"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                );
-              })}
-              {(form.linked_technical_color_ids ?? []).length === 0 && (
-                <span className="text-xs text-muted-foreground py-1">No linked colors</span>
-              )}
-            </div>
-            <div className="mt-2">
-              <TechPicker
-                tech={tech.filter(
-                  (t) => !(form.linked_technical_color_ids ?? []).includes(t.id),
+                      <div className="w-3 h-3 rounded-sm border" style={{ backgroundColor: colorToHex(t) }} />
+                      <span className="font-mono">{t.code}</span>
+                      <span className="truncate max-w-[120px]">{t.name}</span>
+                      {isMain && <Badge variant="outline" className="text-[10px] py-0 px-1">main</Badge>}
+                      <button
+                        onClick={() => removeLinked(id)}
+                        disabled={isMain}
+                        className="ml-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                        type="button"
+                        title={isMain ? "Main color cannot be removed" : "Remove"}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {(form.linked_technical_color_ids ?? []).length === 0 && (
+                  <span className="text-xs text-muted-foreground py-1">No linked colors</span>
                 )}
-                selected={null}
-                onPick={(t) => addLinked(t)}
-                placeholder="Add linked technical color"
-              />
+              </div>
+              <div className="mt-2">
+                <TechPicker
+                  tech={tech.filter(
+                    (t) => !(form.linked_technical_color_ids ?? []).includes(t.id),
+                  )}
+                  selected={null}
+                  onPick={(t) => addLinked(t)}
+                  placeholder="Add linked technical color"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
