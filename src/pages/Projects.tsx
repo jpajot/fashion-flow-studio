@@ -101,7 +101,7 @@ export default function Projects() {
               <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No projects</TableCell></TableRow>
             ) : (
               items.map((p) => (
-                <TableRow key={p.id}>
+                <TableRow key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="cursor-pointer hover:bg-muted/50">
                   <TableCell className="font-medium">{p.name ?? "—"}</TableCell>
                   <TableCell>{p.type ?? "—"}</TableCell>
                   <TableCell>{p.season ?? "—"}</TableCell>
