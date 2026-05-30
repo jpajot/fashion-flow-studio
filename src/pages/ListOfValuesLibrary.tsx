@@ -430,9 +430,18 @@ export default function ListOfValuesLibrary() {
         </Card>
 
         {/* RIGHT: Values */}
-        <Card className="lg:col-span-2 p-3 space-y-3">
+        <Card className={`lg:col-span-2 p-3 space-y-3 ${selectedType ? "block" : "hidden lg:block"}`}>
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">
+            <h2 className="font-semibold flex items-center gap-2">
+              {selectedType && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedType(null)}
+                  className="lg:hidden text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 mr-1"
+                >
+                  ←
+                </button>
+              )}
               Values{selectedTypeObj ? ` — ${selectedTypeObj.name || selectedTypeObj.code}` : ""}
             </h2>
             {selectedType && (
