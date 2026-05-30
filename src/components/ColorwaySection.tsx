@@ -297,6 +297,7 @@ export default function ColorwaySection({
                     </TableCell>
                     <TableCell className="font-medium">{c.color_name}</TableCell>
                     <TableCell className="font-mono text-xs">{c.colorway_code || "—"}</TableCell>
+                    <TableCell>{renderStatusBadge(c.colorway_status)}</TableCell>
                     <TableCell className="text-xs">{tech ? `${tech.code} ${tech.name || ""}` : "—"}</TableCell>
                     <TableCell className="text-xs">
                       {comm ? `${comm.code} ${comm.color_name || ""}` : (
