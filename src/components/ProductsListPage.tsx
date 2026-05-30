@@ -13,6 +13,7 @@ import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
 import { PAGE_WRAPPER } from "@/lib/utils";
 import { getPinnedItems, togglePin as togglePinItem, isPinned as checkPinned } from "@/lib/pinned";
 import QuickFiltersPanel, { applyQuickFilters, QFField, QuickFilter } from "@/components/QuickFiltersPanel";
+import ViewDrawerContent from "@/components/ViewDrawerContent";
 
 type Props = {
   type: "Product" | "Material";
