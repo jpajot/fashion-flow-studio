@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,39 @@ type Props = {
   newButtonLabel: string;
   pagePath: string; // "/list-view" or "/materials"
 };
+
+const THUMB_SIZES: Record<string, { cols: string; height: string }> = {
+  xs: { cols: "grid-cols-3 sm:grid-cols-5 lg:grid-cols-7", height: "h-24" },
+  sm: { cols: "grid-cols-2 sm:grid-cols-4 lg:grid-cols-5", height: "h-32" },
+  md: { cols: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4", height: "h-44" },
+  lg: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", height: "h-60" },
+  xl: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2", height: "h-80" },
+};
+
+async function applyViewConfig(
+  viewId: string,
+  setColumnIds: (ids: string[] | null) => void,
+  setViewFilters: (f: any[]) => void,
+  setThumbSize?: (s: string) => void,
+) {
+  if (viewId === "default") {
+    setColumnIds(null);
+    setViewFilters([]);
+    setThumbSize?.("md");
+    return;
+  }
+  const { data } = await supabase
+    .from("list_view_configs")
+    .select("*")
+    .eq("id", viewId)
+    .maybeSingle();
+  if (data) {
+    const ids = (data as any).column_ids;
+    setColumnIds(Array.isArray(ids) && ids.length > 0 ? ids : null);
+    setViewFilters((data as any).filters_config?.filters ?? []);
+    if (setThumbSize && (data as any).thumb_size) setThumbSize((data as any).thumb_size);
+  }
+}
 
 export default function ProductsListPage({ type, title, newButtonLabel, pagePath }: Props) {
   const navigate = useNavigate();
@@ -54,6 +87,24 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [stylesActiveViewId, setStylesActiveViewId] = useState("default");
   const [colorwaysActiveViewId, setColorwaysActiveViewId] = useState("default");
   const [variationsActiveViewId, setVariationsActiveViewId] = useState("default");
+
+  const [stylesVisibleColumnIds, setStylesVisibleColumnIds] = useState<string[] | null>(null);
+  const [colorwaysVisibleColumnIds, setColorwaysVisibleColumnIds] = useState<string[] | null>(null);
+  const [variationsVisibleColumnIds, setVariationsVisibleColumnIds] = useState<string[] | null>(null);
+  const [stylesViewFilters, setStylesViewFilters] = useState<any[]>([]);
+  const [colorwaysViewFilters, setColorwaysViewFilters] = useState<any[]>([]);
+  const [variationsViewFilters, setVariationsViewFilters] = useState<any[]>([]);
+  const [stylesThumbSize, setStylesThumbSize] = useState("md");
+
+  useEffect(() => {
+    applyViewConfig(stylesActiveViewId, setStylesVisibleColumnIds, setStylesViewFilters, setStylesThumbSize);
+  }, [stylesActiveViewId]);
+  useEffect(() => {
+    applyViewConfig(colorwaysActiveViewId, setColorwaysVisibleColumnIds, setColorwaysViewFilters);
+  }, [colorwaysActiveViewId]);
+  useEffect(() => {
+    applyViewConfig(variationsActiveViewId, setVariationsVisibleColumnIds, setVariationsViewFilters);
+  }, [variationsActiveViewId]);
 
   const styleTableColumns = useMemo(() => [
     { id: "image", label: "Image" },
@@ -167,28 +218,137 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     const q = search.trim().toLowerCase();
     let list = products;
     if (q) list = list.filter((p) => (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q));
-    return applyQuickFilters(list, stylesFields, styleQF);
-  }, [products, search, styleQF, stylesFields]);
+    list = applyQuickFilters(list, stylesFields, styleQF);
+    if (stylesViewFilters.length > 0) list = applyQuickFilters(list, stylesFields, stylesViewFilters as any);
+    return list;
+  }, [products, search, styleQF, stylesFields, stylesViewFilters]);
 
   const filteredColorways = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = colorwaysForType;
     if (q) list = list.filter((c) => (c.color_name || "").toLowerCase().includes(q) || (c.colorway_code || "").toLowerCase().includes(q));
-    return applyQuickFilters(list, colorwayFields, colorwayQF);
-  }, [colorwaysForType, search, colorwayQF, colorwayFields]);
+    list = applyQuickFilters(list, colorwayFields, colorwayQF);
+    if (colorwaysViewFilters.length > 0) list = applyQuickFilters(list, colorwayFields, colorwaysViewFilters as any);
+    return list;
+  }, [colorwaysForType, search, colorwayQF, colorwayFields, colorwaysViewFilters]);
 
   const filteredVariations = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = variationsForType;
     if (q) list = list.filter((v) => (v.name || "").toLowerCase().includes(q) || (v.sequence || "").toLowerCase().includes(q));
-    return applyQuickFilters(list, variationFields, variationQF);
-  }, [variationsForType, search, variationQF, variationFields]);
+    list = applyQuickFilters(list, variationFields, variationQF);
+    if (variationsViewFilters.length > 0) list = applyQuickFilters(list, variationFields, variationsViewFilters as any);
+    return list;
+  }, [variationsForType, search, variationQF, variationFields, variationsViewFilters]);
 
   const cwByProduct = useMemo(() => {
     const m: Record<string, any[]> = {};
     colorwaysForType.forEach((c) => { (m[c.product_id] = m[c.product_id] || []).push(c); });
     return m;
   }, [colorwaysForType]);
+
+  // ── column specs (drive both view-visibility and rendering) ──
+  type ColSpec = { id: string; label: string; className?: string; render: (row: any) => ReactNode };
+
+  const allStyleColumns: ColSpec[] = useMemo(() => [
+    { id: "image", label: "", className: "w-12", render: (p) => {
+      const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
+      return img ? <img src={img} className="h-10 w-10 object-cover rounded" alt="" />
+        : <div className="h-10 w-10 bg-muted rounded grid place-items-center text-xs">{initials(p.name)}</div>;
+    }},
+    { id: "name", label: "Name", render: (p) => (
+      <><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground font-mono">{p.code}</div></>
+    )},
+    { id: "category", label: "Category", render: (p) => p.category || "—" },
+    { id: "sub_category", label: "Sub-Category", render: (p) => p.sub_category || "—" },
+    { id: "customer_need", label: "Customer Need", render: (p) => p.customer_need || "—" },
+    { id: "colorways", label: "Colorways", render: (p) => {
+      const cws = (cwByProduct[p.id] || []).slice(0, 4);
+      return <div className="flex gap-1">{cws.map((c) => (
+        <div key={c.id} className="h-5 w-5 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
+      ))}</div>;
+    }},
+    { id: "count", label: "#", className: "text-right", render: (p) => (
+      <span className="text-muted-foreground text-xs">{cwByProduct[p.id]?.length || 0}</span>
+    )},
+  ], [cwByProduct]);
+
+  const allColorwayColumns: ColSpec[] = useMemo(() => [
+    { id: "product_image", label: "", className: "w-12", render: (c) => {
+      const prod = productById[c.product_id];
+      const prodImg = Array.isArray(prod?.images) && prod.images[0];
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+        : <div className="h-10 w-10 bg-muted rounded" />;
+    }},
+    { id: "product_name", label: "Product", render: (c) => <span className="font-medium">{productById[c.product_id]?.name || "—"}</span> },
+    { id: "category", label: "Category", render: (c) => <span className="text-xs">{productById[c.product_id]?.category || "—"}</span> },
+    { id: "swatch", label: "", className: "w-12", render: (c) => (
+      c.image_url ? <img src={c.image_url} className="h-7 w-7 rounded border object-cover" alt="" />
+        : <div className="h-7 w-7 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+    )},
+    { id: "color_name", label: "Colorway", render: (c) => c.color_name },
+    { id: "colorway_code", label: "Code", render: (c) => <span className="font-mono text-xs">{c.colorway_code || "—"}</span> },
+    { id: "commercial", label: "Commercial", render: (c) => (
+      c.linked_color_id ? <span className="text-xs">linked</span>
+        : <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px]">⚠ none</Badge>
+    )},
+    { id: "technical", label: "Technical", render: (c) => <span className="text-xs">{c.linked_tech_color_id ? "linked" : "—"}</span> },
+    { id: "project", label: "Project", render: (c) => {
+      const proj = c.creation_project_id ? projectById[c.creation_project_id] : null;
+      return <span className="text-xs">{proj?.name || "—"}</span>;
+    }},
+  ], [productById, projectById]);
+
+  const allVariationColumns: ColSpec[] = useMemo(() => [
+    { id: "product_image", label: "", className: "w-12", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const prod = cw ? productById[cw.product_id] : null;
+      const prodImg = Array.isArray(prod?.images) && prod.images[0];
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+        : <div className="h-10 w-10 bg-muted rounded" />;
+    }},
+    { id: "product_name", label: "Product", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const prod = cw ? productById[cw.product_id] : null;
+      return <span className="font-medium">{prod?.name || "—"}</span>;
+    }},
+    { id: "category", label: "Category", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const prod = cw ? productById[cw.product_id] : null;
+      return <span className="text-xs">{prod?.category || "—"}</span>;
+    }},
+    { id: "swatch", label: "", className: "w-12", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      return <div className="h-7 w-7 rounded border" style={{ backgroundColor: cw?.color_hex || "#e5e7eb" }} />;
+    }},
+    { id: "colorway_name", label: "Colorway", render: (v) => cwById[v.product_color_id]?.color_name || "—" },
+    { id: "colorway_code", label: "Code", render: (v) => <span className="font-mono text-xs">{cwById[v.product_color_id]?.colorway_code || "—"}</span> },
+    { id: "sequence", label: "Sequence", render: (v) => <span className="font-mono text-xs">{v.sequence || "—"}</span> },
+    { id: "name", label: "Variation", render: (v) => v.name || "—" },
+    { id: "pack_code", label: "Pack Code", render: (v) => <span className="font-mono text-xs">{v.pack_code || "—"}</span> },
+    { id: "variant", label: "Variant", render: (v) => v.variant || "—" },
+    { id: "project", label: "Project", render: (v) => {
+      const cw = cwById[v.product_color_id];
+      const proj = cw?.creation_project_id ? projectById[cw.creation_project_id] : null;
+      return <span className="text-xs">{proj?.name || "—"}</span>;
+    }},
+  ], [cwById, productById, projectById]);
+
+  const visibleStyleColumns = useMemo(
+    () => stylesVisibleColumnIds ? allStyleColumns.filter(c => stylesVisibleColumnIds.includes(c.id)) : allStyleColumns,
+    [allStyleColumns, stylesVisibleColumnIds],
+  );
+  const visibleColorwayColumns = useMemo(
+    () => colorwaysVisibleColumnIds ? allColorwayColumns.filter(c => colorwaysVisibleColumnIds.includes(c.id)) : allColorwayColumns,
+    [allColorwayColumns, colorwaysVisibleColumnIds],
+  );
+  const visibleVariationColumns = useMemo(
+    () => variationsVisibleColumnIds ? allVariationColumns.filter(c => variationsVisibleColumnIds.includes(c.id)) : allVariationColumns,
+    [allVariationColumns, variationsVisibleColumnIds],
+  );
+
+  const thumb = THUMB_SIZES[stylesThumbSize] || THUMB_SIZES.md;
+
 
   // ── options drawer ──
   const handleTogglePin = () => {
@@ -329,27 +489,40 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
         filteredStyles.length === 0 ? (
           <Card><CardContent className="py-16 text-center text-muted-foreground">Nothing here yet</CardContent></Card>
         ) : stylesView === "grid" ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className={`grid ${thumb.cols} gap-3`}>
             {filteredStyles.map((p) => {
-              const cws = (cwByProduct[p.id] || []).slice(0, 4);
               const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
+              const cws = (cwByProduct[p.id] || []).slice(0, 4);
+              const bodyCols = visibleStyleColumns.filter(c => c.id !== "image");
+              const useViewBody = stylesVisibleColumnIds !== null;
               return (
                 <Card key={p.id} onClick={() => navigate(`/products/${p.id}`)} className="overflow-hidden cursor-pointer hover:shadow-md transition">
-                  <div className="aspect-square bg-muted grid place-items-center">
+                  <div className={`${thumb.height} bg-muted grid place-items-center`}>
                     {img ? <img src={img} alt={p.name} className="w-full h-full object-cover" />
                       : <span className="text-3xl font-semibold text-muted-foreground/50">{initials(p.name)}</span>}
                   </div>
                   <CardContent className="p-3 space-y-1">
-                    <div className="font-semibold text-sm truncate">{p.name || "—"}</div>
-                    <div className="text-xs text-muted-foreground font-mono truncate">{p.code || "—"}</div>
-                    {p.category && <div className="text-xs text-muted-foreground truncate">{p.category}</div>}
-                    {cws.length > 0 && (
-                      <div className="flex gap-1 pt-1">
-                        {cws.map((c) => (
-                          <div key={c.id} className="h-4 w-4 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
-                        ))}
-                        {(cwByProduct[p.id]?.length || 0) > 4 && <span className="text-xs text-muted-foreground">+{(cwByProduct[p.id]?.length || 0) - 4}</span>}
-                      </div>
+                    {useViewBody ? (
+                      bodyCols.map(col => (
+                        <div key={col.id} className="text-xs truncate">
+                          {col.label && <span className="text-muted-foreground mr-1">{col.label}:</span>}
+                          {col.render(p)}
+                        </div>
+                      ))
+                    ) : (
+                      <>
+                        <div className="font-semibold text-sm truncate">{p.name || "—"}</div>
+                        <div className="text-xs text-muted-foreground font-mono truncate">{p.code || "—"}</div>
+                        {p.category && <div className="text-xs text-muted-foreground truncate">{p.category}</div>}
+                        {cws.length > 0 && (
+                          <div className="flex gap-1 pt-1">
+                            {cws.map((c) => (
+                              <div key={c.id} className="h-4 w-4 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
+                            ))}
+                            {(cwByProduct[p.id]?.length || 0) > 4 && <span className="text-xs text-muted-foreground">+{(cwByProduct[p.id]?.length || 0) - 4}</span>}
+                          </div>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
@@ -360,42 +533,18 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
           <Card className="overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Sub-Category</TableHead>
-                <TableHead>Customer Need</TableHead>
-                <TableHead>Colorways</TableHead>
-                <TableHead className="text-right">#</TableHead>
+                {visibleStyleColumns.map(col => (
+                  <TableHead key={col.id} className={col.className}>{col.label}</TableHead>
+                ))}
               </TableRow></TableHeader>
               <TableBody>
-                {filteredStyles.map((p) => {
-                  const cws = cwByProduct[p.id] || [];
-                  const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
-                  return (
-                    <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
-                      <TableCell>
-                        {img ? <img src={img} className="h-10 w-10 object-cover rounded" alt="" />
-                          : <div className="h-10 w-10 bg-muted rounded grid place-items-center text-xs">{initials(p.name)}</div>}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{p.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono">{p.code}</div>
-                      </TableCell>
-                      <TableCell>{p.category || "—"}</TableCell>
-                      <TableCell>{p.sub_category || "—"}</TableCell>
-                      <TableCell>{p.customer_need || "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {cws.slice(0, 4).map((c) => (
-                            <div key={c.id} className="h-5 w-5 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground text-xs">{cws.length}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                {filteredStyles.map((p) => (
+                  <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/products/${p.id}`)}>
+                    {visibleStyleColumns.map(col => (
+                      <TableCell key={col.id} className={col.className}>{col.render(p)}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </Card>
@@ -442,49 +591,18 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
           <Card className="overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Colorway</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Commercial</TableHead>
-                <TableHead>Technical</TableHead>
-                <TableHead>Project</TableHead>
+                {visibleColorwayColumns.map(col => (
+                  <TableHead key={col.id} className={col.className}>{col.label}</TableHead>
+                ))}
               </TableRow></TableHeader>
               <TableBody>
-                {filteredColorways.map((c) => {
-                  const prod = productById[c.product_id];
-                  const prodImg = Array.isArray(prod?.images) && prod.images[0];
-                  const proj = c.creation_project_id ? projectById[c.creation_project_id] : null;
-                  return (
-                    <TableRow
-                      key={c.id}
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/products/${c.product_id}`)}
-                    >
-                      <TableCell>
-                        {prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
-                          : <div className="h-10 w-10 bg-muted rounded" />}
-                      </TableCell>
-                      <TableCell className="font-medium">{prod?.name || "—"}</TableCell>
-                      <TableCell className="text-xs">{prod?.category || "—"}</TableCell>
-                      <TableCell>
-                        {c.image_url ? <img src={c.image_url} className="h-7 w-7 rounded border object-cover" alt="" />
-                          : <div className="h-7 w-7 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />}
-                      </TableCell>
-                      <TableCell>{c.color_name}</TableCell>
-                      <TableCell className="font-mono text-xs">{c.colorway_code || "—"}</TableCell>
-                      <TableCell className="text-xs">
-                        {c.linked_color_id ? "linked" : (
-                          <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px]">⚠ none</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs">{c.linked_tech_color_id ? "linked" : "—"}</TableCell>
-                      <TableCell className="text-xs">{proj?.name || "—"}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                {filteredColorways.map((c) => (
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/products/${c.product_id}`)}>
+                    {visibleColorwayColumns.map(col => (
+                      <TableCell key={col.id} className={col.className}>{col.render(c)}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </Card>
@@ -499,46 +617,23 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
           <Card className="overflow-x-auto">
             <Table>
               <TableHeader><TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Colorway</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Sequence</TableHead>
-                <TableHead>Variation</TableHead>
-                <TableHead>Pack Code</TableHead>
-                <TableHead>Variant</TableHead>
-                <TableHead>Project</TableHead>
+                {visibleVariationColumns.map(col => (
+                  <TableHead key={col.id} className={col.className}>{col.label}</TableHead>
+                ))}
               </TableRow></TableHeader>
               <TableBody>
                 {filteredVariations.map((v) => {
                   const cw = cwById[v.product_color_id];
                   const prod = cw ? productById[cw.product_id] : null;
-                  const prodImg = Array.isArray(prod?.images) && prod.images[0];
-                  const proj = cw?.creation_project_id ? projectById[cw.creation_project_id] : null;
                   return (
                     <TableRow
                       key={v.id}
                       className="cursor-pointer"
                       onClick={() => prod && navigate(`/products/${prod.id}`)}
                     >
-                      <TableCell>
-                        {prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
-                          : <div className="h-10 w-10 bg-muted rounded" />}
-                      </TableCell>
-                      <TableCell className="font-medium">{prod?.name || "—"}</TableCell>
-                      <TableCell className="text-xs">{prod?.category || "—"}</TableCell>
-                      <TableCell>
-                        <div className="h-7 w-7 rounded border" style={{ backgroundColor: cw?.color_hex || "#e5e7eb" }} />
-                      </TableCell>
-                      <TableCell>{cw?.color_name || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{cw?.colorway_code || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{v.sequence || "—"}</TableCell>
-                      <TableCell>{v.name || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{v.pack_code || "—"}</TableCell>
-                      <TableCell>{v.variant || "—"}</TableCell>
-                      <TableCell className="text-xs">{proj?.name || "—"}</TableCell>
+                      {visibleVariationColumns.map(col => (
+                        <TableCell key={col.id} className={col.className}>{col.render(v)}</TableCell>
+                      ))}
                     </TableRow>
                   );
                 })}
