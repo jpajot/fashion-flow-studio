@@ -62,6 +62,7 @@ export default function ProductDetail() {
 
   const productBeforeRef = useRef<any | null>(null);
   const saveTimer = useRef<any>(null);
+  const [uploading, setUploading] = useState(false);
 
   // ── data loading ──
   const loadProduct = useCallback(async () => {
@@ -340,19 +341,26 @@ export default function ProductDetail() {
     updateImages(imgs);
   };
   const handleUpload = async (files: FileList | null) => {
-    if (!files?.length || !product?.id) return;
+    if (!files?.length) return;
+    setUploading(true);
     const urls: string[] = [];
     for (const file of Array.from(files)) {
-      const path = `${product.id}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${product?.id || "new"}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage
+        .from("product-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
       if (error) {
         toast({ title: "Upload failed", description: error.message, variant: "destructive" });
         continue;
       }
-      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-      urls.push(data.publicUrl);
+      const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
+      urls.push(urlData.publicUrl);
     }
-    if (urls.length) updateImages([...((product?.images || []) as string[]), ...urls]);
+    if (urls.length) {
+      updateField("images", [...((product?.images || []) as string[]), ...urls]);
+    }
+    setUploading(false);
   };
 
   if (loading) return <div className={PAGE_WRAPPER}>Loading…</div>;
@@ -438,12 +446,10 @@ export default function ProductDetail() {
                 Remove main
               </button>
             )}
-            {!isNew && (
-              <label className="flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed rounded-md py-3 text-sm hover:bg-muted/50">
-                <Upload className="h-4 w-4" /> Upload images
-                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
-              </label>
-            )}
+            <label className={`flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed rounded-md py-3 text-sm hover:bg-muted/50 ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+              <Upload className="h-4 w-4" /> {uploading ? "Uploading…" : "Upload images"}
+              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+            </label>
             <ProductUOMSection
               product={product}
               lovTypes={lovTypes}

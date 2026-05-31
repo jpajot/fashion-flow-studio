@@ -27,6 +27,7 @@ export interface GalleryViewProps {
   renderThumbnail: (row: any) => React.ReactNode;
   onClickItem?: (row: any) => void;
   activeViewId?: string;
+  onSelectView?: (id: string) => void;
 }
 
 // ───────────────────────── FieldContextMenu ─────────────────────────
@@ -186,6 +187,7 @@ export default function GalleryView({
   renderThumbnail,
   onClickItem,
   activeViewId = "default",
+  onSelectView,
 }: GalleryViewProps) {
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(() =>
     allFields.map((f) => f.id),
@@ -201,16 +203,39 @@ export default function GalleryView({
     field: GalleryField;
   } | null>(null);
 
+  const STORAGE_KEY = `gallery_active_view_${pageKey}`;
+  const [persistedViewId, setPersistedViewId] = useState<string>(() => {
+    try { return localStorage.getItem(STORAGE_KEY) || activeViewId || "default"; }
+    catch { return activeViewId || "default"; }
+  });
+
   // Persist thumb size
   useEffect(() => {
     localStorage.setItem(`gallery_thumb_${pageKey}`, thumbSize);
   }, [thumbSize, pageKey]);
 
-  // Apply saved view when activeViewId changes
+  // Sync from parent when controlled prop changes
+  useEffect(() => {
+    if (activeViewId && activeViewId !== persistedViewId) {
+      setPersistedViewId(activeViewId);
+      try { localStorage.setItem(STORAGE_KEY, activeViewId); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeViewId]);
+
+  // Notify parent of restored view from localStorage on first mount
+  useEffect(() => {
+    if (persistedViewId !== activeViewId) {
+      onSelectView?.(persistedViewId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Apply saved view when persistedViewId changes
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (activeViewId === "default") {
+      if (persistedViewId === "default") {
         setActiveFieldIds(allFields.map((f) => f.id));
         setThumbSize("md");
         return;
@@ -218,7 +243,7 @@ export default function GalleryView({
       const { data } = await supabase
         .from("list_view_configs")
         .select("*")
-        .eq("id", activeViewId)
+        .eq("id", persistedViewId)
         .maybeSingle();
       if (cancelled || !data) return;
       const ids = (data as any).column_ids;
@@ -229,7 +254,7 @@ export default function GalleryView({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeViewId]);
+  }, [persistedViewId]);
 
   const ts = THUMB_SIZES.find((s) => s.id === thumbSize) ?? THUMB_SIZES[2];
 

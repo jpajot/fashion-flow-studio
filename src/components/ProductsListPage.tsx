@@ -119,9 +119,27 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [variationQF, setVariationQF] = useState<QuickFilter[]>([]);
   const [showQF, setShowQF] = useState(false);
   const [showViewMenu, setShowViewMenu] = useState(false);
-  const [stylesActiveViewId, setStylesActiveViewId] = useState("default");
-  const [colorwaysActiveViewId, setColorwaysActiveViewId] = useState("default");
-  const [variationsActiveViewId, setVariationsActiveViewId] = useState("default");
+  const [stylesActiveViewId, _setStylesActiveViewId] = useState<string>(() => {
+    try { return localStorage.getItem("gallery_active_view_styles_list") || "default"; } catch { return "default"; }
+  });
+  const setStylesActiveViewId = (id: string) => {
+    _setStylesActiveViewId(id);
+    try { localStorage.setItem("gallery_active_view_styles_list", id); } catch {}
+  };
+  const [colorwaysActiveViewId, _setColorwaysActiveViewId] = useState<string>(() => {
+    try { return localStorage.getItem("gallery_active_view_styles_colorways_list") || "default"; } catch { return "default"; }
+  });
+  const setColorwaysActiveViewId = (id: string) => {
+    _setColorwaysActiveViewId(id);
+    try { localStorage.setItem("gallery_active_view_styles_colorways_list", id); } catch {}
+  };
+  const [variationsActiveViewId, _setVariationsActiveViewId] = useState<string>(() => {
+    try { return localStorage.getItem("gallery_active_view_styles_variations_list") || "default"; } catch { return "default"; }
+  });
+  const setVariationsActiveViewId = (id: string) => {
+    _setVariationsActiveViewId(id);
+    try { localStorage.setItem("gallery_active_view_styles_variations_list", id); } catch {}
+  };
 
   const [stylesVisibleColumnIds, setStylesVisibleColumnIds] = useState<string[] | null>(null);
   const [colorwaysVisibleColumnIds, setColorwaysVisibleColumnIds] = useState<string[] | null>(null);
