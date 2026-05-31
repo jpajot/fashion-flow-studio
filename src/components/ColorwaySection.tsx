@@ -3,13 +3,15 @@ import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Library, LayoutGrid, List as ListIcon, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Library, LayoutGrid, List as ListIcon, RefreshCw, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ColorwayEditModal from "@/components/ColorwayEditModal";
 import ColorLibraryPickerModal, { PickerItem } from "@/components/ColorLibraryPickerModal";
 import { usePageOptions } from "@/contexts/PageOptionsContext";
+import DataTable from "@/components/shared/DataTable";
+import GalleryView from "@/components/GalleryView";
+import ViewDrawerContent from "@/components/ViewDrawerContent";
 
 const VIEW_KEY = "colorway_section_view";
 
@@ -32,36 +34,22 @@ function renderStatusBadge(status: string | null | undefined) {
   );
 }
 
-function SwatchBlock({ cw, product, comm }: { cw: any; product: any; comm: any }) {
-  // 1) colorway image
+function SwatchThumb({ cw, product }: { cw: any; product: any }) {
   if (cw.image_url) {
     return <img src={cw.image_url} className="w-full h-full object-cover" alt={cw.color_name} />;
   }
-  // 2) product main image with hex overlay
   const productImg = Array.isArray(product?.images) && product.images[0];
   if (productImg) {
     return (
-      <div className="relative w-full h-full">
+      <>
         <img src={productImg} className="w-full h-full object-cover" alt="" />
         <div
           className="absolute bottom-1 left-1 h-6 w-6 rounded border-2 border-white shadow"
           style={{ backgroundColor: cw.color_hex || "#e5e7eb" }}
         />
-      </div>
+      </>
     );
   }
-  // 3) Combined commercial color → split segments
-  if (comm?.combined_color_ids && Array.isArray(comm.combined_color_ids) && comm.combined_color_ids.length > 1) {
-    const hexes: string[] = comm.combined_hexes || comm.combined_color_ids.map(() => cw.color_hex || "#e5e7eb");
-    return (
-      <div className="flex w-full h-full">
-        {hexes.map((h, i) => (
-          <div key={i} className="flex-1" style={{ backgroundColor: h || "#e5e7eb" }} />
-        ))}
-      </div>
-    );
-  }
-  // 4) solid
   return <div className="w-full h-full" style={{ backgroundColor: cw.color_hex || "#e5e7eb" }} />;
 }
 
@@ -83,7 +71,6 @@ export default function ColorwaySection({
   const [colorways, setColorways] = useState<any[]>([]);
   const [techColors, setTechColors] = useState<any[]>([]);
   const [commColors, setCommColors] = useState<any[]>([]);
-  const [revByTarget, setRevByTarget] = useState<Record<string, string>>({});
   const [refresh, setRefresh] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -92,6 +79,8 @@ export default function ColorwaySection({
   const [view, setView] = useState<"grid" | "list">(() => {
     try { return (localStorage.getItem(VIEW_KEY) as any) || "grid"; } catch { return "grid"; }
   });
+  const [colorwaysActiveViewId, setColorwaysActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem(VIEW_KEY, view); } catch {}
@@ -109,27 +98,9 @@ export default function ColorwaySection({
       setTechColors((tech.data ?? []) as any[]);
       setCommColors((comm.data ?? []) as any[]);
       onCountChange?.(list.length);
-
-      if (list.length) {
-        const ids = list.map((c) => c.id);
-        const { data: revs } = await supabase
-          .from("product_revisions")
-          .select("target_id, revision_code")
-          .in("target_id", ids)
-          .eq("target_type", "product_color")
-          .eq("is_current", true);
-        const map: Record<string, string> = {};
-        (revs ?? []).forEach((r: any) => { map[r.target_id] = r.revision_code; });
-        setRevByTarget(map);
-      } else {
-        setRevByTarget({});
-      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, refresh]);
-
-  const techById = useMemo(() => Object.fromEntries(techColors.map((t) => [t.id, t])), [techColors]);
-  const commById = useMemo(() => Object.fromEntries(commColors.map((c) => [c.id, c])), [commColors]);
 
   const openNew = () => { setEditing(null); setEditOpen(true); };
   const openEdit = (c: any) => { setEditing(c); setEditOpen(true); };
@@ -155,7 +126,6 @@ export default function ColorwaySection({
       };
       if (p.type === "technical") {
         payload.linked_tech_color_id = p.id;
-        // try inherit commercial
         const comm = commColors.find((c) => c.main_technical_color_id === p.id);
         if (comm) {
           payload.linked_color_type = "commercial";
@@ -180,7 +150,7 @@ export default function ColorwaySection({
       n++;
       if (payload.linked_tech_color_id) {
         const seq = String(maxSeqStart + n).padStart(4, "0");
-        const sizeIds = styleSizes.filter((s) => s.is_active !== false).map((s) => s.size_id || s.id);
+        const sizeIds = styleSizes.filter((s) => s.active !== false).map((s) => s.size_id || s.id);
         await supabase.from("product_color_and_more").insert({
           product_color_id: pc.id,
           name: payload.color_name || "Default",
@@ -194,7 +164,118 @@ export default function ColorwaySection({
     toast({ title: `${n} colorway${n !== 1 ? "s" : ""} added` });
   };
 
-  // Options drawer
+  // ── Columns / Fields ──
+  const colorwayColumns = useMemo(
+    () => [
+      {
+        id: "swatch",
+        label: "",
+        width: 56,
+        render: (cv: any) => (
+          <div className="h-8 w-8 rounded border overflow-hidden relative">
+            <SwatchThumb cw={cv} product={product} />
+          </div>
+        ),
+      },
+      {
+        id: "color_name",
+        label: "Color Name",
+        width: 180,
+        sortKey: (cv: any) => cv.color_name,
+        render: (cv: any) => <span className="font-medium text-sm">{cv.color_name}</span>,
+      },
+      {
+        id: "colorway_code",
+        label: "Code",
+        width: 120,
+        sortKey: (cv: any) => cv.colorway_code,
+        render: (cv: any) => (
+          <span className="font-mono text-xs text-muted-foreground">{cv.colorway_code || "—"}</span>
+        ),
+      },
+      {
+        id: "status",
+        label: "Status",
+        width: 150,
+        sortKey: (cv: any) => cv.colorway_status,
+        render: (cv: any) => renderStatusBadge(cv.colorway_status),
+      },
+      {
+        id: "tech_color",
+        label: "Technical Color",
+        width: 160,
+        render: (cv: any) => {
+          const tc = techColors.find((t) => t.id === cv.linked_tech_color_id);
+          return tc ? (
+            <span className="text-xs font-mono text-muted-foreground">{tc.code}</span>
+          ) : (
+            <span className="text-muted-foreground/40">—</span>
+          );
+        },
+      },
+      {
+        id: "comm_color",
+        label: "Commercial Color",
+        width: 170,
+        render: (cv: any) => {
+          const cc = commColors.find((c) => c.id === cv.linked_color_id);
+          if (cc) return <span className="text-xs font-mono text-muted-foreground">{cc.code}</span>;
+          if (cv.linked_tech_color_id)
+            return (
+              <span className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                No commercial
+              </span>
+            );
+          return <span className="text-muted-foreground/40">—</span>;
+        },
+      },
+      {
+        id: "actions",
+        label: "",
+        width: 80,
+        render: (cv: any) => (
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => openEdit(cv)} className="p-1.5 rounded hover:bg-muted">
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <button type="button" onClick={() => setDelId(cv.id)} className="p-1.5 rounded hover:bg-muted">
+              <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [product, techColors, commColors],
+  );
+
+  const galleryFields = useMemo(
+    () => [
+      {
+        id: "color_name",
+        label: "Color Name",
+        getValue: (cv: any) => cv.color_name,
+        render: (cv: any) => <span className="font-medium text-sm">{cv.color_name}</span>,
+      },
+      {
+        id: "colorway_code",
+        label: "Code",
+        getValue: (cv: any) => cv.colorway_code,
+        render: (cv: any) => (
+          <span className="font-mono text-xs text-muted-foreground">{cv.colorway_code || "—"}</span>
+        ),
+      },
+      {
+        id: "status",
+        label: "Status",
+        getValue: (cv: any) => cv.colorway_status,
+        render: (cv: any) => renderStatusBadge(cv.colorway_status),
+      },
+    ],
+    [],
+  );
+
+  // ── Options drawer ──
   useEffect(() => {
     setOptions({
       items: [
@@ -206,13 +287,28 @@ export default function ColorwaySection({
           icon: view === "grid" ? ListIcon : LayoutGrid,
           onClick: () => setView(view === "grid" ? "list" : "grid"),
         },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu((v) => !v) },
         { divider: true },
         { label: "Refresh", icon: RefreshCw, onClick: () => setRefresh((r) => r + 1) },
       ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="product_colorways"
+          activeViewId={colorwaysActiveViewId}
+          onSelectView={(id) => {
+            setColorwaysActiveViewId(id);
+            setShowViewMenu(false);
+          }}
+          allFields={colorwayColumns
+            .map((c) => ({ id: c.id, label: c.label }))
+            .filter((c) => !!c.label)}
+          currentViewType={view === "grid" ? "grid" : null}
+        />
+      ) : null,
     });
     return () => setOptions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view]);
+  }, [view, showViewMenu, colorwaysActiveViewId, colorwayColumns]);
 
   return (
     <div className="space-y-4">
@@ -237,103 +333,21 @@ export default function ColorwaySection({
       {colorways.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">No colorways yet</CardContent></Card>
       ) : view === "grid" ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {colorways.map((c) => {
-            const tech = c.linked_tech_color_id ? techById[c.linked_tech_color_id] : null;
-            const comm = c.linked_color_id ? commById[c.linked_color_id] : null;
-            const rev = revByTarget[c.id];
-            return (
-              <Card key={c.id} className="overflow-hidden group relative">
-                <div className="aspect-square bg-muted relative">
-                  <SwatchBlock cw={c} product={product} comm={comm} />
-                  {/* badges overlay top-right */}
-                  <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
-                    {!c.linked_color_id && (
-                      <div title="No commercial color linked" className="h-2.5 w-2.5 rounded-full bg-amber-400 border border-white" />
-                    )}
-                    {c.linked_color_id && (
-                      <Badge className="bg-background/80 backdrop-blur text-foreground text-[9px] py-0 px-1.5 border">
-                        {c.linked_color_type === "technical" ? "TCX" : "COM"}
-                      </Badge>
-                    )}
-                    {rev && (
-                      <Badge className="bg-primary text-primary-foreground text-[9px] py-0 px-1.5">{rev}</Badge>
-                    )}
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition"
-                      onClick={() => openEdit(c)}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <CardContent className="p-3 space-y-1">
-                  <div className="font-medium text-sm truncate">{c.color_name}</div>
-                  <div className="text-xs text-muted-foreground font-mono">{c.colorway_code || "—"}</div>
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {tech && <Badge variant="outline" className="text-[10px]">T: {tech.code}</Badge>}
-                    {comm && <Badge variant="outline" className="text-[10px]">C: {comm.code}</Badge>}
-                  </div>
-                  <div className="flex justify-end gap-1 pt-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDelId(c.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        <GalleryView
+          pageKey="product_colorways"
+          allFields={galleryFields}
+          rows={colorways}
+          renderThumbnail={(cv) => <SwatchThumb cw={cv} product={product} />}
+          onClickItem={(cv) => openEdit(cv)}
+          activeViewId={colorwaysActiveViewId}
+        />
       ) : (
-        <Card className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tech</TableHead>
-                <TableHead>Commercial</TableHead>
-                <TableHead>Rev</TableHead>
-                <TableHead className="w-20"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {colorways.map((c) => {
-                const tech = c.linked_tech_color_id ? techById[c.linked_tech_color_id] : null;
-                const comm = c.linked_color_id ? commById[c.linked_color_id] : null;
-                const rev = revByTarget[c.id];
-                return (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <div className="h-8 w-8 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
-                    </TableCell>
-                    <TableCell className="font-medium">{c.color_name}</TableCell>
-                    <TableCell className="font-mono text-xs">{c.colorway_code || "—"}</TableCell>
-                    <TableCell>{renderStatusBadge(c.colorway_status)}</TableCell>
-                    <TableCell className="text-xs">{tech ? `${tech.code} ${tech.name || ""}` : "—"}</TableCell>
-                    <TableCell className="text-xs">
-                      {comm ? `${comm.code} ${comm.color_name || ""}` : (
-                        <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px]">⚠ none</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>{rev ? <Badge>{rev}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDelId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+        <DataTable
+          columns={colorwayColumns}
+          rows={colorways}
+          fixedColumns={["swatch", "color_name"]}
+          hideColumnToggle
+        />
       )}
 
       {editOpen && (
