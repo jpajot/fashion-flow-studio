@@ -98,7 +98,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
   }, [product?.size_grid_id]);
 
   const handleToggle = async (ss: any) => {
-    const updated = { is_active: !ss.is_active };
+    const updated = { active: !ss.active };
     const { error } = await supabase.from("style_sizes").update(updated).eq("id", ss.id);
     if (error) {
       toast({ title: "Update failed", description: error.message, variant: "destructive" });
@@ -189,7 +189,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
               return (
                 <TableRow key={ss.id}>
                   <TableCell>
-                    <Checkbox checked={ss.is_active !== false} onCheckedChange={() => handleToggle(ss)} />
+                    <Checkbox checked={ss.active !== false} onCheckedChange={() => handleToggle(ss)} />
                   </TableCell>
                   <TableCell className="font-mono text-xs">{s?.size_code ?? "—"}</TableCell>
                   <TableCell>{s?.name ?? "—"}</TableCell>
