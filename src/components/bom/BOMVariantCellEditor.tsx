@@ -17,6 +17,9 @@ interface Cell {
   columnId: string;
   columnLabel: string;
   columnAxis: string;
+  secondaryColumnId?: string;
+  secondaryColumnAxis?: string | null;
+  secondaryColumnLabel?: string;
   variant: any | null;
 }
 
