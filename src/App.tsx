@@ -17,6 +17,7 @@ import ProjectDetail from "@/pages/ProjectDetail";
 import ColorLibrary from "@/pages/ColorLibrary";
 import ColorPalettes from "@/pages/ColorPalettes";
 import Suppliers from "@/pages/Suppliers";
+import SupplierDetail from "@/pages/SupplierDetail";
 import Ecos from "@/pages/Ecos";
 import Samples from "@/pages/Samples";
 import Rfqs from "@/pages/Rfqs";
@@ -67,7 +68,8 @@ const App = () => (
                   <Route path="/app-config" element={<AppConfiguration />} />
 
                   <Route path="/suppliers" element={<Suppliers />} />
-                  <Route path="/suppliers/:id" element={<Stub title="Supplier Detail" />} />
+                  <Route path="/suppliers/new" element={<SupplierDetail />} />
+                  <Route path="/suppliers/:id" element={<SupplierDetail />} />
 
                   <Route path="/boms" element={<Stub title="BOMs" />} />
 
