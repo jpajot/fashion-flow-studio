@@ -353,7 +353,9 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     }},
     { id: "swatch", label: "", className: "w-12", render: (v) => {
       const cw = cwById[v.product_color_id];
-      return <div className="h-7 w-7 rounded border" style={{ backgroundColor: cw?.color_hex || "#e5e7eb" }} />;
+      const prod = cw ? productById[cw.product_id] : null;
+      return cw ? renderColorwaySwatch(cw, prod, techColors, commColors, "sm")
+        : <div className="h-7 w-7 rounded border bg-muted" />;
     }},
     { id: "colorway_name", label: "Colorway", render: (v) => cwById[v.product_color_id]?.color_name || "—" },
     { id: "colorway_code", label: "Code", render: (v) => <span className="font-mono text-xs">{cwById[v.product_color_id]?.colorway_code || "—"}</span> },
