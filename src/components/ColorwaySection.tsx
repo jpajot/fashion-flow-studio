@@ -257,6 +257,30 @@ export default function ColorwaySection({
         },
       },
       {
+        id: "creation_project",
+        label: "Creation Project",
+        width: 160,
+        sortKey: (cv: any) => {
+          const p = projects.find((pr: any) => pr.id === cv.creation_project_id);
+          return p?.name || "";
+        },
+        render: (cv: any) => {
+          const p = projects.find((pr: any) => pr.id === cv.creation_project_id);
+          return <span className="text-xs text-muted-foreground">{p?.name || "—"}</span>;
+        },
+      },
+      {
+        id: "linked_projects",
+        label: "Linked Projects",
+        width: 200,
+        render: (cv: any) => {
+          const names = ((cv.project_ids || []) as string[])
+            .map((pid: string) => projects.find((pr: any) => pr.id === pid)?.name)
+            .filter(Boolean);
+          return <span className="text-xs text-muted-foreground">{names.length > 0 ? names.join(", ") : "—"}</span>;
+        },
+      },
+      {
         id: "actions",
         label: "",
         width: 80,
