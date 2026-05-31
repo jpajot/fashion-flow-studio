@@ -332,7 +332,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     { id: "product_image", label: "", className: "w-12", render: (c) => {
       const prod = productById[c.product_id];
       const prodImg = Array.isArray(prod?.images) && prod.images[0];
-      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-contain rounded" alt="" />
         : <div className="h-10 w-10 bg-muted rounded" />;
     }},
     { id: "product_name", label: "Product", render: (c) => <span className="font-medium">{productById[c.product_id]?.name || "—"}</span> },
