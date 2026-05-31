@@ -364,23 +364,36 @@ export default function BOMDetail() {
 
       <div className="mt-4">
         {activeTab === "matrix" && (
-          <BOMMatrixEditor
-            bom={bom}
-            bomLines={bomLines}
-            bomVariants={bomVariants}
-            colorways={colorways}
-            variations={variations}
-            approvedSuppliers={approvedSuppliers}
-            styleSizes={styleSizes}
-            sizes={sizes}
-            suppliers={suppliers}
-            currencies={currencies}
-            allProducts={allProducts}
-            lovTypes={lovTypes}
-            lovValues={lovValues}
-            onVariantsChange={setBomVariants}
-            onLineEdit={(line) => setEditLine(line)}
-          />
+          <div className="space-y-3">
+            <BOMQuickFilterGroup
+              filterConfig={filterConfig}
+              setFilterConfig={setFilterConfig}
+              bomLines={bomLines}
+              approvedSuppliers={approvedSuppliers}
+              suppliers={suppliers}
+            />
+            <BOMMatrixEditor
+              bom={bom}
+              bomLines={bomLines}
+              bomVariants={bomVariants}
+              colorways={colorways}
+              variations={variations}
+              approvedSuppliers={approvedSuppliers}
+              styleSizes={styleSizes}
+              sizes={sizes}
+              suppliers={suppliers}
+              currencies={currencies}
+              allProducts={allProducts}
+              lovTypes={lovTypes}
+              lovValues={lovValues}
+              colorSupplierLinks={colorSupplierLinks}
+              columnAxis={columnAxis}
+              secondaryColumnAxis={secondaryColumnAxis}
+              filterConfig={filterConfig}
+              onVariantsChange={setBomVariants}
+              onLineEdit={(line) => setEditLine(line)}
+            />
+          </div>
         )}
         {activeTab === "lines" && (
           <div className="space-y-3">
