@@ -4,15 +4,29 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
   AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Trash2, LayoutGrid, List, Factory, History } from "lucide-react";
+import { ArrowLeft, Trash2, LayoutGrid, List, Factory, History, Plus, Layers, Package, Pencil } from "lucide-react";
 import { PAGE_WRAPPER } from "@/lib/utils";
 import NewBOMDialog from "@/components/bom/NewBOMDialog";
 import BOMHeaderCard from "@/components/bom/BOMHeaderCard";
+import BOMLineAddDialog from "@/components/bom/BOMLineAddDialog";
+import BOMLineEditPanel from "@/components/bom/BOMLineEditPanel";
+import DataTable from "@/components/shared/DataTable";
+
+const EDITABLE_STATUSES = ["draft", "in_review"];
+const isBomEditable = (bom: any) => bom && EDITABLE_STATUSES.includes(bom.status);
+
+const getLovValues = (lovTypes: any[], lovValues: any[], code: string) => {
+  const t = lovTypes.find(x => x.code === code);
+  if (!t) return [];
+  return lovValues.filter(v => v.type_of_lov_id === t.id).map(v => v.name).sort();
+};
 
 export default function BOMDetail() {
   const { id } = useParams();
