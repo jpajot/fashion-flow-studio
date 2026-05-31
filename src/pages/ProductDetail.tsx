@@ -407,7 +407,7 @@ export default function ProductDetail() {
             <Card className="overflow-hidden relative aspect-square">
               {(product?.images?.[0]) ? (
                 <>
-                  <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
+                  <img src={product.images[0]} alt="" className="w-full h-full object-contain" />
                   <Badge className="absolute top-2 left-2">Main</Badge>
                 </>
               ) : (
