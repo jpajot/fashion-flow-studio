@@ -432,36 +432,76 @@ export default function BOMDetail() {
 
       <div className="mt-4">
         {activeTab === "matrix" && (
-          <div className="space-y-3">
-            <BOMQuickFilterGroup
-              filterConfig={filterConfig}
-              setFilterConfig={setFilterConfig}
-              bomLines={bomLines}
-              approvedSuppliers={approvedSuppliers}
-              suppliers={suppliers}
-            />
-            <BOMMatrixEditor
-              bom={bom}
-              bomLines={bomLines}
-              bomVariants={bomVariants}
-              colorways={colorways}
-              variations={variations}
-              approvedSuppliers={approvedSuppliers}
-              styleSizes={styleSizes}
-              sizes={sizes}
-              suppliers={suppliers}
-              currencies={currencies}
-              allProducts={allProducts}
-              lovTypes={lovTypes}
-              lovValues={lovValues}
-              colorSupplierLinks={colorSupplierLinks}
-              columnAxis={columnAxis}
-              secondaryColumnAxis={secondaryColumnAxis}
-              filterConfig={filterConfig}
-              onVariantsChange={setBomVariants}
-              onLineEdit={(line) => setEditLine(line)}
-            />
-          </div>
+          <BOMMatrixEditor
+            bom={bom}
+            bomLines={bomLines}
+            bomLineVariants={bomVariants}
+            colorVariants={colorways}
+            styleSizes={styleSizes}
+            colorAndMores={variations}
+            allProducts={allProducts}
+            allProductColors={allProductColors}
+            techColors={techColors}
+            commColors={commColors}
+            lovValues={lovValues.map(v => ({
+              ...v,
+              category: lovTypes.find(t => t.id === v.type_of_lov_id)?.code || "",
+            }))}
+            allSizes={sizes}
+            isReadOnly={!isBomEditable(bom)}
+            columnAxis={columnAxis}
+            onColumnAxisChange={setColumnAxis}
+            secondaryAxis={secondaryColumnAxis}
+            onSecondaryAxisChange={setSecondaryColumnAxis}
+            showSourcing={true}
+            showRevisionSnapshots={false}
+            onUpdateLine={async (lineId: string, updates: any) => {
+              const { data, error } = await supabase.from("bom_lines").update(updates).eq("id", lineId).select().single();
+              if (!error && data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));
+            }}
+            onDeleteLine={async (lineId: string) => {
+              if (!window.confirm("Delete this line and all its variants?")) return;
+              await supabase.from("bom_line_variants").delete().eq("bom_line_id", lineId);
+              await supabase.from("bom_lines").delete().eq("id", lineId);
+              setBomLines(prev => prev.filter(l => l.id !== lineId));
+              setBomVariants(prev => prev.filter(v => v.bom_line_id !== lineId));
+            }}
+            onUpsertVariant={async (payload: any) => {
+              const axisFkField =
+                payload.product_color_id !== undefined ? "product_color_id" :
+                payload.size_id !== undefined ? "size_id" :
+                payload.product_color_and_more_id !== undefined ? "product_color_and_more_id" :
+                "parent_approved_supplier_id";
+              const axisFkValue = payload[axisFkField];
+              const existing = bomVariants.find(v => v.bom_line_id === payload.bom_line_id && v[axisFkField] === axisFkValue);
+              if (existing) {
+                const { data } = await supabase.from("bom_line_variants").update(payload).eq("id", existing.id).select().single();
+                if (data) setBomVariants(prev => prev.map(v => v.id === data.id ? data : v));
+              } else {
+                const { data } = await supabase.from("bom_line_variants").insert(payload).select().single();
+                if (data) setBomVariants(prev => [...prev, data]);
+              }
+            }}
+            onDeleteVariant={async (variantId: string) => {
+              await supabase.from("bom_line_variants").delete().eq("id", variantId);
+              setBomVariants(prev => prev.filter(v => v.id !== variantId));
+            }}
+            getUom={(line: any) => {
+              if (line.uom) return line.uom;
+              const cp = allProducts.find(p => p.id === line.component_product_id);
+              return cp?.default_uom || "";
+            }}
+            onAddLine={() => setShowAddLine(true)}
+            onReorderLines={(reordered: any[]) => setBomLines(reordered)}
+            onEditLineSaved={(_lineId: string, deletedVariantIds?: string[]) => {
+              if (deletedVariantIds?.length) {
+                setBomVariants(prev => prev.filter(v => !deletedVariantIds.includes(v.id)));
+              }
+            }}
+            onEditLine={(line: any) => setEditLine(line)}
+            user={user}
+            externalSearch={lineSearch}
+          />
         )}
         {activeTab === "lines" && (
           <div className="space-y-3">
