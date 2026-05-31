@@ -145,6 +145,10 @@ export default function BOMDetail() {
       setBomVariants([]);
     }
 
+    const { data: clData } = await supabase.from("bom_change_logs").select("*").eq("bom_id", b.id).order("triggered_at", { ascending: false });
+    setChangeLog(clData ?? []);
+
+
     // Load variations (color_and_more) tied to this product's colorways, plus active style_sizes & all sizes
     let variationsData: any[] = [];
     if (cws.data?.length) {
