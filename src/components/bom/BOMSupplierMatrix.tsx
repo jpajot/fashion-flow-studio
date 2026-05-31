@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { AlertTriangle, Ban, GripVertical, Trash2, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
