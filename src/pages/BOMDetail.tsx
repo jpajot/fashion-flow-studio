@@ -655,10 +655,17 @@ export default function BOMDetail() {
         currentLineCount={bomLines.length}
         lovTypes={lovTypes}
         lovValues={lovValues}
-        onCreated={(newLine) => {
+        onCreated={async (newLine) => {
           setBomLines(prev => [...prev, newLine].sort((a, b) => a.position - b.position));
           setShowAddLine(false);
           toast({ title: "Line added" });
+          const logEntry = {
+            bom_id: bom.id, change_type: "line_added",
+            payload: { component_product_id: newLine.component_product_id, role: newLine.component_role },
+            triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+          };
+          await supabase.from("bom_change_logs").insert(logEntry);
+          setChangeLog(prev => [{ ...logEntry, id: crypto.randomUUID() }, ...prev]);
         }}
       />
       <BOMLineEditPanel
