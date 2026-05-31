@@ -185,17 +185,19 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
 
   useEffect(() => {
     (async () => {
-      const [p, cw, mv, tc, pr] = await Promise.all([
+      const [p, cw, mv, tc, cc, pr] = await Promise.all([
         supabase.from("products").select("*").eq("type", type).order("code"),
         supabase.from("product_colors").select("*").order("created_at", { ascending: false }),
         supabase.from("product_color_and_more").select("*").order("created_at", { ascending: false }),
         supabase.from("technical_colors").select("id,code,name,hex").order("code"),
+        supabase.from("commercial_colors").select("id,sub_type,main_technical_color_id,linked_technical_color_ids"),
         supabase.from("projects").select("id,name").order("name"),
       ]);
       setProducts((p.data ?? []) as any[]);
       setColorways((cw.data ?? []) as any[]);
       setVariations((mv.data ?? []) as any[]);
       setTechColors((tc.data ?? []) as any[]);
+      setCommColors((cc.data ?? []) as any[]);
       setProjects((pr.data ?? []) as any[]);
     })();
   }, [type, refresh]);
