@@ -73,7 +73,9 @@ const App = () => (
                   <Route path="/suppliers/new" element={<SupplierDetail />} />
                   <Route path="/suppliers/:id" element={<SupplierDetail />} />
 
-                  <Route path="/boms" element={<Stub title="BOMs" />} />
+                  <Route path="/boms" element={<BOMs />} />
+                  <Route path="/boms/new" element={<BOMDetail />} />
+                  <Route path="/boms/:id" element={<BOMDetail />} />
 
                   <Route path="/change-management/ecos" element={<Ecos />} />
                   <Route path="/ecos" element={<Navigate to="/change-management/ecos" replace />} />
