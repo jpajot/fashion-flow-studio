@@ -368,7 +368,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
       const proj = cw?.creation_project_id ? projectById[cw.creation_project_id] : null;
       return <span className="text-xs">{proj?.name || "—"}</span>;
     }},
-  ], [cwById, productById, projectById]);
+  ], [cwById, productById, projectById, techColors, commColors]);
 
   const visibleStyleColumns = useMemo(
     () => stylesVisibleColumnIds ? allStyleColumns.filter(c => stylesVisibleColumnIds.includes(c.id)) : allStyleColumns,
