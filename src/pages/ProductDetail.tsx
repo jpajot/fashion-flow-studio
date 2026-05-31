@@ -206,6 +206,10 @@ export default function ProductDetail() {
     [autoSave, isNew],
   );
 
+  const handleSizesChange = useCallback((hasSizes: boolean) => {
+    setStyleSizes((prev) => (hasSizes ? prev : []));
+  }, []);
+
   // ── size grid change handler (rebuild style_sizes) ──
   const handleSizeGridChange = async (newGridId: string | null) => {
     const oldGridId = product?.size_grid_id;
@@ -611,7 +615,7 @@ export default function ProductDetail() {
       {!isNew && activeTab === "sizes" && (
         <StyleSizesSection
           product={product}
-          onSizesChange={(hasSizes) => setStyleSizes((prev) => (hasSizes ? prev : []))}
+          onSizesChange={handleSizesChange}
         />
       )}
       {!isNew && activeTab === "more" && (
