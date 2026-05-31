@@ -22,6 +22,14 @@ import BOMLineEditPanel from "@/components/bom/BOMLineEditPanel";
 import DataTable from "@/components/shared/DataTable";
 import BOMMatrixEditor from "@/components/bom/BOMMatrixEditor";
 import BOMOptionsContent from "@/components/bom/BOMOptionsContent";
+import BOMReleaseValidationDialog from "@/components/bom/BOMReleaseValidationDialog";
+import BOMCreateRevisionDialog from "@/components/bom/BOMCreateRevisionDialog";
+import BOMCreateVersionDialog from "@/components/bom/BOMCreateVersionDialog";
+import BOMCreateProdBOMDialog from "@/components/bom/BOMCreateProdBOMDialog";
+import BOMChangeLogTab from "@/components/bom/BOMChangeLogTab";
+import MfgOpsTab from "@/components/bom/MfgOpsTab";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
 
 
 const EDITABLE_STATUSES = ["draft", "in_review"];
