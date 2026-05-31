@@ -192,7 +192,7 @@ export default function ColorwaySection({
         label: "",
         width: 56,
         render: (cv: any) => (
-          <SwatchThumb cw={cv} product={product} techColors={techColors} commColors={commColors} />
+          <ListSwatch cw={cv} product={product} techColors={techColors} commColors={commColors} />
         ),
       },
       {
