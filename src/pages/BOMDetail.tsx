@@ -97,6 +97,21 @@ export default function BOMDetail() {
       setBomVariants([]);
     }
 
+    // Load variations (color_and_more) tied to this product's colorways, plus active style_sizes & all sizes
+    let variationsData: any[] = [];
+    if (cws.data?.length) {
+      const cwIds = cws.data.map((c: any) => c.id);
+      const { data: vars } = await supabase.from("product_color_and_more").select("*").in("product_color_id", cwIds);
+      variationsData = vars ?? [];
+    }
+    const [ssRes, szRes] = await Promise.all([
+      supabase.from("style_sizes").select("*").eq("product_id", b.product_id).eq("active", true),
+      supabase.from("sizes").select("*"),
+    ]);
+    setVariations(variationsData);
+    setStyleSizes(ssRes.data ?? []);
+    setSizes(szRes.data ?? []);
+
     if (b.derived_from_bom_id) {
       const { data: df } = await supabase.from("boms").select("id,bom_type,revision_code,version").eq("id", b.derived_from_bom_id).maybeSingle();
       setDerivedFromBom(df);
