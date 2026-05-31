@@ -382,8 +382,7 @@ export default function ColorwaySection({
             setShowViewMenu(false);
           }}
           allFields={colorwayColumns
-            .map((c) => ({ id: c.id, label: c.label }))
-            .filter((c) => !!c.label)}
+            .map((c) => ({ id: c.id, label: c.label }))}
           currentViewType={view === "grid" ? "grid" : null}
         />
       ) : null,
