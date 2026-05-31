@@ -62,6 +62,7 @@ export default function ProductDetail() {
 
   const productBeforeRef = useRef<any | null>(null);
   const saveTimer = useRef<any>(null);
+  const [uploading, setUploading] = useState(false);
 
   // ── data loading ──
   const loadProduct = useCallback(async () => {
