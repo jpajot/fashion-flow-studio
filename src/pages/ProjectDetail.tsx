@@ -335,14 +335,16 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
 // ── VARIATIONS TAB ───────────────────────────────────────────────────────────
 function VariationsSection({ projectId, linkedVariations, onRefresh }: { projectId:string; linkedVariations:any[]; onRefresh:()=>void }) {
   const [allVariations, setAllVariations] = useState<any[]>([]);
+  const [sizes, setSizes] = useState<any[]>([]);
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code,products(name))")
+    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,product_color_id,size_ids,product_colors(color_name,colorway_code,products(name))")
       .order("created_at", {ascending:false})
       .then(({data})=>setAllVariations(data??[]));
+    supabase.from("sizes").select("id,name,size_code").then(({data})=>setSizes(data??[]));
   }, []);
 
   const filtered = search.trim() ? linkedVariations.filter(v=>`${v.name||""} ${v.sequence||""} ${v.pack_code||""}`.toLowerCase().includes(search.toLowerCase())) : linkedVariations;
