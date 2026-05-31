@@ -331,7 +331,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
       const proj = c.creation_project_id ? projectById[c.creation_project_id] : null;
       return <span className="text-xs">{proj?.name || "—"}</span>;
     }},
-  ], [productById, projectById]);
+  ], [productById, projectById, techColors, commColors]);
 
   const allVariationColumns: ColSpec[] = useMemo(() => [
     { id: "product_image", label: "", className: "w-12", render: (v) => {
