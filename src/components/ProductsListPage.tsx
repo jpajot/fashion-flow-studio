@@ -308,7 +308,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const allStyleColumns: ColSpec[] = useMemo(() => [
     { id: "image", label: "", className: "w-12", render: (p) => {
       const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
-      return img ? <img src={img} className="h-10 w-10 object-cover rounded" alt="" />
+      return img ? <img src={img} className="h-10 w-10 object-contain rounded" alt="" />
         : <div className="h-10 w-10 bg-muted rounded grid place-items-center text-xs">{initials(p.name)}</div>;
     }},
     { id: "name", label: "Name", render: (p) => (
