@@ -404,7 +404,7 @@ export default function ColorwaySection({
           pageKey="product_colorways"
           allFields={galleryFields}
           rows={colorways}
-          renderThumbnail={(cv) => <SwatchThumb cw={cv} product={product} />}
+          renderThumbnail={(cv) => <SwatchThumb cw={cv} product={product} techColors={techColors} commColors={commColors} asCard onEdit={() => openEdit(cv)} />}
           onClickItem={(cv) => openEdit(cv)}
           activeViewId={colorwaysActiveViewId}
         />
