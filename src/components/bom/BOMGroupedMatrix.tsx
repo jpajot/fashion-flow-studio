@@ -473,7 +473,7 @@ export default function BOMGroupedMatrix({
       </div>
 
       {openPicker && (() => {
-        const [lineId, pmId, smId] = openPicker.split("-");
+        const { lineId, pmId, smId } = openPicker;
         const line = bomLines.find((l: any) => l.id === lineId);
         const pm = primaryMembers.find((p: any) => p.id === pmId);
         const sm = secondaryMembers.find((s: any) => s.id === smId);
