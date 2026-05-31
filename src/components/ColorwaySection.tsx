@@ -100,6 +100,7 @@ export default function ColorwaySection({
     try { localStorage.setItem("gallery_active_view_product_colorways", id); } catch {}
   };
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const [lightboxCv, setLightboxCv] = useState<any>(null);
 
   useEffect(() => {
     try { localStorage.setItem(VIEW_KEY, view); } catch {}
