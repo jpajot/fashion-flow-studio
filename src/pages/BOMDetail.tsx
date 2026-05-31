@@ -89,6 +89,14 @@ export default function BOMDetail() {
     view: true, lines: false, bom: false,
   });
   const [viewStateId, setViewStateId] = useState<string | null>(null);
+  const [changeLog, setChangeLog] = useState<any[]>([]);
+  const [showReleaseValidation, setShowReleaseValidation] = useState(false);
+  const [showCreateRevision, setShowCreateRevision] = useState(false);
+  const [showCreateVersion, setShowCreateVersion] = useState(false);
+  const [showCreateProdBOM, setShowCreateProdBOM] = useState(false);
+  const [showChangeRouting, setShowChangeRouting] = useState(false);
+  const [preselectedRoutingId, setPreselectedRoutingId] = useState<string | null>(null);
+
 
   const loadAll = async () => {
     if (!id) return;
