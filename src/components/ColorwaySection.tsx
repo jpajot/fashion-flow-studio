@@ -296,7 +296,7 @@ export default function ColorwaySection({
         ),
       },
     ],
-    [product, techColors, commColors],
+    [product, techColors, commColors, projects],
   );
 
   const galleryFields = useMemo(
