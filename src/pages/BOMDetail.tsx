@@ -22,7 +22,7 @@ import BOMLineEditPanel from "@/components/bom/BOMLineEditPanel";
 import DataTable from "@/components/shared/DataTable";
 import BOMMatrixEditor from "@/components/bom/BOMMatrixEditor";
 import BOMOptionsContent from "@/components/bom/BOMOptionsContent";
-import BOMQuickFilterGroup from "@/components/bom/BOMQuickFilterGroup";
+
 
 const EDITABLE_STATUSES = ["draft", "in_review"];
 const isBomEditable = (bom: any) => bom && EDITABLE_STATUSES.includes(bom.status);
@@ -59,6 +59,9 @@ export default function BOMDetail() {
   const [styleSizes, setStyleSizes] = useState<any[]>([]);
   const [sizes, setSizes] = useState<any[]>([]);
   const [colorSupplierLinks, setColorSupplierLinks] = useState<any[]>([]);
+  const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
+  const [allProductColors, setAllProductColors] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [activeTab, setActiveTab] = useState("matrix");
   const [showAddLine, setShowAddLine] = useState(false);
@@ -86,7 +89,7 @@ export default function BOMDetail() {
     if (!b) { setLoading(false); return; }
     setBom(b);
 
-    const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap] = await Promise.all([
+    const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap, tc, cc, apc] = await Promise.all([
       supabase.from("products").select("*").eq("id", b.product_id).single(),
       supabase.from("bom_lines").select("*").eq("bom_id", b.id).order("position"),
       supabase.from("supplier_routings").select("*").eq("product_id", b.product_id),
@@ -97,6 +100,9 @@ export default function BOMDetail() {
       supabase.from("type_of_lov").select("id,code"),
       supabase.from("list_of_values").select("*"),
       supabase.from("products").select("id,name,type,images,default_uom,default_uom_for_purchasing").order("name"),
+      supabase.from("technical_colors").select("id,code,name,hex"),
+      supabase.from("commercial_colors").select("*"),
+      supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex,colorway_status,linked_color_type,linked_color_id,linked_tech_color_id"),
     ]);
 
     setProduct(prod.data);
@@ -109,6 +115,12 @@ export default function BOMDetail() {
     setLovTypes(lt.data ?? []);
     setLovValues(lv.data ?? []);
     setAllProducts(ap.data ?? []);
+    setTechColors(tc.data ?? []);
+    setCommColors(cc.data ?? []);
+    setAllProductColors(apc.data ?? []);
+
+
+
 
     if (lines.data?.length) {
       const { data: vars } = await supabase.from("bom_line_variants").select("*").in("bom_line_id", lines.data.map(l => l.id));
@@ -420,36 +432,76 @@ export default function BOMDetail() {
 
       <div className="mt-4">
         {activeTab === "matrix" && (
-          <div className="space-y-3">
-            <BOMQuickFilterGroup
-              filterConfig={filterConfig}
-              setFilterConfig={setFilterConfig}
-              bomLines={bomLines}
-              approvedSuppliers={approvedSuppliers}
-              suppliers={suppliers}
-            />
-            <BOMMatrixEditor
-              bom={bom}
-              bomLines={bomLines}
-              bomVariants={bomVariants}
-              colorways={colorways}
-              variations={variations}
-              approvedSuppliers={approvedSuppliers}
-              styleSizes={styleSizes}
-              sizes={sizes}
-              suppliers={suppliers}
-              currencies={currencies}
-              allProducts={allProducts}
-              lovTypes={lovTypes}
-              lovValues={lovValues}
-              colorSupplierLinks={colorSupplierLinks}
-              columnAxis={columnAxis}
-              secondaryColumnAxis={secondaryColumnAxis}
-              filterConfig={filterConfig}
-              onVariantsChange={setBomVariants}
-              onLineEdit={(line) => setEditLine(line)}
-            />
-          </div>
+          <BOMMatrixEditor
+            bom={bom}
+            bomLines={bomLines}
+            bomLineVariants={bomVariants}
+            colorVariants={colorways}
+            styleSizes={styleSizes}
+            colorAndMores={variations}
+            allProducts={allProducts}
+            allProductColors={allProductColors}
+            techColors={techColors}
+            commColors={commColors}
+            lovValues={lovValues.map(v => ({
+              ...v,
+              category: lovTypes.find(t => t.id === v.type_of_lov_id)?.code || "",
+            }))}
+            allSizes={sizes}
+            isReadOnly={!isBomEditable(bom)}
+            columnAxis={columnAxis}
+            onColumnAxisChange={setColumnAxis}
+            secondaryAxis={secondaryColumnAxis}
+            onSecondaryAxisChange={setSecondaryColumnAxis}
+            showSourcing={true}
+            showRevisionSnapshots={false}
+            onUpdateLine={async (lineId: string, updates: any) => {
+              const { data, error } = await supabase.from("bom_lines").update(updates).eq("id", lineId).select().single();
+              if (!error && data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));
+            }}
+            onDeleteLine={async (lineId: string) => {
+              if (!window.confirm("Delete this line and all its variants?")) return;
+              await supabase.from("bom_line_variants").delete().eq("bom_line_id", lineId);
+              await supabase.from("bom_lines").delete().eq("id", lineId);
+              setBomLines(prev => prev.filter(l => l.id !== lineId));
+              setBomVariants(prev => prev.filter(v => v.bom_line_id !== lineId));
+            }}
+            onUpsertVariant={async (payload: any) => {
+              const axisFkField =
+                payload.product_color_id !== undefined ? "product_color_id" :
+                payload.size_id !== undefined ? "size_id" :
+                payload.product_color_and_more_id !== undefined ? "product_color_and_more_id" :
+                "parent_approved_supplier_id";
+              const axisFkValue = payload[axisFkField];
+              const existing = bomVariants.find(v => v.bom_line_id === payload.bom_line_id && v[axisFkField] === axisFkValue);
+              if (existing) {
+                const { data } = await supabase.from("bom_line_variants").update(payload).eq("id", existing.id).select().single();
+                if (data) setBomVariants(prev => prev.map(v => v.id === data.id ? data : v));
+              } else {
+                const { data } = await supabase.from("bom_line_variants").insert(payload).select().single();
+                if (data) setBomVariants(prev => [...prev, data]);
+              }
+            }}
+            onDeleteVariant={async (variantId: string) => {
+              await supabase.from("bom_line_variants").delete().eq("id", variantId);
+              setBomVariants(prev => prev.filter(v => v.id !== variantId));
+            }}
+            getUom={(line: any) => {
+              if (line.uom) return line.uom;
+              const cp = allProducts.find(p => p.id === line.component_product_id);
+              return cp?.default_uom || "";
+            }}
+            onAddLine={() => setShowAddLine(true)}
+            onReorderLines={(reordered: any[]) => setBomLines(reordered)}
+            onEditLineSaved={(_lineId: string, deletedVariantIds?: string[]) => {
+              if (deletedVariantIds?.length) {
+                setBomVariants(prev => prev.filter(v => !deletedVariantIds.includes(v.id)));
+              }
+            }}
+            onEditLine={(line: any) => setEditLine(line)}
+            user={user}
+            externalSearch={lineSearch}
+          />
         )}
         {activeTab === "lines" && (
           <div className="space-y-3">
