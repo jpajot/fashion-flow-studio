@@ -229,9 +229,7 @@ export default function ColorwaySection({
         label: "",
         width: 56,
         render: (cv: any) => (
-          <div className="h-8 w-8 rounded border overflow-hidden relative">
-            <SwatchThumb cw={cv} product={product} />
-          </div>
+          <SwatchThumb cw={cv} product={product} techColors={techColors} commColors={commColors} />
         ),
       },
       {
