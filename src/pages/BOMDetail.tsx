@@ -49,6 +49,9 @@ export default function BOMDetail() {
   const [lovValues, setLovValues] = useState<any[]>([]);
   const [derivedFromBom, setDerivedFromBom] = useState<any>(null);
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [variations, setVariations] = useState<any[]>([]);
+  const [styleSizes, setStyleSizes] = useState<any[]>([]);
+  const [sizes, setSizes] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [activeTab, setActiveTab] = useState("matrix");
   const [showAddLine, setShowAddLine] = useState(false);
