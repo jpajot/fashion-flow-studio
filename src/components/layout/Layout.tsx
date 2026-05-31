@@ -260,7 +260,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {subNav && (
         <RailButton
-          icon={subNav.items.find((i) => i.id === subNav.activeId)?.icon ?? ChevronRight}
+          icon={subNav.items.find((i) => i.id === subNav.activeId)?.icon ?? ActiveIcon}
           label={subNav.pageTitle ?? "Section"}
           buttonRef={subPop.desktopBtn}
           onClick={subPop.toggle}
