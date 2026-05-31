@@ -460,11 +460,11 @@ export default function ProductDetail() {
             {typeOptions.length > 0 && (
               <div>
                 <Label>Type</Label>
-                <Select value={product?.sub_entity_type_id || NONE} onValueChange={(v) => updateField("sub_entity_type_id", v === NONE ? null : v)}>
+                <Select value={product?.type || NONE} onValueChange={(v) => updateField("type", v === NONE ? null : v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>None</SelectItem>
-                    {typeOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                    {typeOptions.map((o) => <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
