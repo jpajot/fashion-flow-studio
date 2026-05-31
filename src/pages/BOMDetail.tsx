@@ -243,7 +243,39 @@ export default function BOMDetail() {
     return () => clearTimeout(t);
   }, [columnAxis, secondaryColumnAxis, filterConfig, groupsState, viewStateId, bom?.id, user?.id]);
 
+  // Lifecycle handlers
+  const commitStatusTransition = async (toStatus: string) => {
+    if (!bom) return;
+    const now = new Date().toISOString();
+    const updates: any = { status: toStatus };
+    if (toStatus === "released") {
+      updates.released_at = now;
+      updates.released_by = user?.email || "";
+      if (!bom.valid_from) updates.valid_from = now.slice(0, 10);
+    }
+    await supabase.from("boms").update(updates).eq("id", bom.id);
+    await supabase.from("bom_change_logs").insert({
+      bom_id: bom.id, change_type: "status_transition",
+      payload: { from: bom.status, to: toStatus },
+      triggered_by: user?.email || "", triggered_at: now,
+    });
+    // Domain 8: createFlowAEcoOnDevRelease deferred
+    console.log("// Domain 8: ECO propagation deferred");
+    await loadAll();
+  };
+
+  const handleStatusTransition = async (toStatus: string) => {
+    if (toStatus === "released") { setShowReleaseValidation(true); return; }
+    await commitStatusTransition(toStatus);
+  };
+
+  const openChangeRouting = (preselectedId?: string) => {
+    setPreselectedRoutingId(preselectedId || null);
+    setShowChangeRouting(true);
+  };
+
   // Register Options drawer content per tab
+
   useEffect(() => {
     if (isNew || !bom) return;
     if (activeTab === "matrix") {
