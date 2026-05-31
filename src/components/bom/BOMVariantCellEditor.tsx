@@ -109,13 +109,25 @@ export default function BOMVariantCellEditor({
   const handleSave = async () => {
     setSaving(true);
     const intersectionFk: any = (() => {
-      switch (cell.columnAxis) {
-        case "color": return { product_color_id: cell.columnId };
-        case "size": return { size_id: cell.columnId };
-        case "color_and_more": return { product_color_and_more_id: cell.columnId };
-        case "supplier": return { parent_approved_supplier_id: cell.columnId };
-        default: return {};
+      const primaryFk: any = (() => {
+        switch (cell.columnAxis) {
+          case "color": return { product_color_id: cell.columnId };
+          case "size": return { size_id: cell.columnId };
+          case "color_and_more": return { product_color_and_more_id: cell.columnId };
+          case "supplier": return { parent_approved_supplier_id: cell.columnId };
+          default: return {};
+        }
+      })();
+      let secondaryFk: any = {};
+      if (cell.secondaryColumnAxis && cell.secondaryColumnId) {
+        switch (cell.secondaryColumnAxis) {
+          case "color": secondaryFk = { product_color_id: cell.secondaryColumnId }; break;
+          case "size": secondaryFk = { size_id: cell.secondaryColumnId }; break;
+          case "color_and_more": secondaryFk = { product_color_and_more_id: cell.secondaryColumnId }; break;
+          case "supplier": secondaryFk = { parent_approved_supplier_id: cell.secondaryColumnId }; break;
+        }
       }
+      return { ...primaryFk, ...secondaryFk };
     })();
 
     const payload: any = {
