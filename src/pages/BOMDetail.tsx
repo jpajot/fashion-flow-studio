@@ -524,8 +524,14 @@ export default function BOMDetail() {
               if (!window.confirm("Delete this line and all its variants?")) return;
               await supabase.from("bom_line_variants").delete().eq("bom_line_id", lineId);
               await supabase.from("bom_lines").delete().eq("id", lineId);
+              await supabase.from("bom_change_logs").insert({
+                bom_id: bom.id, change_type: "line_removed",
+                payload: { bom_line_id: lineId },
+                triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+              });
               setBomLines(prev => prev.filter(l => l.id !== lineId));
               setBomVariants(prev => prev.filter(v => v.bom_line_id !== lineId));
+              setChangeLog(prev => [{ bom_id: bom.id, change_type: "line_removed", payload: { bom_line_id: lineId }, triggered_by: user?.email || "", triggered_at: new Date().toISOString(), id: crypto.randomUUID() }, ...prev]);
             }}
             onUpsertVariant={async (payload: any) => {
               // Detect axis by which FK has a truthy (non-null) value.
@@ -551,6 +557,14 @@ export default function BOMDetail() {
                 const { data } = await supabase.from("bom_line_variants").insert(payload).select().single();
                 if (data) setBomVariants(prev => [...prev, data]);
               }
+              // Log the variant change (same as Base44 handleUpsertVariant)
+              const logEntry = {
+                bom_id: bom.id, change_type: "variant_modified",
+                payload: payload,
+                triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+              };
+              await supabase.from("bom_change_logs").insert(logEntry);
+              setChangeLog(prev => [{ ...logEntry, id: crypto.randomUUID() }, ...prev]);
             }}
             onDeleteVariant={async (variantId: string) => {
               await supabase.from("bom_line_variants").delete().eq("id", variantId);
@@ -641,10 +655,17 @@ export default function BOMDetail() {
         currentLineCount={bomLines.length}
         lovTypes={lovTypes}
         lovValues={lovValues}
-        onCreated={(newLine) => {
+        onCreated={async (newLine) => {
           setBomLines(prev => [...prev, newLine].sort((a, b) => a.position - b.position));
           setShowAddLine(false);
           toast({ title: "Line added" });
+          const logEntry = {
+            bom_id: bom.id, change_type: "line_added",
+            payload: { component_product_id: newLine.component_product_id, role: newLine.component_role },
+            triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+          };
+          await supabase.from("bom_change_logs").insert(logEntry);
+          setChangeLog(prev => [{ ...logEntry, id: crypto.randomUUID() }, ...prev]);
         }}
       />
       <BOMLineEditPanel
