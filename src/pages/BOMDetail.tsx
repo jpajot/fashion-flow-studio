@@ -193,6 +193,62 @@ export default function BOMDetail() {
 
   useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, bomTitle);
 
+  // Persist matrix view state (debounced)
+  useEffect(() => {
+    if (!user?.id || !bom?.id || !viewStateId) return;
+    const t = setTimeout(() => {
+      supabase.from("bom_matrix_view_states").upsert({
+        bom_id: bom.id,
+        user_id: user.id,
+        row_axis: "bom_line",
+        column_axis: columnAxis,
+        secondary_column_axis: secondaryColumnAxis,
+        filter_config: filterConfig,
+        options_sidebar_groups_state: groupsState,
+        last_used_at: new Date().toISOString(),
+      }, { onConflict: "bom_id,user_id" });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [columnAxis, secondaryColumnAxis, filterConfig, groupsState, viewStateId, bom?.id, user?.id]);
+
+  // Register Options drawer content per tab
+  useEffect(() => {
+    if (isNew || !bom) return;
+    if (activeTab === "matrix") {
+      setOptions({
+        items: [],
+        customContent: (
+          <BOMOptionsContent
+            bom={bom}
+            bomLines={bomLines}
+            bomVariants={bomVariants}
+            approvedSuppliers={approvedSuppliers}
+            suppliers={suppliers}
+            columnAxis={columnAxis}
+            setColumnAxis={setColumnAxis}
+            secondaryColumnAxis={secondaryColumnAxis}
+            setSecondaryColumnAxis={setSecondaryColumnAxis}
+            filterConfig={filterConfig}
+            setFilterConfig={setFilterConfig}
+            groupsState={groupsState}
+            setGroupsState={setGroupsState}
+            onAddLine={() => setShowAddLine(true)}
+          />
+        ),
+      });
+    } else if (activeTab === "lines") {
+      setOptions({
+        items: isBomEditable(bom)
+          ? [{ label: "Add Line", icon: Plus, onClick: () => setShowAddLine(true), className: "text-primary hover:bg-primary/10" }]
+          : [],
+      });
+    } else {
+      setOptions({ items: [] });
+    }
+    return () => setOptions(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, bom?.id, bomLines, bomVariants, approvedSuppliers, suppliers, columnAxis, secondaryColumnAxis, filterConfig, groupsState, isNew]);
+
   const selectedRouting = routings.find(r => r.id === bom?.selected_routing_id);
   const factorySupplierId = bom?.order_context?.factory_supplier_id;
   const factorySupplier = factorySupplierId ? suppliers.find(s => s.id === factorySupplierId) : undefined;
