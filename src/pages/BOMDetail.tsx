@@ -718,9 +718,11 @@ export default function BOMDetail() {
           setBomLines(prev => [...prev, newLine].sort((a, b) => a.position - b.position));
           setShowAddLine(false);
           toast({ title: "Line added" });
+          const addedComp = allProducts.find(p => p.id === newLine.component_product_id);
+          const addedCompName = addedComp ? `${addedComp.code || ""} ${addedComp.name}`.trim() : newLine.component_product_id;
           const logEntry = {
             bom_id: bom.id, change_type: "line_added",
-            payload: { component_product_id: newLine.component_product_id, role: newLine.component_role },
+            payload: { component_product_id: newLine.component_product_id, role: newLine.component_role, detail: `${addedCompName}${newLine.component_role ? ` (${newLine.component_role})` : ""}` },
             triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
           };
           await supabase.from("bom_change_logs").insert(logEntry);
