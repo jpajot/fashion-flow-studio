@@ -24,6 +24,43 @@ type Props = {
   pagePath: string; // "/list-view" or "/materials"
 };
 
+function renderColorwaySwatch(
+  cv: any,
+  product: any,
+  techColors: any[],
+  commColors: any[],
+  size: "sm" | "md" = "sm"
+) {
+  const dim = size === "sm" ? "w-6 h-6" : "w-8 h-8";
+  const commColor = commColors.find((c: any) => c.id === cv.linked_color_id);
+  const useProductImage = !cv.image_url && product?.images?.[0];
+  const displayImage = cv.image_url || product?.images?.[0] || null;
+
+  const linkedHexes = (() => {
+    if (!commColor || commColor.sub_type?.toLowerCase() !== "combined") return null;
+    const ids: string[] = commColor.linked_technical_color_ids ?? [];
+    const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean);
+    return hexes.length > 1 ? hexes : null;
+  })();
+
+  return (
+    <div className={`${dim} rounded border border-border shrink-0 relative overflow-hidden`}>
+      {displayImage ? (
+        <img src={displayImage} alt={cv.color_name} className="w-full h-full object-contain" />
+      ) : linkedHexes ? (
+        <div className="w-full h-full flex">
+          {linkedHexes.map((h: string, i: number) => <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />)}
+        </div>
+      ) : (
+        <div className="w-full h-full" style={{ backgroundColor: cv.color_hex || "#ccc" }} />
+      )}
+      {useProductImage && cv.color_hex && (
+        <div className="absolute bottom-0.5 left-0.5 w-3 h-3 rounded-sm" style={{ backgroundColor: cv.color_hex }} />
+      )}
+    </div>
+  );
+}
+
 
 
 
@@ -63,6 +100,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [colorways, setColorways] = useState<any[]>([]);
   const [variations, setVariations] = useState<any[]>([]);
   const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -147,17 +185,19 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
 
   useEffect(() => {
     (async () => {
-      const [p, cw, mv, tc, pr] = await Promise.all([
+      const [p, cw, mv, tc, cc, pr] = await Promise.all([
         supabase.from("products").select("*").eq("type", type).order("code"),
         supabase.from("product_colors").select("*").order("created_at", { ascending: false }),
         supabase.from("product_color_and_more").select("*").order("created_at", { ascending: false }),
         supabase.from("technical_colors").select("id,code,name,hex").order("code"),
+        supabase.from("commercial_colors").select("id,sub_type,main_technical_color_id,linked_technical_color_ids"),
         supabase.from("projects").select("id,name").order("name"),
       ]);
       setProducts((p.data ?? []) as any[]);
       setColorways((cw.data ?? []) as any[]);
       setVariations((mv.data ?? []) as any[]);
       setTechColors((tc.data ?? []) as any[]);
+      setCommColors((cc.data ?? []) as any[]);
       setProjects((pr.data ?? []) as any[]);
     })();
   }, [type, refresh]);
@@ -262,13 +302,13 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     { id: "colorways", label: "Colorways", render: (p) => {
       const cws = (cwByProduct[p.id] || []).slice(0, 4);
       return <div className="flex gap-1">{cws.map((c) => (
-        <div key={c.id} className="h-5 w-5 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
+        <div key={c.id} title={c.color_name}>{renderColorwaySwatch(c, p, techColors, commColors, "sm")}</div>
       ))}</div>;
     }},
     { id: "count", label: "#", className: "text-right", render: (p) => (
       <span className="text-muted-foreground text-xs">{cwByProduct[p.id]?.length || 0}</span>
     )},
-  ], [cwByProduct]);
+  ], [cwByProduct, techColors, commColors]);
 
   const allColorwayColumns: ColSpec[] = useMemo(() => [
     { id: "product_image", label: "", className: "w-12", render: (c) => {
@@ -279,10 +319,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     }},
     { id: "product_name", label: "Product", render: (c) => <span className="font-medium">{productById[c.product_id]?.name || "—"}</span> },
     { id: "category", label: "Category", render: (c) => <span className="text-xs">{productById[c.product_id]?.category || "—"}</span> },
-    { id: "swatch", label: "", className: "w-12", render: (c) => (
-      c.image_url ? <img src={c.image_url} className="h-7 w-7 rounded border object-cover" alt="" />
-        : <div className="h-7 w-7 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
-    )},
+    { id: "swatch", label: "", className: "w-12", render: (c) => renderColorwaySwatch(c, productById[c.product_id], techColors, commColors, "sm") },
     { id: "color_name", label: "Colorway", render: (c) => c.color_name },
     { id: "colorway_code", label: "Code", render: (c) => <span className="font-mono text-xs">{c.colorway_code || "—"}</span> },
     { id: "commercial", label: "Commercial", render: (c) => (
@@ -294,7 +331,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
       const proj = c.creation_project_id ? projectById[c.creation_project_id] : null;
       return <span className="text-xs">{proj?.name || "—"}</span>;
     }},
-  ], [productById, projectById]);
+  ], [productById, projectById, techColors, commColors]);
 
   const allVariationColumns: ColSpec[] = useMemo(() => [
     { id: "product_image", label: "", className: "w-12", render: (v) => {
@@ -316,7 +353,9 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     }},
     { id: "swatch", label: "", className: "w-12", render: (v) => {
       const cw = cwById[v.product_color_id];
-      return <div className="h-7 w-7 rounded border" style={{ backgroundColor: cw?.color_hex || "#e5e7eb" }} />;
+      const prod = cw ? productById[cw.product_id] : null;
+      return cw ? renderColorwaySwatch(cw, prod, techColors, commColors, "sm")
+        : <div className="h-7 w-7 rounded border bg-muted" />;
     }},
     { id: "colorway_name", label: "Colorway", render: (v) => cwById[v.product_color_id]?.color_name || "—" },
     { id: "colorway_code", label: "Code", render: (v) => <span className="font-mono text-xs">{cwById[v.product_color_id]?.colorway_code || "—"}</span> },
@@ -329,7 +368,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
       const proj = cw?.creation_project_id ? projectById[cw.creation_project_id] : null;
       return <span className="text-xs">{proj?.name || "—"}</span>;
     }},
-  ], [cwById, productById, projectById]);
+  ], [cwById, productById, projectById, techColors, commColors]);
 
   const visibleStyleColumns = useMemo(
     () => stylesVisibleColumnIds ? allStyleColumns.filter(c => stylesVisibleColumnIds.includes(c.id)) : allStyleColumns,
@@ -497,7 +536,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
               { id: "colorways", label: "Colorways", getValue: (p) => cwByProduct[p.id]?.length, render: (p) => {
                 const cws = (cwByProduct[p.id] || []).slice(0, 4);
                 return <div className="flex gap-1">{cws.map((c) => (
-                  <div key={c.id} className="h-3.5 w-3.5 rounded-full border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+                  <div key={c.id}>{renderColorwaySwatch(c, p, techColors, commColors, "sm")}</div>
                 ))}</div>;
               }},
             ]}
@@ -542,15 +581,31 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
             rows={filteredColorways}
             renderThumbnail={(c) => {
               const prod = productById[c.product_id];
-              const prodImg = Array.isArray(prod?.images) && prod.images[0];
-              if (c.image_url) return <img src={c.image_url} className="w-full h-full object-cover" alt={c.color_name} />;
-              if (prodImg) return (
+              const useProductImage = !c.image_url && prod?.images?.[0];
+              const displayImage = c.image_url || prod?.images?.[0] || null;
+              const commColor = commColors.find((cc: any) => cc.id === c.linked_color_id);
+              const linkedHexes = (() => {
+                if (!commColor || commColor.sub_type?.toLowerCase() !== "combined") return null;
+                const ids: string[] = commColor.linked_technical_color_ids ?? [];
+                const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean);
+                return hexes.length > 1 ? hexes : null;
+              })();
+              return (
                 <>
-                  <img src={prodImg} className="w-full h-full object-cover" alt="" />
-                  <div className="absolute bottom-1 left-1 h-6 w-6 rounded border-2 border-white shadow" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+                  {displayImage ? (
+                    <img src={displayImage} className="w-full h-full object-contain" alt={c.color_name} />
+                  ) : linkedHexes ? (
+                    <div className="w-full h-full flex">
+                      {linkedHexes.map((h: string, i: number) => <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />)}
+                    </div>
+                  ) : (
+                    <div className="w-full h-full" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+                  )}
+                  {useProductImage && c.color_hex && (
+                    <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50" style={{ backgroundColor: c.color_hex }} />
+                  )}
                 </>
               );
-              return <div className="w-full h-full" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />;
             }}
             onClickItem={(c) => navigate(`/products/${c.product_id}`)}
             activeViewId={colorwaysActiveViewId}
