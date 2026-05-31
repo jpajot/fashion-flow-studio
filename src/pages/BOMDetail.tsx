@@ -621,11 +621,16 @@ export default function BOMDetail() {
           </div>
         )}
         {activeTab === "mfgops" && (
-          <div className="text-center py-16 text-muted-foreground">Manufacturing Operations — coming in Phase 5</div>
+          <MfgOpsTab
+            bom={bom}
+            allProducts={allProducts}
+            onOpenChangeRouting={openChangeRouting}
+          />
         )}
         {activeTab === "changelog" && (
-          <div className="text-center py-16 text-muted-foreground">Change Log — coming in Phase 5</div>
+          <BOMChangeLogTab changeLog={changeLog} />
         )}
+
       </div>
 
       <BOMLineAddDialog
