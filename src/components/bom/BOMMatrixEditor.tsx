@@ -7,6 +7,8 @@ import { Trash2, GripVertical, Plus, AlertTriangle, Pencil } from "lucide-react"
 import BOMVariantCellEditor from "./BOMVariantCellEditor";
 import BOMSourcingBlock from "./BOMSourcingBlock";
 import BOMLineDestructiveConfirmDialog from "./BOMLineDestructiveConfirmDialog";
+import BOMGroupedMatrix from "./BOMGroupedMatrix";
+import BOMSupplierMatrix from "./BOMSupplierMatrix";
 
 const SIZE_VARIATION_MODE_OPTIONS = [
   { value: "consumption_grading", label: "Consumption grading" },
@@ -347,10 +349,51 @@ export default function BOMMatrixEditor({
   };
 
   if (secondaryAxis && secondaryAxis !== columnAxis) {
-    return <div className="p-8 text-center text-sm text-muted-foreground">Grouped matrix — coming in Phase 4</div>;
+    return (
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <BOMGroupedMatrix
+          bom={bom}
+          bomLines={bomLines}
+          bomLineVariants={bomLineVariants}
+          colorVariants={colorVariants}
+          styleSizes={styleSizes}
+          colorAndMores={colorAndMores}
+          allProducts={allProducts}
+          allProductColors={allProductColors}
+          techColors={techColors}
+          commColors={commColors}
+          lovValues={lovValues}
+          allSizes={allSizes}
+          isReadOnly={isReadOnly}
+          columnAxis={columnAxis}
+          secondaryAxis={secondaryAxis}
+          onUpdateLine={onUpdateLine}
+          onDeleteLine={onDeleteLine}
+          onUpsertVariant={onUpsertVariant}
+          getUom={getUom}
+          onAddLine={onAddLine}
+          showSourcing={showSourcing}
+        />
+      </div>
+    );
   }
   if (columnAxis === "supplier") {
-    return <div className="p-8 text-center text-sm text-muted-foreground">Supplier matrix — coming in Phase 4</div>;
+    return (
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <BOMSupplierMatrix
+          bom={bom}
+          bomLines={bomLines}
+          bomLineVariants={bomLineVariants}
+          allProducts={allProducts}
+          lovValues={lovValues}
+          isReadOnly={isReadOnly}
+          onDeleteLine={onDeleteLine}
+          onUpdateLine={onUpdateLine}
+          onUpsertVariant={onUpsertVariant}
+          getUom={getUom}
+        />
+      </div>
+    );
   }
 
   return (
