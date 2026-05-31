@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, GitCommit, Info, Trash2, Upload, X, Star } from "lucide-react";
+import { ArrowLeft, GitCommit, Info, Trash2, Upload, X, Star, FileText, Palette, Ruler, Layers, Building2, ClipboardList, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
