@@ -23,12 +23,14 @@ import Samples from "@/pages/Samples";
 import Rfqs from "@/pages/Rfqs";
 import Admin from "@/pages/Admin";
 import SettingsHub from "@/pages/SettingsHub";
+import BOMs from "@/pages/BOMs";
+import BOMDetail from "@/pages/BOMDetail";
 import ListOfValuesLibrary from "@/pages/ListOfValuesLibrary";
 import SystemCodeGeneratorLibrary from "@/pages/SystemCodeGeneratorLibrary";
 import SizeGridLibrary from "@/pages/SizeGridLibrary";
 import Currencies from "@/pages/Currencies";
 import AppConfiguration from "@/pages/AppConfiguration";
-import Stub from "@/pages/Stub";
+
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -71,7 +73,9 @@ const App = () => (
                   <Route path="/suppliers/new" element={<SupplierDetail />} />
                   <Route path="/suppliers/:id" element={<SupplierDetail />} />
 
-                  <Route path="/boms" element={<Stub title="BOMs" />} />
+                  <Route path="/boms" element={<BOMs />} />
+                  <Route path="/boms/new" element={<BOMDetail />} />
+                  <Route path="/boms/:id" element={<BOMDetail />} />
 
                   <Route path="/change-management/ecos" element={<Ecos />} />
                   <Route path="/ecos" element={<Navigate to="/change-management/ecos" replace />} />
