@@ -770,9 +770,128 @@ function MultiModeSection(props: any) {
   );
 }
 
+function SingleModeSection({ routingId, onRoutingCreated }: { routingId: string; onRoutingCreated?: (r: any) => void }) {
+  const [routing, setRouting] = useState<any>(null);
+  const [steps, setSteps] = useState<any[]>([]);
+  const [allSuppliers, setAllSuppliers] = useState<any[]>([]);
+  const [currencies, setCurrencies] = useState<any[]>([]);
+  const [lovValues, setLovValues] = useState<any[]>([]);
+  const [lovTypes, setLovTypes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stepModal, setStepModal] = useState<any>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const [rRes, supRes, curRes, lovRes, lovTypeRes] = await Promise.all([
+      supabase.from("supplier_routings").select("*").eq("id", routingId),
+      supabase.from("suppliers").select("id,name,code").order("name"),
+      supabase.from("currencies").select("*").eq("is_active", true),
+      supabase.from("list_of_values").select("*"),
+      supabase.from("type_of_lov").select("id,code"),
+    ]);
+    const r = rRes.data?.[0] || null;
+    setRouting(r);
+    if (r) {
+      const { data: stepsData } = await supabase.from("supplier_routing_steps").select("*").eq("supplier_routing_id", routingId);
+      setSteps((stepsData || []).sort((a: any, b: any) => a.sequence - b.sequence));
+    }
+    setAllSuppliers(supRes.data ?? []);
+    setCurrencies(curRes.data ?? []);
+    setLovValues(lovRes.data ?? []);
+    setLovTypes(lovTypeRes.data ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => { if (routingId) load(); /* eslint-disable-next-line */ }, [routingId]);
+
+  const handleStatusChange = async (rId: string, newStatus: string, extra?: any) => {
+    await supabase.from("supplier_routings").update({ status: newStatus, ...extra }).eq("id", rId);
+    await load();
+  };
+
+  const handleToggleDefault = async (r: any) => {
+    const newVal = !r.is_default;
+    if (newVal) {
+      const { data: siblings } = await supabase.from("supplier_routings").select("id").eq("product_id", r.product_id).eq("routing_type", r.routing_type).eq("is_default", true);
+      await Promise.all((siblings || []).filter((s: any) => s.id !== r.id).map((s: any) => supabase.from("supplier_routings").update({ is_default: false }).eq("id", s.id)));
+    }
+    await supabase.from("supplier_routings").update({ is_default: newVal }).eq("id", r.id);
+    await load();
+  };
+
+  const saveStep = async (form: any) => {
+    if (!stepModal) return;
+    const { routing: r, step } = stepModal;
+    const payload = {
+      step_type: form.step_type, supplier_id: form.supplier_id || null, description: form.description || null,
+      unit_cost: form.unit_cost ? Number(form.unit_cost) : null, currency_id: form.currency_id || null,
+      lead_time_days: form.lead_time_days ? Number(form.lead_time_days) : null, ships_to_next: form.ships_to_next ?? true,
+      input_description: form.input_description || null, output_description: form.output_description || null, notes: form.notes || null,
+    };
+    if (step) {
+      await supabase.from("supplier_routing_steps").update(payload).eq("id", step.id);
+    } else {
+      const existing = steps.filter((s) => s.supplier_routing_id === r.id);
+      await supabase.from("supplier_routing_steps").insert({ ...payload, supplier_routing_id: r.id, sequence: existing.length + 1 });
+    }
+    setStepModal(null);
+    await load();
+  };
+
+  const deleteStep = async (step: any) => {
+    await supabase.from("supplier_routing_steps").delete().eq("id", step.id);
+    const remaining = steps.filter((s) => s.supplier_routing_id === step.supplier_routing_id && s.id !== step.id).sort((a: any, b: any) => a.sequence - b.sequence);
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i].sequence !== i + 1) await supabase.from("supplier_routing_steps").update({ sequence: i + 1 }).eq("id", remaining[i].id);
+    }
+    setStepModal(null);
+    await load();
+  };
+
+  const handleNewRoutingAdded = async (newR: any) => {
+    await load();
+    if (onRoutingCreated) onRoutingCreated(newR);
+  };
+
+  if (loading) return <div className="flex items-center justify-center py-16"><div className="w-5 h-5 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
+  if (!routing) return <div className="text-center py-16 text-muted-foreground text-sm">Routing not found.</div>;
+
+  return (
+    <>
+      <RoutingBody
+        routing={routing}
+        steps={steps}
+        allRoutings={[routing]}
+        allSuppliers={allSuppliers}
+        currencies={currencies}
+        lovValues={lovValues}
+        lovTypes={lovTypes}
+        onToggleDefault={handleToggleDefault}
+        onStatusChange={handleStatusChange}
+        onAddStep={(r: any) => setStepModal({ routing: r, step: null })}
+        onEditStep={(r: any, step: any) => setStepModal({ routing: r, step })}
+        onNewRoutingAdded={handleNewRoutingAdded}
+        onDelete={null}
+      />
+      <RoutingStepModal
+        open={!!stepModal}
+        editing={stepModal?.step}
+        allSuppliers={allSuppliers}
+        currencies={currencies}
+        lovValues={lovValues}
+        lovTypes={lovTypes}
+        onClose={() => setStepModal(null)}
+        onSave={saveStep}
+        onDelete={deleteStep}
+      />
+    </>
+  );
+}
+
 export default function RoutingLifecycleSection(props: any) {
   if (props.mode === "single") {
-    return <div className="text-sm text-muted-foreground p-4">Manufacturing routing view — coming in Domain 4.</div>;
+    return <SingleModeSection routingId={props.routingId} onRoutingCreated={props.onRoutingCreated} />;
   }
   return <MultiModeSection {...props} />;
 }
+
