@@ -18,6 +18,8 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
   const [sizes, setSizes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const prevGridId = useRef<string | null>(null);
+  const onSizesChangeRef = useRef(onSizesChange);
+  useEffect(() => { onSizesChangeRef.current = onSizesChange; });
 
   const load = useCallback(async () => {
     if (!product?.id) return;
@@ -42,15 +44,15 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
         }));
         const { data: created } = await supabase.from("style_sizes").insert(inserts).select();
         setStyleSizes(created ?? []);
-        onSizesChange?.((created ?? []).length > 0);
+        onSizesChangeRef.current?.((created ?? []).length > 0);
         setLoading(false);
         return;
       }
     }
     setStyleSizes(ss.data ?? []);
-    onSizesChange?.((ss.data ?? []).length > 0);
+    onSizesChangeRef.current?.((ss.data ?? []).length > 0);
     setLoading(false);
-  }, [product?.id, product?.size_grid_id, onSizesChange]);
+  }, [product?.id, product?.size_grid_id]);
 
   useEffect(() => {
     load();
