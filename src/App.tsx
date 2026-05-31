@@ -68,7 +68,8 @@ const App = () => (
                   <Route path="/app-config" element={<AppConfiguration />} />
 
                   <Route path="/suppliers" element={<Suppliers />} />
-                  <Route path="/suppliers/:id" element={<Stub title="Supplier Detail" />} />
+                  <Route path="/suppliers/new" element={<SupplierDetail />} />
+                  <Route path="/suppliers/:id" element={<SupplierDetail />} />
 
                   <Route path="/boms" element={<Stub title="BOMs" />} />
 
