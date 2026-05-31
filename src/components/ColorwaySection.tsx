@@ -197,7 +197,7 @@ export default function ColorwaySection({
     () => [
       {
         id: "swatch",
-        label: "",
+        label: "Color",
         width: 56,
         render: (cv: any) => (
           <ListSwatch cw={cv} product={product} techColors={techColors} commColors={commColors} />
