@@ -245,12 +245,33 @@ export default function BOMSupplierMatrix({
                     }
 
                     const hasExplicit = !!variant?.approved_supplier_id;
+                    const noCompSuppliers = cached && !cached.supplier && !variant?.approved_supplier_id;
+                    if (noCompSuppliers) {
+                      return (
+                        <td key={cellKey} className="px-1 py-1 text-center">
+                          <div className="flex items-center justify-center gap-1 text-amber-600 text-[10px] min-h-[40px]">
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/products/${line.component_product_id}`)}
+                              className="underline hover:text-amber-800"
+                            >
+                              No suppliers
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    }
                     return (
                       <td key={cellKey} className="px-1 py-1 text-center">
-                        {!isReadOnly ? (
+                        {(!isReadOnly && line.varies_by_supplier) ? (
                           <div className="relative group/cell">
                             <button type="button"
-                              onClick={() => setOpenPicker(openPicker === cellKey ? null : cellKey)}
+                              onClick={() => setOpenPicker(
+                                openPicker?.lineId === line.id && openPicker?.pvId === pv.id
+                                  ? null
+                                  : { lineId: line.id, pvId: pv.id }
+                              )}
                               className={`w-full min-h-[40px] rounded border text-left px-1.5 py-1 transition-colors ${
                                 hasExplicit
                                   ? "border-border hover:border-primary/60 hover:bg-primary/5"
