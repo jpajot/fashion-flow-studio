@@ -560,10 +560,66 @@ export default function BOMDetail() {
                 const { data } = await supabase.from("bom_line_variants").insert(payload).select().single();
                 if (data) setBomVariants(prev => [...prev, data]);
               }
-              // Log the variant change (same as Base44 handleUpsertVariant)
+              // Resolve human-readable before/after for the log
+              const variantLine = bomLines.find(l => l.id === payload.bom_line_id);
+              const variantComp = variantLine ? allProducts.find(p => p.id === variantLine.component_product_id) : null;
+              const compLabel = variantComp ? `${variantComp.code || ""} ${variantComp.name}`.trim() : "";
+
+              // Identify the parent column (axis) context
+              let colDetail = "";
+              if (payload.product_color_id) {
+                const cw = colorways.find(c => c.id === payload.product_color_id);
+                if (cw) colDetail = `Colorway: ${cw.color_name || cw.colorway_code || ""}`;
+              } else if (payload.size_id) {
+                const sz = sizes.find(s => s.id === payload.size_id);
+                if (sz) colDetail = `Size: ${sz.name || sz.size_code || ""}`;
+              } else if (payload.product_color_and_more_id) {
+                const cam = variations.find(v => v.id === payload.product_color_and_more_id);
+                if (cam) colDetail = `Variation: ${cam.name || cam.sequence || ""}`;
+              }
+              const detail = [compLabel, colDetail].filter(Boolean).join(" · ");
+
+              // Resolve from/to
+              let fromLabel: string | undefined;
+              let toLabel: string | undefined;
+
+              if (payload.is_not_applicable === true) {
+                fromLabel = existing ? "active" : undefined;
+                toLabel = "N/A";
+              } else if (existing?.is_not_applicable && payload.is_not_applicable === false) {
+                fromLabel = "N/A";
+                toLabel = "active";
+              } else if ("component_product_color_id" in payload) {
+                const prevColor = existing?.component_product_color_id
+                  ? allProductColors.find(c => c.id === existing.component_product_color_id)
+                  : null;
+                const nextColor = payload.component_product_color_id
+                  ? allProductColors.find(c => c.id === payload.component_product_color_id)
+                  : null;
+                fromLabel = prevColor ? (prevColor.color_name || prevColor.colorway_code || "—") : (existing ? "none" : undefined);
+                toLabel = nextColor ? (nextColor.color_name || nextColor.colorway_code || "—") : "none";
+              } else if ("quantity" in payload) {
+                const prevQty = existing?.quantity ?? variantLine?.base_quantity;
+                const nextQty = payload.quantity ?? variantLine?.base_quantity;
+                if (prevQty !== nextQty) {
+                  fromLabel = prevQty !== undefined ? String(prevQty) : undefined;
+                  toLabel = nextQty !== undefined ? String(nextQty) : "—";
+                }
+              } else if ("component_size_id" in payload) {
+                const prevSz = existing?.component_size_id ? sizes.find(s => s.id === existing.component_size_id) : null;
+                const nextSz = payload.component_size_id ? sizes.find(s => s.id === payload.component_size_id) : null;
+                const baseSz = variantLine?.base_component_size_id ? sizes.find(s => s.id === variantLine.base_component_size_id) : null;
+                fromLabel = prevSz ? (prevSz.name || prevSz.size_code) : (baseSz ? `${baseSz.name || baseSz.size_code} (default)` : undefined);
+                toLabel = nextSz ? (nextSz.name || nextSz.size_code) : (baseSz ? `${baseSz.name || baseSz.size_code} (default)` : "—");
+              }
+
+              const logPayload: any = { detail };
+              if (fromLabel !== undefined) logPayload.from = fromLabel;
+              if (toLabel !== undefined) logPayload.to = toLabel;
+
               const logEntry = {
                 bom_id: bom.id, change_type: "variant_modified",
-                payload: payload,
+                payload: logPayload,
                 triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
               };
               await supabase.from("bom_change_logs").insert(logEntry);
