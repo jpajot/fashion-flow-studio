@@ -25,8 +25,9 @@ export default function BOMSupplierMatrix({
   const [parentVendors, setParentVendors] = useState<any[]>([]);
   const [parentSupplierMap, setParentSupplierMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
-  const [openPicker, setOpenPicker] = useState<string | null>(null);
+  const [openPicker, setOpenPicker] = useState<{ lineId: string; pvId: string } | null>(null);
   const [supplierCache, setSupplierCache] = useState<Record<string, any>>({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!bom?.product_id) { setLoading(false); return; }
