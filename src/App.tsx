@@ -23,6 +23,8 @@ import Samples from "@/pages/Samples";
 import Rfqs from "@/pages/Rfqs";
 import Admin from "@/pages/Admin";
 import SettingsHub from "@/pages/SettingsHub";
+import BOMs from "@/pages/BOMs";
+import BOMDetail from "@/pages/BOMDetail";
 import ListOfValuesLibrary from "@/pages/ListOfValuesLibrary";
 import SystemCodeGeneratorLibrary from "@/pages/SystemCodeGeneratorLibrary";
 import SizeGridLibrary from "@/pages/SizeGridLibrary";
