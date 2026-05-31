@@ -557,6 +557,14 @@ export default function BOMDetail() {
                 const { data } = await supabase.from("bom_line_variants").insert(payload).select().single();
                 if (data) setBomVariants(prev => [...prev, data]);
               }
+              // Log the variant change (same as Base44 handleUpsertVariant)
+              const logEntry = {
+                bom_id: bom.id, change_type: "variant_modified",
+                payload: payload,
+                triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+              };
+              await supabase.from("bom_change_logs").insert(logEntry);
+              setChangeLog(prev => [{ ...logEntry, id: crypto.randomUUID() }, ...prev]);
             }}
             onDeleteVariant={async (variantId: string) => {
               await supabase.from("bom_line_variants").delete().eq("id", variantId);
