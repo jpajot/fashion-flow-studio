@@ -307,7 +307,23 @@ export default function BOMDetail() {
 
       <div className="mt-4">
         {activeTab === "matrix" && (
-          <div className="text-center py-16 text-muted-foreground">Matrix view — coming in Phase 3</div>
+          <BOMMatrixEditor
+            bom={bom}
+            bomLines={bomLines}
+            bomVariants={bomVariants}
+            colorways={colorways}
+            variations={variations}
+            approvedSuppliers={approvedSuppliers}
+            styleSizes={styleSizes}
+            sizes={sizes}
+            suppliers={suppliers}
+            currencies={currencies}
+            allProducts={allProducts}
+            lovTypes={lovTypes}
+            lovValues={lovValues}
+            onVariantsChange={setBomVariants}
+            onLineEdit={(line) => setEditLine(line)}
+          />
         )}
         {activeTab === "lines" && (
           <div className="space-y-3">
