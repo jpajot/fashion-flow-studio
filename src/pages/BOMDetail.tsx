@@ -38,6 +38,8 @@ export default function BOMDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { setOptions } = usePageOptions();
   const isNew = id === "new" || location.pathname === "/boms/new" || !id;
 
   const [bom, setBom] = useState<any>(null);
@@ -56,12 +58,26 @@ export default function BOMDetail() {
   const [variations, setVariations] = useState<any[]>([]);
   const [styleSizes, setStyleSizes] = useState<any[]>([]);
   const [sizes, setSizes] = useState<any[]>([]);
+  const [colorSupplierLinks, setColorSupplierLinks] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [activeTab, setActiveTab] = useState("matrix");
   const [showAddLine, setShowAddLine] = useState(false);
   const [editLine, setEditLine] = useState<any | null>(null);
   const [lineSearch, setLineSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+
+  // Lifted matrix view state
+  const [columnAxis, setColumnAxis] = useState<string>("color");
+  const [secondaryColumnAxis, setSecondaryColumnAxis] = useState<string | null>(null);
+  const [filterConfig, setFilterConfig] = useState<any>({
+    roles: [] as string[],
+    suppliers: [] as string[],
+    na_mode: "all" as "all" | "only" | "exclude",
+  });
+  const [groupsState, setGroupsState] = useState<{ view: boolean; lines: boolean; bom: boolean }>({
+    view: true, lines: false, bom: false,
+  });
+  const [viewStateId, setViewStateId] = useState<string | null>(null);
 
   const loadAll = async () => {
     if (!id) return;
