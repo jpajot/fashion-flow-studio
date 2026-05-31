@@ -265,6 +265,15 @@ export default function BOMDetail() {
             groupsState={groupsState}
             setGroupsState={setGroupsState}
             onAddLine={() => setShowAddLine(true)}
+            onSubmitForReview={() => handleStatusTransition("in_review")}
+            onBackToDraft={() => handleStatusTransition("draft")}
+            onRelease={() => setShowReleaseValidation(true)}
+            onCreateVersion={() => setShowCreateVersion(true)}
+            onCreateRevision={() => setShowCreateRevision(true)}
+            onCreateProductionBOM={() => setShowCreateProdBOM(true)}
+            onMarkObsolete={() => handleStatusTransition("obsolete")}
+            onRestoreToDraft={() => handleStatusTransition("draft")}
+
           />
         ),
       });
