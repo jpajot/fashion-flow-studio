@@ -115,16 +115,23 @@ export default function ProductColorSupplierLinkMatrix({ colorVariants, approved
                 return (
                   <td key={as.id} className="p-2 align-middle">
                     {link ? (
-                      <button
-                        type="button"
-                        onClick={() => setEditCell({ colorway: cw, approvedSupplier: as, existing: link, supplierName: sup?.name || "" })}
-                        className={cn(
-                          "text-[10px] px-1.5 py-0.5 rounded-full border font-medium capitalize",
-                          STATUS_COLORS[link.colorway_supplier_status || "available"]
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setEditCell({ colorway: cw, approvedSupplier: as, existing: link, supplierName: sup?.name || "" })}
+                          className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded-full border font-medium capitalize",
+                            STATUS_COLORS[link.colorway_supplier_status || "available"]
+                          )}
+                        >
+                          {(link.colorway_supplier_status || "available").replace(/_/g, " ")}
+                        </button>
+                        {link.colorway_supplier_reference && (
+                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[80px]">
+                            {link.colorway_supplier_reference}
+                          </p>
                         )}
-                      >
-                        {(link.colorway_supplier_status || "available").replace(/_/g, " ")}
-                      </button>
+                      </div>
                     ) : (
                       <button
                         type="button"
