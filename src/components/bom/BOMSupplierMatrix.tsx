@@ -345,7 +345,7 @@ export default function BOMSupplierMatrix({
       </div>
 
       {openPicker && (() => {
-        const [lineId, pvId] = openPicker.split("-");
+        const { lineId, pvId } = openPicker;
         const line = bomLines.find((l: any) => l.id === lineId);
         if (!line) return null;
         const variant = getVariantForCell(line.id, pvId);
