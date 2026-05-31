@@ -13,12 +13,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Trash2, LayoutGrid, List, Factory, History, Plus, Layers, Package, Pencil } from "lucide-react";
 import { PAGE_WRAPPER } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePageOptions } from "@/contexts/PageOptionsContext";
 import NewBOMDialog from "@/components/bom/NewBOMDialog";
 import BOMHeaderCard from "@/components/bom/BOMHeaderCard";
 import BOMLineAddDialog from "@/components/bom/BOMLineAddDialog";
 import BOMLineEditPanel from "@/components/bom/BOMLineEditPanel";
 import DataTable from "@/components/shared/DataTable";
 import BOMMatrixEditor from "@/components/bom/BOMMatrixEditor";
+import BOMOptionsContent from "@/components/bom/BOMOptionsContent";
+import BOMQuickFilterGroup from "@/components/bom/BOMQuickFilterGroup";
 
 const EDITABLE_STATUSES = ["draft", "in_review"];
 const isBomEditable = (bom: any) => bom && EDITABLE_STATUSES.includes(bom.status);
@@ -34,6 +38,8 @@ export default function BOMDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { setOptions } = usePageOptions();
   const isNew = id === "new" || location.pathname === "/boms/new" || !id;
 
   const [bom, setBom] = useState<any>(null);
@@ -52,12 +58,26 @@ export default function BOMDetail() {
   const [variations, setVariations] = useState<any[]>([]);
   const [styleSizes, setStyleSizes] = useState<any[]>([]);
   const [sizes, setSizes] = useState<any[]>([]);
+  const [colorSupplierLinks, setColorSupplierLinks] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [activeTab, setActiveTab] = useState("matrix");
   const [showAddLine, setShowAddLine] = useState(false);
   const [editLine, setEditLine] = useState<any | null>(null);
   const [lineSearch, setLineSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+
+  // Lifted matrix view state
+  const [columnAxis, setColumnAxis] = useState<string>("color");
+  const [secondaryColumnAxis, setSecondaryColumnAxis] = useState<string | null>(null);
+  const [filterConfig, setFilterConfig] = useState<any>({
+    roles: [] as string[],
+    suppliers: [] as string[],
+    na_mode: "all" as "all" | "only" | "exclude",
+  });
+  const [groupsState, setGroupsState] = useState<{ view: boolean; lines: boolean; bom: boolean }>({
+    view: true, lines: false, bom: false,
+  });
+  const [viewStateId, setViewStateId] = useState<string | null>(null);
 
   const loadAll = async () => {
     if (!id) return;
@@ -103,6 +123,13 @@ export default function BOMDetail() {
       const cwIds = cws.data.map((c: any) => c.id);
       const { data: vars } = await supabase.from("product_color_and_more").select("*").in("product_color_id", cwIds);
       variationsData = vars ?? [];
+      const { data: links } = await supabase
+        .from("product_color_supplier_links")
+        .select("*")
+        .in("product_color_id", cwIds);
+      setColorSupplierLinks(links ?? []);
+    } else {
+      setColorSupplierLinks([]);
     }
     const [ssRes, szRes] = await Promise.all([
       supabase.from("style_sizes").select("*").eq("product_id", b.product_id).eq("active", true),
@@ -115,6 +142,36 @@ export default function BOMDetail() {
     if (b.derived_from_bom_id) {
       const { data: df } = await supabase.from("boms").select("id,bom_type,revision_code,version").eq("id", b.derived_from_bom_id).maybeSingle();
       setDerivedFromBom(df);
+    }
+
+    // Load (or create) per-user matrix view state
+    if (user?.id) {
+      const { data: vs } = await supabase
+        .from("bom_matrix_view_states")
+        .select("*")
+        .eq("bom_id", b.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (vs) {
+        setColumnAxis(vs.column_axis || "color");
+        setSecondaryColumnAxis(vs.secondary_column_axis || null);
+        setFilterConfig(vs.filter_config || { roles: [], suppliers: [], na_mode: "all" });
+        setGroupsState(vs.options_sidebar_groups_state || { view: true, lines: false, bom: false });
+        setViewStateId(vs.id);
+      } else {
+        const { data: created } = await supabase
+          .from("bom_matrix_view_states")
+          .insert({
+            bom_id: b.id, user_id: user.id,
+            row_axis: "bom_line", column_axis: "color",
+            secondary_column_axis: null,
+            filter_config: { roles: [], suppliers: [], na_mode: "all" },
+            options_sidebar_groups_state: { view: true, lines: false, bom: false },
+            last_used_at: new Date().toISOString(),
+          })
+          .select().single();
+        if (created) setViewStateId(created.id);
+      }
     }
 
     setLoading(false);
@@ -135,6 +192,62 @@ export default function BOMDetail() {
   ]), [bomLines.length, bomVariants.length]);
 
   useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, bomTitle);
+
+  // Persist matrix view state (debounced)
+  useEffect(() => {
+    if (!user?.id || !bom?.id || !viewStateId) return;
+    const t = setTimeout(() => {
+      supabase.from("bom_matrix_view_states").upsert({
+        bom_id: bom.id,
+        user_id: user.id,
+        row_axis: "bom_line",
+        column_axis: columnAxis,
+        secondary_column_axis: secondaryColumnAxis,
+        filter_config: filterConfig,
+        options_sidebar_groups_state: groupsState,
+        last_used_at: new Date().toISOString(),
+      }, { onConflict: "bom_id,user_id" });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [columnAxis, secondaryColumnAxis, filterConfig, groupsState, viewStateId, bom?.id, user?.id]);
+
+  // Register Options drawer content per tab
+  useEffect(() => {
+    if (isNew || !bom) return;
+    if (activeTab === "matrix") {
+      setOptions({
+        items: [],
+        customContent: (
+          <BOMOptionsContent
+            bom={bom}
+            bomLines={bomLines}
+            bomVariants={bomVariants}
+            approvedSuppliers={approvedSuppliers}
+            suppliers={suppliers}
+            columnAxis={columnAxis}
+            setColumnAxis={setColumnAxis}
+            secondaryColumnAxis={secondaryColumnAxis}
+            setSecondaryColumnAxis={setSecondaryColumnAxis}
+            filterConfig={filterConfig}
+            setFilterConfig={setFilterConfig}
+            groupsState={groupsState}
+            setGroupsState={setGroupsState}
+            onAddLine={() => setShowAddLine(true)}
+          />
+        ),
+      });
+    } else if (activeTab === "lines") {
+      setOptions({
+        items: isBomEditable(bom)
+          ? [{ label: "Add Line", icon: Plus, onClick: () => setShowAddLine(true), className: "text-primary hover:bg-primary/10" }]
+          : [],
+      });
+    } else {
+      setOptions({ items: [] });
+    }
+    return () => setOptions(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, bom?.id, bomLines, bomVariants, approvedSuppliers, suppliers, columnAxis, secondaryColumnAxis, filterConfig, groupsState, isNew]);
 
   const selectedRouting = routings.find(r => r.id === bom?.selected_routing_id);
   const factorySupplierId = bom?.order_context?.factory_supplier_id;
@@ -307,23 +420,36 @@ export default function BOMDetail() {
 
       <div className="mt-4">
         {activeTab === "matrix" && (
-          <BOMMatrixEditor
-            bom={bom}
-            bomLines={bomLines}
-            bomVariants={bomVariants}
-            colorways={colorways}
-            variations={variations}
-            approvedSuppliers={approvedSuppliers}
-            styleSizes={styleSizes}
-            sizes={sizes}
-            suppliers={suppliers}
-            currencies={currencies}
-            allProducts={allProducts}
-            lovTypes={lovTypes}
-            lovValues={lovValues}
-            onVariantsChange={setBomVariants}
-            onLineEdit={(line) => setEditLine(line)}
-          />
+          <div className="space-y-3">
+            <BOMQuickFilterGroup
+              filterConfig={filterConfig}
+              setFilterConfig={setFilterConfig}
+              bomLines={bomLines}
+              approvedSuppliers={approvedSuppliers}
+              suppliers={suppliers}
+            />
+            <BOMMatrixEditor
+              bom={bom}
+              bomLines={bomLines}
+              bomVariants={bomVariants}
+              colorways={colorways}
+              variations={variations}
+              approvedSuppliers={approvedSuppliers}
+              styleSizes={styleSizes}
+              sizes={sizes}
+              suppliers={suppliers}
+              currencies={currencies}
+              allProducts={allProducts}
+              lovTypes={lovTypes}
+              lovValues={lovValues}
+              colorSupplierLinks={colorSupplierLinks}
+              columnAxis={columnAxis}
+              secondaryColumnAxis={secondaryColumnAxis}
+              filterConfig={filterConfig}
+              onVariantsChange={setBomVariants}
+              onLineEdit={(line) => setEditLine(line)}
+            />
+          </div>
         )}
         {activeTab === "lines" && (
           <div className="space-y-3">
