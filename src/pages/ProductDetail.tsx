@@ -615,9 +615,7 @@ export default function ProductDetail() {
       {!isNew && activeTab === "sizes" && (
         <StyleSizesSection
           product={product}
-          onSizesChange={useCallback((hasSizes: boolean) => {
-            setStyleSizes((prev) => (hasSizes ? prev : []));
-          }, [])}
+          onSizesChange={handleSizesChange}
         />
       )}
       {!isNew && activeTab === "more" && (
