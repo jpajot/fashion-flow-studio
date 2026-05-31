@@ -319,10 +319,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     }},
     { id: "product_name", label: "Product", render: (c) => <span className="font-medium">{productById[c.product_id]?.name || "—"}</span> },
     { id: "category", label: "Category", render: (c) => <span className="text-xs">{productById[c.product_id]?.category || "—"}</span> },
-    { id: "swatch", label: "", className: "w-12", render: (c) => (
-      c.image_url ? <img src={c.image_url} className="h-7 w-7 rounded border object-cover" alt="" />
-        : <div className="h-7 w-7 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
-    )},
+    { id: "swatch", label: "", className: "w-12", render: (c) => renderColorwaySwatch(c, productById[c.product_id], techColors, commColors, "sm") },
     { id: "color_name", label: "Colorway", render: (c) => c.color_name },
     { id: "colorway_code", label: "Code", render: (c) => <span className="font-mono text-xs">{c.colorway_code || "—"}</span> },
     { id: "commercial", label: "Commercial", render: (c) => (
