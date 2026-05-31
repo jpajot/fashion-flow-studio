@@ -434,7 +434,7 @@ export default function BOMGroupedMatrix({
                 componentProductId={line.component_product_id}
                 currentApprovedSupplierId={variant?.approved_supplier_id || null}
                 onSelect={(asId) => { handleAssignSupplier(line, pm, sm, asId); setOpenPicker(null); }}
-                onClear={() => { handleResetSupplier(line, pm, sm); setOpenPicker(null); }}
+                onReset={() => { handleResetSupplier(line, pm, sm); setOpenPicker(null); }}
                 onClose={() => setOpenPicker(null)}
               />
             </div>

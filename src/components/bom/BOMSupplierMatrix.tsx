@@ -334,7 +334,7 @@ export default function BOMSupplierMatrix({
                 componentProductId={line.component_product_id}
                 currentApprovedSupplierId={variant?.approved_supplier_id || null}
                 onSelect={(asId) => { handleAssignSupplier(line, pvId, asId); setOpenPicker(null); }}
-                onClear={() => { handleResetSupplier(line, pvId); setOpenPicker(null); }}
+                onReset={() => { handleResetSupplier(line, pvId); setOpenPicker(null); }}
                 onClose={() => setOpenPicker(null)}
               />
             </div>
