@@ -89,7 +89,7 @@ export default function BOMDetail() {
     if (!b) { setLoading(false); return; }
     setBom(b);
 
-    const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap] = await Promise.all([
+    const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap, tc, cc, apc] = await Promise.all([
       supabase.from("products").select("*").eq("id", b.product_id).single(),
       supabase.from("bom_lines").select("*").eq("bom_id", b.id).order("position"),
       supabase.from("supplier_routings").select("*").eq("product_id", b.product_id),
@@ -100,7 +100,24 @@ export default function BOMDetail() {
       supabase.from("type_of_lov").select("id,code"),
       supabase.from("list_of_values").select("*"),
       supabase.from("products").select("id,name,type,images,default_uom,default_uom_for_purchasing").order("name"),
+      supabase.from("technical_colors").select("id,code,name,hex"),
+      supabase.from("commercial_colors").select("*"),
+      supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex,colorway_status,linked_color_type,linked_color_id,linked_tech_color_id"),
     ]);
+
+    setProduct(prod.data);
+    setBomLines(lines.data ?? []);
+    setRoutings(rts.data ?? []);
+    setColorways(cws.data ?? []);
+    setApprovedSuppliers(apps.data ?? []);
+    setSuppliers(sups.data ?? []);
+    setCurrencies(currs.data ?? []);
+    setLovTypes(lt.data ?? []);
+    setLovValues(lv.data ?? []);
+    setAllProducts(ap.data ?? []);
+    setTechColors(tc.data ?? []);
+    setCommColors(cc.data ?? []);
+    setAllProductColors(apc.data ?? []);
 
     setProduct(prod.data);
     setBomLines(lines.data ?? []);
