@@ -14,7 +14,7 @@ import {
   Pin,
   PinOff,
   ChevronDown,
-  ChevronRight,
+  ChevronRight: _ChevronRight,
   SlidersHorizontal,
   X,
   Menu,
