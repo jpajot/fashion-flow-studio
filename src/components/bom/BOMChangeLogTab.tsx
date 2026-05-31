@@ -1,11 +1,16 @@
 import { format } from "date-fns";
 
 const CHANGE_TYPE_LABELS: Record<string, string> = {
-  status_transition: "Status change", line_added: "Line added", line_removed: "Line removed",
-  line_modified: "Line modified", variant_modified: "Variant updated", derived: "Derived from dev BOM",
-  routing_synced: "Routing synced", routing_overridden: "Routing overridden",
-  routing_changed_upstream: "Routing changed", matrix_axis_changed: "Matrix axis changed",
-  uom_overridden: "UOM override", validity_window_changed: "Validity window updated",
+  status_transition: "Status change",
+  line_added: "Line added",
+  line_removed: "Line removed",
+  line_modified: "Line modified",
+  variant_modified: "Cell updated",
+  derived: "Derived",
+  routing_synced: "Routing synced",
+  routing_changed_upstream: "Routing changed",
+  routing_overridden: "Routing changed",
+  validity_window_changed: "Validity window updated",
   version_created: "Version created",
 };
 
@@ -24,10 +29,17 @@ export default function BOMChangeLogTab({ changeLog }: { changeLog: any[] }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium">{CHANGE_TYPE_LABELS[entry.change_type] || entry.change_type}</span>
-              {entry.payload?.from && entry.payload?.to && (
-                <span className="text-xs text-muted-foreground">{entry.payload.from} → {entry.payload.to}</span>
+              {entry.payload?.from !== undefined && entry.payload?.to !== undefined && (
+                <span className="text-xs text-muted-foreground">
+                  {String(entry.payload.from)} → {String(entry.payload.to)}
+                </span>
               )}
             </div>
+            {entry.payload?.detail && (
+              <p className="text-[11px] text-muted-foreground/70 mt-0.5 truncate" title={entry.payload.detail}>
+                {entry.payload.detail}
+              </p>
+            )}
             <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
               <span>{entry.triggered_by || "System"}</span>
               {entry.triggered_at && <span>{format(new Date(entry.triggered_at), "dd MMM yyyy HH:mm")}</span>}
