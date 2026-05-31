@@ -629,7 +629,7 @@ export default function ProductDetail() {
           projects={projects}
         />
       )}
-      {!isNew && activeTab === "suppliers" && <ProductSuppliersTab productId={product.id} />}
+      {!isNew && activeTab === "suppliers" && <ProductSuppliersTab product={product} colorVariants={colorways} />}
       {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} />}
       {!isNew && activeTab === "samples" && <ProductSamplesTab productId={product.id} />}
 
