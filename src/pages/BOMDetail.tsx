@@ -123,6 +123,13 @@ export default function BOMDetail() {
       const cwIds = cws.data.map((c: any) => c.id);
       const { data: vars } = await supabase.from("product_color_and_more").select("*").in("product_color_id", cwIds);
       variationsData = vars ?? [];
+      const { data: links } = await supabase
+        .from("product_color_supplier_links")
+        .select("*")
+        .in("product_color_id", cwIds);
+      setColorSupplierLinks(links ?? []);
+    } else {
+      setColorSupplierLinks([]);
     }
     const [ssRes, szRes] = await Promise.all([
       supabase.from("style_sizes").select("*").eq("product_id", b.product_id).eq("active", true),
@@ -135,6 +142,36 @@ export default function BOMDetail() {
     if (b.derived_from_bom_id) {
       const { data: df } = await supabase.from("boms").select("id,bom_type,revision_code,version").eq("id", b.derived_from_bom_id).maybeSingle();
       setDerivedFromBom(df);
+    }
+
+    // Load (or create) per-user matrix view state
+    if (user?.id) {
+      const { data: vs } = await supabase
+        .from("bom_matrix_view_states")
+        .select("*")
+        .eq("bom_id", b.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (vs) {
+        setColumnAxis(vs.column_axis || "color");
+        setSecondaryColumnAxis(vs.secondary_column_axis || null);
+        setFilterConfig(vs.filter_config || { roles: [], suppliers: [], na_mode: "all" });
+        setGroupsState(vs.options_sidebar_groups_state || { view: true, lines: false, bom: false });
+        setViewStateId(vs.id);
+      } else {
+        const { data: created } = await supabase
+          .from("bom_matrix_view_states")
+          .insert({
+            bom_id: b.id, user_id: user.id,
+            row_axis: "bom_line", column_axis: "color",
+            secondary_column_axis: null,
+            filter_config: { roles: [], suppliers: [], na_mode: "all" },
+            options_sidebar_groups_state: { view: true, lines: false, bom: false },
+            last_used_at: new Date().toISOString(),
+          })
+          .select().single();
+        if (created) setViewStateId(created.id);
+      }
     }
 
     setLoading(false);
