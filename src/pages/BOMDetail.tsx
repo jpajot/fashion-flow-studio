@@ -345,8 +345,35 @@ export default function BOMDetail() {
         )}
       </div>
 
-      {/* Silence unused LOV warnings; will be consumed in later phases */}
-      <span className="hidden">{lovTypes.length}{lovValues.length}{colorways.length}{approvedSuppliers.length}</span>
+      <BOMLineAddDialog
+        open={showAddLine}
+        onClose={() => setShowAddLine(false)}
+        bomId={bom.id}
+        productId={bom.product_id}
+        currentLineCount={bomLines.length}
+        lovTypes={lovTypes}
+        lovValues={lovValues}
+        onCreated={(newLine) => {
+          setBomLines(prev => [...prev, newLine].sort((a, b) => a.position - b.position));
+          setShowAddLine(false);
+          toast({ title: "Line added" });
+        }}
+      />
+      <BOMLineEditPanel
+        open={!!editLine}
+        onClose={() => setEditLine(null)}
+        line={editLine}
+        bom={bom}
+        approvedSuppliers={approvedSuppliers}
+        suppliers={suppliers}
+        lovTypes={lovTypes}
+        lovValues={lovValues}
+        onUpdated={(updated) => setBomLines(prev => prev.map(l => l.id === updated.id ? updated : l))}
+        onDeleted={(id) => setBomLines(prev => prev.filter(l => l.id !== id))}
+      />
+
+      {/* Silence unused warnings; consumed in later phases */}
+      <span className="hidden">{colorways.length}</span>
     </div>
   );
 }
