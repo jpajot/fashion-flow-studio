@@ -37,7 +37,7 @@ function renderColorwaySwatch(
   const displayImage = cv.image_url || product?.images?.[0] || null;
 
   const linkedHexes = (() => {
-    if (!commColor || commColor.sub_type?.toLowerCase() !== "combined") return null;
+    if (!commColor || commColor.sub_type !== "Combined") return null;
     const ids: string[] = commColor.linked_technical_color_ids ?? [];
     const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean);
     return hexes.length > 1 ? hexes : null;
