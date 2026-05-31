@@ -302,7 +302,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     { id: "colorways", label: "Colorways", render: (p) => {
       const cws = (cwByProduct[p.id] || []).slice(0, 4);
       return <div className="flex gap-1">{cws.map((c) => (
-        <div key={c.id} className="h-5 w-5 rounded border" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} title={c.color_name} />
+        <div key={c.id} title={c.color_name}>{renderColorwaySwatch(c, p, techColors, commColors, "sm")}</div>
       ))}</div>;
     }},
     { id: "count", label: "#", className: "text-right", render: (p) => (
