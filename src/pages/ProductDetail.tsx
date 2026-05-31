@@ -221,16 +221,14 @@ export default function ProductDetail() {
     if (newGridId) {
       const { data: gridSizes } = await supabase
         .from("size_grid_sizes")
-        .select("size_id, sort_order")
-        .eq("size_grid_id", newGridId)
-        .order("sort_order");
+        .select("size_id, active")
+        .eq("size_grid_id", newGridId);
       if (gridSizes?.length) {
         await supabase.from("style_sizes").insert(
           gridSizes.map((g) => ({
             product_id: id,
             size_id: g.size_id,
-            sort_order: g.sort_order,
-            is_active: true,
+            active: g.active !== false,
           })),
         );
       }

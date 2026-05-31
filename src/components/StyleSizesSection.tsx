@@ -25,7 +25,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
     if (!product?.id) return;
     setLoading(true);
     const [ss, sz] = await Promise.all([
-      supabase.from("style_sizes").select("*").eq("product_id", product.id).order("sort_order"),
+      supabase.from("style_sizes").select("*").eq("product_id", product.id).order("created_at"),
       supabase.from("sizes").select("*").order("size_code"),
     ]);
     setSizes(sz.data ?? []);
@@ -39,8 +39,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
         const inserts = gridSizes.map((gs: any) => ({
           product_id: product.id,
           size_id: gs.size_id,
-          is_active: gs.active !== false,
-          sort_order: gs.sort_order ?? 0,
+          active: gs.active !== false,
         }));
         const { data: created } = await supabase.from("style_sizes").insert(inserts).select();
         setStyleSizes(created ?? []);
@@ -85,8 +84,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
           toAdd.map((gs: any) => ({
             product_id: product.id,
             size_id: gs.size_id,
-            is_active: gs.active !== false,
-            sort_order: gs.sort_order ?? 0,
+            active: gs.active !== false,
           })),
         );
       }
@@ -100,7 +98,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
   }, [product?.size_grid_id]);
 
   const handleToggle = async (ss: any) => {
-    const updated = { is_active: !ss.is_active };
+    const updated = { active: !ss.active };
     const { error } = await supabase.from("style_sizes").update(updated).eq("id", ss.id);
     if (error) {
       toast({ title: "Update failed", description: error.message, variant: "destructive" });
@@ -191,7 +189,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
               return (
                 <TableRow key={ss.id}>
                   <TableCell>
-                    <Checkbox checked={ss.is_active !== false} onCheckedChange={() => handleToggle(ss)} />
+                    <Checkbox checked={ss.active !== false} onCheckedChange={() => handleToggle(ss)} />
                   </TableCell>
                   <TableCell className="font-mono text-xs">{s?.size_code ?? "—"}</TableCell>
                   <TableCell>{s?.name ?? "—"}</TableCell>
