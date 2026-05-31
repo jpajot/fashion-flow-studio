@@ -335,8 +335,26 @@ export default function ColorwaySection({
         getValue: (cv: any) => cv.colorway_status,
         render: (cv: any) => renderStatusBadge(cv.colorway_status),
       },
+      {
+        id: "creation_project",
+        label: "Creation Project",
+        getValue: (cv: any) => projects.find((pr: any) => pr.id === cv.creation_project_id)?.name || "",
+        render: (cv: any) => {
+          const p = projects.find((pr: any) => pr.id === cv.creation_project_id);
+          return <span className="text-xs text-muted-foreground">{p?.name || "—"}</span>;
+        },
+      },
+      {
+        id: "linked_projects",
+        label: "Linked Projects",
+        getValue: (cv: any) => ((cv.project_ids || []) as string[]).map((pid: string) => projects.find((pr: any) => pr.id === pid)?.name).filter(Boolean).join(", "),
+        render: (cv: any) => {
+          const names = ((cv.project_ids || []) as string[]).map((pid: string) => projects.find((pr: any) => pr.id === pid)?.name).filter(Boolean);
+          return <span className="text-xs text-muted-foreground">{names.length > 0 ? names.join(", ") : "—"}</span>;
+        },
+      },
     ],
-    [techColors, commColors],
+    [techColors, commColors, projects],
   );
 
   // ── Options drawer ──
