@@ -138,7 +138,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
     }
     const updated = styleSizes.filter((x) => x.id !== ss.id);
     setStyleSizes(updated);
-    onSizesChange?.(updated.length > 0);
+    onSizesChangeRef.current?.(updated.length > 0);
   };
 
   if (!product?.size_grid_id) {
