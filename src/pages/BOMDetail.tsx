@@ -18,6 +18,7 @@ import BOMHeaderCard from "@/components/bom/BOMHeaderCard";
 import BOMLineAddDialog from "@/components/bom/BOMLineAddDialog";
 import BOMLineEditPanel from "@/components/bom/BOMLineEditPanel";
 import DataTable from "@/components/shared/DataTable";
+import BOMMatrixEditor from "@/components/bom/BOMMatrixEditor";
 
 const EDITABLE_STATUSES = ["draft", "in_review"];
 const isBomEditable = (bom: any) => bom && EDITABLE_STATUSES.includes(bom.status);
