@@ -547,14 +547,14 @@ export default function ProductDetail() {
             <div className="sm:col-span-2">
               <Label>Linked Projects</Label>
               <div className="flex flex-wrap gap-1 mb-2">
-                {((product?.linked_project_ids || []) as string[]).map((pid) => {
+                {((product?.project_ids || []) as string[]).map((pid) => {
                   const p = projects.find((x) => x.id === pid);
                   return (
                     <Badge key={pid} variant="secondary" className="gap-1">
                       {p?.name || pid}
                       <button
                         onClick={() =>
-                          updateField("linked_project_ids", (product.linked_project_ids || []).filter((x: string) => x !== pid))
+                          updateField("project_ids", (product.project_ids || []).filter((x: string) => x !== pid))
                         }
                       >
                         <X className="h-3 w-3" />
@@ -567,13 +567,13 @@ export default function ProductDetail() {
                 value=""
                 onValueChange={(v) => {
                   if (!v) return;
-                  const cur = (product?.linked_project_ids || []) as string[];
-                  if (!cur.includes(v)) updateField("linked_project_ids", [...cur, v]);
+                  const cur = (product?.project_ids || []) as string[];
+                  if (!cur.includes(v)) updateField("project_ids", [...cur, v]);
                 }}
               >
                 <SelectTrigger><SelectValue placeholder="+ Add project" /></SelectTrigger>
                 <SelectContent>
-                  {projects.filter((p) => !(product?.linked_project_ids || []).includes(p.id)).map((p) => (
+                  {projects.filter((p) => !(product?.project_ids || []).includes(p.id)).map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
