@@ -303,6 +303,9 @@ export default function ProductDetail() {
     if (codeErr) toast({ title: "Code generation failed", description: codeErr.message });
     const payload: any = { ...product, code: product.code || codeData || null, created_by: user?.email };
     delete payload.id;
+    // Remove any invented/non-existent columns
+    delete payload.sub_entity_type_id;
+    delete payload.linked_project_ids;
     const { data, error } = await supabase.from("products").insert(payload).select("id").single();
     if (error) {
       toast({ title: "Create failed", description: error.message, variant: "destructive" });
