@@ -356,7 +356,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
       const cw = cwById[v.product_color_id];
       const prod = cw ? productById[cw.product_id] : null;
       const prodImg = Array.isArray(prod?.images) && prod.images[0];
-      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-contain rounded" alt="" />
         : <div className="h-10 w-10 bg-muted rounded" />;
     }},
     { id: "product_name", label: "Product", render: (v) => {
