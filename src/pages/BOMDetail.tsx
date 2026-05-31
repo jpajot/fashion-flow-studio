@@ -467,13 +467,22 @@ export default function BOMDetail() {
               setBomVariants(prev => prev.filter(v => v.bom_line_id !== lineId));
             }}
             onUpsertVariant={async (payload: any) => {
+              // Detect axis by which FK has a truthy (non-null) value.
+              // The cell editor explicitly sets inactive-axis FKs to null, so we must NOT use !== undefined here.
               const axisFkField =
-                payload.product_color_id !== undefined ? "product_color_id" :
-                payload.size_id !== undefined ? "size_id" :
-                payload.product_color_and_more_id !== undefined ? "product_color_and_more_id" :
-                "parent_approved_supplier_id";
+                payload.product_color_id ? "product_color_id" :
+                payload.size_id ? "size_id" :
+                payload.product_color_and_more_id ? "product_color_and_more_id" :
+                payload.parent_approved_supplier_id ? "parent_approved_supplier_id" :
+                null;
+              if (!axisFkField) {
+                console.warn("onUpsertVariant: no axis FK in payload", payload);
+                return;
+              }
               const axisFkValue = payload[axisFkField];
-              const existing = bomVariants.find(v => v.bom_line_id === payload.bom_line_id && v[axisFkField] === axisFkValue);
+              const existing = bomVariants.find(
+                v => v.bom_line_id === payload.bom_line_id && v[axisFkField] === axisFkValue
+              );
               if (existing) {
                 const { data } = await supabase.from("bom_line_variants").update(payload).eq("id", existing.id).select().single();
                 if (data) setBomVariants(prev => prev.map(v => v.id === data.id ? data : v));
