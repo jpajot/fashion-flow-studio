@@ -64,7 +64,10 @@ export default function BOMOptionsContent({
   bom, bomLines, approvedSuppliers, suppliers,
   columnAxis, setColumnAxis, secondaryColumnAxis, setSecondaryColumnAxis,
   filterConfig, setFilterConfig, groupsState, setGroupsState, onAddLine,
+  onSubmitForReview, onBackToDraft, onRelease, onCreateVersion, onCreateRevision,
+  onCreateProductionBOM, onMarkObsolete, onRestoreToDraft,
 }: Props) {
+
   const editable = isBomEditable(bom);
   const rolesAvailable = [...new Set(bomLines.map(l => l.component_role).filter(Boolean))] as string[];
 
