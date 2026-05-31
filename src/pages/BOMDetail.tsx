@@ -22,7 +22,7 @@ import BOMLineEditPanel from "@/components/bom/BOMLineEditPanel";
 import DataTable from "@/components/shared/DataTable";
 import BOMMatrixEditor from "@/components/bom/BOMMatrixEditor";
 import BOMOptionsContent from "@/components/bom/BOMOptionsContent";
-import BOMQuickFilterGroup from "@/components/bom/BOMQuickFilterGroup";
+
 
 const EDITABLE_STATUSES = ["draft", "in_review"];
 const isBomEditable = (bom: any) => bom && EDITABLE_STATUSES.includes(bom.status);
