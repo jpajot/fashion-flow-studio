@@ -321,9 +321,27 @@ export default function ColorwayForm({
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Image URL</Label>
-          <Input value={form.image_url || ""} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+        <div className="sm:col-span-2 space-y-1.5">
+          <Label className="text-xs">Colorway Image</Label>
+          <div className="flex items-center gap-3">
+            {form.image_url && (
+              <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-border shrink-0">
+                <img src={form.image_url} alt="" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setForm((f: any) => ({ ...f, image_url: "" }))}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {uploading ? "Uploading…" : "Upload Image"}
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+            </label>
+          </div>
         </div>
         <div className="sm:col-span-2">
           <Label>Linked Projects</Label>
