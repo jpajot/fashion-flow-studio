@@ -29,7 +29,17 @@ interface Props {
   setGroupsState: (v: any) => void;
 
   onAddLine: () => void;
+
+  onSubmitForReview?: () => void;
+  onBackToDraft?: () => void;
+  onRelease?: () => void;
+  onCreateVersion?: () => void;
+  onCreateRevision?: () => void;
+  onCreateProductionBOM?: () => void;
+  onMarkObsolete?: () => void;
+  onRestoreToDraft?: () => void;
 }
+
 
 function Section({ label, icon: Icon, open, onToggle, children }: any) {
   return (
