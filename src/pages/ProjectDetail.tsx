@@ -625,7 +625,7 @@ export default function ProjectDetail() {
     const [projRes, stylesRes, colorwaysRes, variationsRes, palRes, docRes, sampRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("product_project_links").select("product_id, product:product_id(id,code,name,type,sub_type,category,images)").eq("project_id", id),
-      supabase.from("product_color_project_links").select("product_color_id, pc:product_color_id(id,color_name,colorway_code,color_hex,colorway_status,product_id)").eq("project_id", id),
+      supabase.from("product_color_project_links").select("product_color_id, pc:product_color_id(id,color_name,colorway_code,color_hex,colorway_status,product_id,linked_color_id,linked_color_type,linked_tech_color_id,image_url,project_ids)").eq("project_id", id),
       supabase.from("product_color_and_more_project_links").select("product_color_and_more_id, v:product_color_and_more_id(id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code))").eq("project_id", id),
       supabase.from("color_palettes").select("id",{count:"exact",head:true}).eq("project_id", id),
       supabase.from("uploaded_documents").select("id",{count:"exact",head:true}).eq("project_id", id),
