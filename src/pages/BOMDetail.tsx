@@ -22,6 +22,14 @@ import BOMLineEditPanel from "@/components/bom/BOMLineEditPanel";
 import DataTable from "@/components/shared/DataTable";
 import BOMMatrixEditor from "@/components/bom/BOMMatrixEditor";
 import BOMOptionsContent from "@/components/bom/BOMOptionsContent";
+import BOMReleaseValidationDialog from "@/components/bom/BOMReleaseValidationDialog";
+import BOMCreateRevisionDialog from "@/components/bom/BOMCreateRevisionDialog";
+import BOMCreateVersionDialog from "@/components/bom/BOMCreateVersionDialog";
+import BOMCreateProdBOMDialog from "@/components/bom/BOMCreateProdBOMDialog";
+import BOMChangeLogTab from "@/components/bom/BOMChangeLogTab";
+import MfgOpsTab from "@/components/bom/MfgOpsTab";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
 
 
 const EDITABLE_STATUSES = ["draft", "in_review"];
@@ -81,6 +89,14 @@ export default function BOMDetail() {
     view: true, lines: false, bom: false,
   });
   const [viewStateId, setViewStateId] = useState<string | null>(null);
+  const [changeLog, setChangeLog] = useState<any[]>([]);
+  const [showReleaseValidation, setShowReleaseValidation] = useState(false);
+  const [showCreateRevision, setShowCreateRevision] = useState(false);
+  const [showCreateVersion, setShowCreateVersion] = useState(false);
+  const [showCreateProdBOM, setShowCreateProdBOM] = useState(false);
+  const [showChangeRouting, setShowChangeRouting] = useState(false);
+  const [preselectedRoutingId, setPreselectedRoutingId] = useState<string | null>(null);
+
 
   const loadAll = async () => {
     if (!id) return;
@@ -128,6 +144,10 @@ export default function BOMDetail() {
     } else {
       setBomVariants([]);
     }
+
+    const { data: clData } = await supabase.from("bom_change_logs").select("*").eq("bom_id", b.id).order("triggered_at", { ascending: false });
+    setChangeLog(clData ?? []);
+
 
     // Load variations (color_and_more) tied to this product's colorways, plus active style_sizes & all sizes
     let variationsData: any[] = [];
@@ -223,7 +243,39 @@ export default function BOMDetail() {
     return () => clearTimeout(t);
   }, [columnAxis, secondaryColumnAxis, filterConfig, groupsState, viewStateId, bom?.id, user?.id]);
 
+  // Lifecycle handlers
+  const commitStatusTransition = async (toStatus: string) => {
+    if (!bom) return;
+    const now = new Date().toISOString();
+    const updates: any = { status: toStatus };
+    if (toStatus === "released") {
+      updates.released_at = now;
+      updates.released_by = user?.email || "";
+      if (!bom.valid_from) updates.valid_from = now.slice(0, 10);
+    }
+    await supabase.from("boms").update(updates).eq("id", bom.id);
+    await supabase.from("bom_change_logs").insert({
+      bom_id: bom.id, change_type: "status_transition",
+      payload: { from: bom.status, to: toStatus },
+      triggered_by: user?.email || "", triggered_at: now,
+    });
+    // Domain 8: createFlowAEcoOnDevRelease deferred
+    console.log("// Domain 8: ECO propagation deferred");
+    await loadAll();
+  };
+
+  const handleStatusTransition = async (toStatus: string) => {
+    if (toStatus === "released") { setShowReleaseValidation(true); return; }
+    await commitStatusTransition(toStatus);
+  };
+
+  const openChangeRouting = (preselectedId?: string) => {
+    setPreselectedRoutingId(preselectedId || null);
+    setShowChangeRouting(true);
+  };
+
   // Register Options drawer content per tab
+
   useEffect(() => {
     if (isNew || !bom) return;
     if (activeTab === "matrix") {
@@ -245,6 +297,15 @@ export default function BOMDetail() {
             groupsState={groupsState}
             setGroupsState={setGroupsState}
             onAddLine={() => setShowAddLine(true)}
+            onSubmitForReview={() => handleStatusTransition("in_review")}
+            onBackToDraft={() => handleStatusTransition("draft")}
+            onRelease={() => setShowReleaseValidation(true)}
+            onCreateVersion={() => setShowCreateVersion(true)}
+            onCreateRevision={() => setShowCreateRevision(true)}
+            onCreateProductionBOM={() => setShowCreateProdBOM(true)}
+            onMarkObsolete={() => handleStatusTransition("obsolete")}
+            onRestoreToDraft={() => handleStatusTransition("draft")}
+
           />
         ),
       });
@@ -560,11 +621,16 @@ export default function BOMDetail() {
           </div>
         )}
         {activeTab === "mfgops" && (
-          <div className="text-center py-16 text-muted-foreground">Manufacturing Operations — coming in Phase 5</div>
+          <MfgOpsTab
+            bom={bom}
+            allProducts={allProducts}
+            onOpenChangeRouting={openChangeRouting}
+          />
         )}
         {activeTab === "changelog" && (
-          <div className="text-center py-16 text-muted-foreground">Change Log — coming in Phase 5</div>
+          <BOMChangeLogTab changeLog={changeLog} />
         )}
+
       </div>
 
       <BOMLineAddDialog
@@ -594,6 +660,126 @@ export default function BOMDetail() {
         onDeleted={(id) => setBomLines(prev => prev.filter(l => l.id !== id))}
       />
 
+      <BOMReleaseValidationDialog
+        open={showReleaseValidation}
+        onClose={() => setShowReleaseValidation(false)}
+        onConfirm={() => { setShowReleaseValidation(false); commitStatusTransition("released"); }}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        colorVariants={colorways}
+        styleSizes={styleSizes}
+        colorAndMores={variations}
+        onOpenChangeRouting={() => openChangeRouting()}
+      />
+      <BOMCreateRevisionDialog
+        open={showCreateRevision}
+        onClose={() => setShowCreateRevision(false)}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        user={user}
+      />
+      <BOMCreateVersionDialog
+        open={showCreateVersion}
+        onClose={() => setShowCreateVersion(false)}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        user={user}
+        viewStateId={viewStateId}
+      />
+      <BOMCreateProdBOMDialog
+        open={showCreateProdBOM}
+        onClose={() => setShowCreateProdBOM(false)}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        user={user}
+        lovValues={lovValues.map(v => ({
+          ...v,
+          category: lovTypes.find(t => t.id === v.type_of_lov_id)?.code || "",
+        }))}
+      />
+      <ChangeRoutingDialog
+        open={showChangeRouting}
+        onClose={() => { setShowChangeRouting(false); setPreselectedRoutingId(null); }}
+        bom={bom}
+        preselectedRoutingId={preselectedRoutingId}
+        user={user}
+        onChanged={loadAll}
+      />
+
     </div>
   );
 }
+
+function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, onChanged }: any) {
+  const [loading, setLoading] = useState(false);
+  const [availableRoutings, setAvailableRoutings] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const expectedType = bom?.bom_type === "production" ? "production" : "development";
+
+  useEffect(() => {
+    if (!open || !bom?.product_id) return;
+    setLoading(true);
+    supabase.from("supplier_routings").select("*")
+      .eq("product_id", bom.product_id).eq("routing_type", expectedType)
+      .then(({ data }) => {
+        const rs = (data ?? []).sort((a, b) => {
+          const r = (b.revision_code || "").localeCompare(a.revision_code || "");
+          return r !== 0 ? r : (b.version || 0) - (a.version || 0);
+        });
+        setAvailableRoutings(rs);
+        setSelectedId(preselectedRoutingId || bom?.selected_routing_id || rs[0]?.id || null);
+        setLoading(false);
+      });
+  }, [open, bom?.product_id, bom?.selected_routing_id, expectedType, preselectedRoutingId]);
+
+  const handleSave = async () => {
+    if (!selectedId || !bom) return;
+    setSaving(true);
+    const prev = bom.selected_routing_id;
+    await supabase.from("boms").update({ selected_routing_id: selectedId }).eq("id", bom.id);
+    await supabase.from("bom_change_logs").insert({
+      bom_id: bom.id, change_type: "routing_overridden",
+      payload: { from_routing_id: prev, to_routing_id: selectedId },
+      triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+    });
+    setSaving(false);
+    onClose();
+    await onChanged?.();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="text-sm">Change linked routing</DialogTitle></DialogHeader>
+        {loading ? (
+          <p className="text-sm text-muted-foreground py-4">Loading routings…</p>
+        ) : availableRoutings.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No {expectedType} routings exist for this product.</p>
+        ) : (
+          <div className="space-y-2 py-1 max-h-[400px] overflow-y-auto">
+            {availableRoutings.map(r => (
+              <button key={r.id} type="button" onClick={() => setSelectedId(r.id)}
+                className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors ${selectedId === r.id ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/30"}`}>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold">{r.name}</span>
+                  <span className="text-muted-foreground font-mono">Rev {r.revision_code || "—"} v{r.version || "—"} · [{(r.status || "").toUpperCase()}]</span>
+                  {r.is_default && <span className="px-1 py-0 rounded bg-primary/10 text-primary text-[10px]">default</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !selectedId || selectedId === bom?.selected_routing_id}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
