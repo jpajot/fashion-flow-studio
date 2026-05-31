@@ -59,6 +59,9 @@ export default function BOMDetail() {
   const [styleSizes, setStyleSizes] = useState<any[]>([]);
   const [sizes, setSizes] = useState<any[]>([]);
   const [colorSupplierLinks, setColorSupplierLinks] = useState<any[]>([]);
+  const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
+  const [allProductColors, setAllProductColors] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [activeTab, setActiveTab] = useState("matrix");
   const [showAddLine, setShowAddLine] = useState(false);
