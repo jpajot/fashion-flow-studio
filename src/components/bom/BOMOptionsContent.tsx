@@ -270,10 +270,35 @@ export default function BOMOptionsContent({
         open={groupsState.bom}
         onToggle={() => setGroupsState({ ...groupsState, bom: !groupsState.bom })}
       >
-        <p className="text-[11px] text-muted-foreground px-1">
-          Lifecycle actions (release, new revision, new version, mark obsolete, derive production) — coming in Phase 5.
-        </p>
+        <div className="space-y-1.5">
+          {bom?.status === "draft" && onSubmitForReview && (
+            <button type="button" onClick={onSubmitForReview} className="w-full text-left px-3 py-2 rounded-md border border-border text-xs hover:bg-muted transition-colors">Submit for Review</button>
+          )}
+          {bom?.status === "in_review" && onRelease && (
+            <button type="button" onClick={onRelease} className="w-full text-left px-3 py-2 rounded-md border border-green-300 bg-green-50 text-green-800 text-xs hover:bg-green-100 transition-colors font-medium">Approve & Release</button>
+          )}
+          {bom?.status === "in_review" && onBackToDraft && (
+            <button type="button" onClick={onBackToDraft} className="w-full text-left px-3 py-2 rounded-md border border-border text-xs hover:bg-muted transition-colors">Back to Draft</button>
+          )}
+          {["draft", "in_review", "released"].includes(bom?.status) && onCreateVersion && (
+            <button type="button" onClick={onCreateVersion} className="w-full text-left px-3 py-2 rounded-md border border-border text-xs hover:bg-muted transition-colors">Create new version</button>
+          )}
+          {["draft", "in_review", "released"].includes(bom?.status) && onCreateRevision && (
+            <button type="button" onClick={onCreateRevision} className="w-full text-left px-3 py-2 rounded-md border border-border text-xs hover:bg-muted transition-colors">Create new revision</button>
+          )}
+          {bom?.status === "released" && bom?.bom_type === "development" && onCreateProductionBOM && (
+            <button type="button" onClick={onCreateProductionBOM} className="w-full text-left px-3 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-800 text-xs hover:bg-indigo-100 transition-colors">Create Production BOM from this dev BOM</button>
+          )}
+          {bom?.status === "released" && onMarkObsolete && (
+            <button type="button" onClick={onMarkObsolete} className="w-full text-left px-3 py-2 rounded-md border border-destructive/30 text-destructive text-xs hover:bg-destructive/5 transition-colors">Mark Obsolete</button>
+          )}
+          {bom?.status === "obsolete" && onRestoreToDraft && (
+            <button type="button" onClick={onRestoreToDraft} className="w-full text-left px-3 py-2 rounded-md border border-border text-xs hover:bg-muted transition-colors">Restore to Draft</button>
+          )}
+          {!bom?.status && <p className="text-[11px] text-muted-foreground px-1">No BOM loaded.</p>}
+        </div>
       </Section>
     </div>
   );
 }
+
