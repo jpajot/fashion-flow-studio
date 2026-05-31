@@ -412,10 +412,22 @@ function VariationsSection({ projectId, linkedVariations, onRefresh }: { project
         renderItem={item=>(
           <>
             {item.color_hex && <div className="w-4 h-4 rounded shrink-0 border border-border" style={{backgroundColor:item.color_hex}}/>}
-            <div className="flex-1 min-w-0">
-              <span className="font-medium">{item.name||item.sequence||"—"}</span>
-              {item.pack_code&&<span className="ml-1 text-muted-foreground font-mono">{item.pack_code}</span>}
-              {item.product_colors?.color_name&&<span className="ml-1 text-muted-foreground">· {item.product_colors.color_name}</span>}
+            <div className="flex-1 min-w-0 space-y-0.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-medium">{item.name||item.sequence||"—"}</span>
+                {item.pack_code && <span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded">{item.pack_code}</span>}
+                {item.variant && <span className="text-[10px] text-muted-foreground">{item.variant}</span>}
+              </div>
+              {item.product_colors?.color_name && <span className="text-[10px] text-muted-foreground">↳ {item.product_colors.color_name}{item.product_colors?.products?.name ? ` · ${item.product_colors.products.name}` : ""}</span>}
+              {(item.size_ids?.length > 0) && (
+                <div className="flex flex-wrap gap-0.5 mt-0.5">
+                  {(item.size_ids as string[]).slice(0, 8).map((sid: string) => {
+                    const sz = sizes.find(s => s.id === sid);
+                    return sz ? <span key={sid} className="text-[10px] px-1 py-0 bg-secondary text-secondary-foreground rounded">{sz.name || sz.size_code}</span> : null;
+                  })}
+                  {item.size_ids.length > 8 && <span className="text-[10px] text-muted-foreground">+{item.size_ids.length - 8}</span>}
+                </div>
+              )}
             </div>
           </>
         )}
