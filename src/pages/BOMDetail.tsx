@@ -121,6 +121,96 @@ export default function BOMDetail() {
   const factorySupplierId = bom?.order_context?.factory_supplier_id;
   const factorySupplier = factorySupplierId ? suppliers.find(s => s.id === factorySupplierId) : undefined;
 
+  const productById = useMemo(() => new Map(allProducts.map(p => [p.id, p])), [allProducts]);
+  const approvedSupplierById = useMemo(() => new Map(approvedSuppliers.map(a => [a.id, a])), [approvedSuppliers]);
+  const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
+
+  const roleLov = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_role"), [lovTypes, lovValues]);
+
+  const filteredLines = useMemo(() => {
+    return bomLines.filter(l => {
+      if (roleFilter !== "all" && l.component_role !== roleFilter) return false;
+      if (lineSearch) {
+        const q = lineSearch.toLowerCase();
+        const cp = productById.get(l.component_product_id);
+        const hay = `${cp?.name || ""} ${l.component_role || ""} ${l.notes || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [bomLines, lineSearch, roleFilter, productById]);
+
+  const lineColumns = useMemo(() => ([
+    { id: "position", label: "#", width: 50, sortKey: (l: any) => l.position,
+      render: (l: any) => <span className="font-mono text-xs text-muted-foreground">{l.position}</span> },
+    { id: "component", label: "Component", width: 240, sortKey: (l: any) => productById.get(l.component_product_id)?.name || "",
+      render: (l: any) => {
+        const cp = productById.get(l.component_product_id);
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+              {cp?.images?.[0]
+                ? <img src={cp.images[0]} className="w-full h-full object-contain" alt="" />
+                : <Package className="w-3.5 h-3.5 text-muted-foreground" />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{cp?.name || "Unknown"}</p>
+              {cp?.type && <p className="text-[10px] text-muted-foreground">{cp.type}</p>}
+            </div>
+          </div>
+        );
+      }
+    },
+    { id: "role", label: "Role", width: 140, sortKey: (l: any) => l.component_role,
+      render: (l: any) => l.component_role ? (
+        <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground">{l.component_role.replace(/_/g, " ")}</span>
+      ) : <span className="text-muted-foreground/40">—</span>
+    },
+    { id: "quantity", label: "Qty", width: 110, sortKey: (l: any) => l.base_quantity,
+      render: (l: any) => {
+        const cp = productById.get(l.component_product_id);
+        const effectiveUom = l.uom || cp?.default_uom || "—";
+        const inheritedTag = !l.uom && cp?.default_uom ? <span className="text-[10px] text-muted-foreground/60 ml-0.5">(inherit)</span> : null;
+        return <span className="text-sm font-mono">{l.base_quantity ?? "—"} <span className="text-muted-foreground">{effectiveUom}</span>{inheritedTag}</span>;
+      }
+    },
+    { id: "varies", label: "Varies", width: 160,
+      render: (l: any) => {
+        const tags: string[] = [];
+        if (l.varies_by_color) tags.push("color");
+        if (l.varies_by_size) tags.push("size");
+        if (l.varies_by_color_and_more) tags.push("more");
+        if (l.varies_by_supplier) tags.push("supplier");
+        if (!tags.length) return <span className="text-muted-foreground/40 text-xs">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.map(t => <span key={t} className="text-[10px] px-1 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">{t}</span>)}
+          </div>
+        );
+      }
+    },
+    { id: "supplier", label: "Line Supplier", width: 160,
+      render: (l: any) => {
+        if (!l.line_level_approved_supplier_id) return <span className="text-muted-foreground/40 text-xs">component default</span>;
+        const as = approvedSupplierById.get(l.line_level_approved_supplier_id);
+        const sup = as ? supplierById.get(as.supplier_id) : null;
+        return <span className="text-xs">{sup?.name || "—"}</span>;
+      }
+    },
+    { id: "actions", label: "", width: 60,
+      render: (l: any) => (
+        <div className="flex items-center justify-end gap-1">
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); setEditLine(l); }}
+            className="p-1.5 rounded hover:bg-muted"
+            title={isBomEditable(bom) ? "Edit" : "View"}>
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+        </div>
+      )
+    },
+  ]), [productById, approvedSupplierById, supplierById, bom]);
+
   const handleDelete = async () => {
     if (!bom) return;
     const { error } = await supabase.from("boms").delete().eq("id", bom.id);
