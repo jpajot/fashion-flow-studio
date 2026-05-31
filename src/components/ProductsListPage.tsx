@@ -24,6 +24,43 @@ type Props = {
   pagePath: string; // "/list-view" or "/materials"
 };
 
+function renderColorwaySwatch(
+  cv: any,
+  product: any,
+  techColors: any[],
+  commColors: any[],
+  size: "sm" | "md" = "sm"
+) {
+  const dim = size === "sm" ? "w-6 h-6" : "w-8 h-8";
+  const commColor = commColors.find((c: any) => c.id === cv.linked_color_id);
+  const useProductImage = !cv.image_url && product?.images?.[0];
+  const displayImage = cv.image_url || product?.images?.[0] || null;
+
+  const linkedHexes = (() => {
+    if (!commColor || commColor.sub_type?.toLowerCase() !== "combined") return null;
+    const ids: string[] = commColor.linked_technical_color_ids ?? [];
+    const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean);
+    return hexes.length > 1 ? hexes : null;
+  })();
+
+  return (
+    <div className={`${dim} rounded border border-border shrink-0 relative overflow-hidden`}>
+      {displayImage ? (
+        <img src={displayImage} alt={cv.color_name} className="w-full h-full object-contain" />
+      ) : linkedHexes ? (
+        <div className="w-full h-full flex">
+          {linkedHexes.map((h: string, i: number) => <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />)}
+        </div>
+      ) : (
+        <div className="w-full h-full" style={{ backgroundColor: cv.color_hex || "#ccc" }} />
+      )}
+      {useProductImage && cv.color_hex && (
+        <div className="absolute bottom-0.5 left-0.5 w-3 h-3 rounded-sm" style={{ backgroundColor: cv.color_hex }} />
+      )}
+    </div>
+  );
+}
+
 
 
 
