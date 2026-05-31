@@ -84,8 +84,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
           toAdd.map((gs: any) => ({
             product_id: product.id,
             size_id: gs.size_id,
-            is_active: gs.active !== false,
-            sort_order: gs.sort_order ?? 0,
+            active: gs.active !== false,
           })),
         );
       }
