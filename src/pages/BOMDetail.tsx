@@ -524,14 +524,17 @@ export default function BOMDetail() {
               if (!window.confirm("Delete this line and all its variants?")) return;
               await supabase.from("bom_line_variants").delete().eq("bom_line_id", lineId);
               await supabase.from("bom_lines").delete().eq("id", lineId);
+              const removedLine = bomLines.find(l => l.id === lineId);
+              const removedComp = removedLine ? allProducts.find(p => p.id === removedLine.component_product_id) : null;
+              const removedCompName = removedComp ? `${removedComp.code || ""} ${removedComp.name}`.trim() : lineId;
               await supabase.from("bom_change_logs").insert({
                 bom_id: bom.id, change_type: "line_removed",
-                payload: { bom_line_id: lineId },
+                payload: { bom_line_id: lineId, detail: `${removedCompName}${removedLine?.component_role ? ` (${removedLine.component_role})` : ""}` },
                 triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
               });
               setBomLines(prev => prev.filter(l => l.id !== lineId));
               setBomVariants(prev => prev.filter(v => v.bom_line_id !== lineId));
-              setChangeLog(prev => [{ bom_id: bom.id, change_type: "line_removed", payload: { bom_line_id: lineId }, triggered_by: user?.email || "", triggered_at: new Date().toISOString(), id: crypto.randomUUID() }, ...prev]);
+              setChangeLog(prev => [{ bom_id: bom.id, change_type: "line_removed", payload: { bom_line_id: lineId, detail: `${removedCompName}${removedLine?.component_role ? ` (${removedLine.component_role})` : ""}` }, triggered_by: user?.email || "", triggered_at: new Date().toISOString(), id: crypto.randomUUID() }, ...prev]);
             }}
             onUpsertVariant={async (payload: any) => {
               // Detect axis by which FK has a truthy (non-null) value.
@@ -557,10 +560,66 @@ export default function BOMDetail() {
                 const { data } = await supabase.from("bom_line_variants").insert(payload).select().single();
                 if (data) setBomVariants(prev => [...prev, data]);
               }
-              // Log the variant change (same as Base44 handleUpsertVariant)
+              // Resolve human-readable before/after for the log
+              const variantLine = bomLines.find(l => l.id === payload.bom_line_id);
+              const variantComp = variantLine ? allProducts.find(p => p.id === variantLine.component_product_id) : null;
+              const compLabel = variantComp ? `${variantComp.code || ""} ${variantComp.name}`.trim() : "";
+
+              // Identify the parent column (axis) context
+              let colDetail = "";
+              if (payload.product_color_id) {
+                const cw = colorways.find(c => c.id === payload.product_color_id);
+                if (cw) colDetail = `Colorway: ${cw.color_name || cw.colorway_code || ""}`;
+              } else if (payload.size_id) {
+                const sz = sizes.find(s => s.id === payload.size_id);
+                if (sz) colDetail = `Size: ${sz.name || sz.size_code || ""}`;
+              } else if (payload.product_color_and_more_id) {
+                const cam = variations.find(v => v.id === payload.product_color_and_more_id);
+                if (cam) colDetail = `Variation: ${cam.name || cam.sequence || ""}`;
+              }
+              const detail = [compLabel, colDetail].filter(Boolean).join(" · ");
+
+              // Resolve from/to
+              let fromLabel: string | undefined;
+              let toLabel: string | undefined;
+
+              if (payload.is_not_applicable === true) {
+                fromLabel = existing ? "active" : undefined;
+                toLabel = "N/A";
+              } else if (existing?.is_not_applicable && payload.is_not_applicable === false) {
+                fromLabel = "N/A";
+                toLabel = "active";
+              } else if ("component_product_color_id" in payload) {
+                const prevColor = existing?.component_product_color_id
+                  ? allProductColors.find(c => c.id === existing.component_product_color_id)
+                  : null;
+                const nextColor = payload.component_product_color_id
+                  ? allProductColors.find(c => c.id === payload.component_product_color_id)
+                  : null;
+                fromLabel = prevColor ? (prevColor.color_name || prevColor.colorway_code || "—") : (existing ? "none" : undefined);
+                toLabel = nextColor ? (nextColor.color_name || nextColor.colorway_code || "—") : "none";
+              } else if ("quantity" in payload) {
+                const prevQty = existing?.quantity ?? variantLine?.base_quantity;
+                const nextQty = payload.quantity ?? variantLine?.base_quantity;
+                if (prevQty !== nextQty) {
+                  fromLabel = prevQty !== undefined ? String(prevQty) : undefined;
+                  toLabel = nextQty !== undefined ? String(nextQty) : "—";
+                }
+              } else if ("component_size_id" in payload) {
+                const prevSz = existing?.component_size_id ? sizes.find(s => s.id === existing.component_size_id) : null;
+                const nextSz = payload.component_size_id ? sizes.find(s => s.id === payload.component_size_id) : null;
+                const baseSz = variantLine?.base_component_size_id ? sizes.find(s => s.id === variantLine.base_component_size_id) : null;
+                fromLabel = prevSz ? (prevSz.name || prevSz.size_code) : (baseSz ? `${baseSz.name || baseSz.size_code} (default)` : undefined);
+                toLabel = nextSz ? (nextSz.name || nextSz.size_code) : (baseSz ? `${baseSz.name || baseSz.size_code} (default)` : "—");
+              }
+
+              const logPayload: any = { detail };
+              if (fromLabel !== undefined) logPayload.from = fromLabel;
+              if (toLabel !== undefined) logPayload.to = toLabel;
+
               const logEntry = {
                 bom_id: bom.id, change_type: "variant_modified",
-                payload: payload,
+                payload: logPayload,
                 triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
               };
               await supabase.from("bom_change_logs").insert(logEntry);
@@ -659,9 +718,11 @@ export default function BOMDetail() {
           setBomLines(prev => [...prev, newLine].sort((a, b) => a.position - b.position));
           setShowAddLine(false);
           toast({ title: "Line added" });
+          const addedComp = allProducts.find(p => p.id === newLine.component_product_id);
+          const addedCompName = addedComp ? `${addedComp.code || ""} ${addedComp.name}`.trim() : newLine.component_product_id;
           const logEntry = {
             bom_id: bom.id, change_type: "line_added",
-            payload: { component_product_id: newLine.component_product_id, role: newLine.component_role },
+            payload: { component_product_id: newLine.component_product_id, role: newLine.component_role, detail: `${addedCompName}${newLine.component_role ? ` (${newLine.component_role})` : ""}` },
             triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
           };
           await supabase.from("bom_change_logs").insert(logEntry);
