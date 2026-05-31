@@ -563,7 +563,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
             renderThumbnail={(p) => {
               const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
               return img
-                ? <img src={img} alt={p.name} className="w-full h-full object-cover" />
+                ? <img src={img} alt={p.name} className="w-full h-full object-contain" />
                 : <div className="w-full h-full bg-muted flex items-center justify-center text-2xl font-semibold text-muted-foreground/50">{initials(p.name)}</div>;
             }}
             onClickItem={(p) => navigate(`/products/${p.id}`)}
