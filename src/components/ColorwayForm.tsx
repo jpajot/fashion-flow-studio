@@ -150,7 +150,7 @@ export default function ColorwayForm({
       linked_color_type: form.linked_color_type || null,
       linked_color_id: form.linked_color_id || null,
       creation_project_id: form.creation_project_id || null,
-      linked_project_ids: form.linked_project_ids?.length ? form.linked_project_ids : null,
+      project_ids: form.linked_project_ids?.length ? form.linked_project_ids : null,
       image_url: form.image_url || null,
     };
     return p;
