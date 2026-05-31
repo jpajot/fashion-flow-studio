@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { AlertTriangle, GripVertical, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Ban, GripVertical, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import BOMVariantCellEditor from "./BOMVariantCellEditor";
