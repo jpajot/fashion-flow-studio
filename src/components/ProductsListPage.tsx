@@ -308,7 +308,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     { id: "count", label: "#", className: "text-right", render: (p) => (
       <span className="text-muted-foreground text-xs">{cwByProduct[p.id]?.length || 0}</span>
     )},
-  ], [cwByProduct]);
+  ], [cwByProduct, techColors, commColors]);
 
   const allColorwayColumns: ColSpec[] = useMemo(() => [
     { id: "product_image", label: "", className: "w-12", render: (c) => {
