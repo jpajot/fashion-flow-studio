@@ -62,7 +62,7 @@ export default function BOMDetail() {
     if (!b) { setLoading(false); return; }
     setBom(b);
 
-    const [prod, lines, rts, cws, apps, sups, currs, lt, lv] = await Promise.all([
+    const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap] = await Promise.all([
       supabase.from("products").select("*").eq("id", b.product_id).single(),
       supabase.from("bom_lines").select("*").eq("bom_id", b.id).order("position"),
       supabase.from("supplier_routings").select("*").eq("product_id", b.product_id),
@@ -72,6 +72,7 @@ export default function BOMDetail() {
       supabase.from("currencies").select("id,code,name").eq("is_active", true).order("code"),
       supabase.from("type_of_lov").select("id,code"),
       supabase.from("list_of_values").select("*"),
+      supabase.from("products").select("id,name,type,images,default_uom,default_uom_for_purchasing").order("name"),
     ]);
 
     setProduct(prod.data);
@@ -83,6 +84,7 @@ export default function BOMDetail() {
     setCurrencies(currs.data ?? []);
     setLovTypes(lt.data ?? []);
     setLovValues(lv.data ?? []);
+    setAllProducts(ap.data ?? []);
 
     if (lines.data?.length) {
       const { data: vars } = await supabase.from("bom_line_variants").select("*").in("bom_line_id", lines.data.map(l => l.id));
