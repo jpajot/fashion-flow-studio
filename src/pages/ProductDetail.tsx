@@ -446,12 +446,10 @@ export default function ProductDetail() {
                 Remove main
               </button>
             )}
-            {!isNew && (
-              <label className="flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed rounded-md py-3 text-sm hover:bg-muted/50">
-                <Upload className="h-4 w-4" /> Upload images
-                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
-              </label>
-            )}
+            <label className={`flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed rounded-md py-3 text-sm hover:bg-muted/50 ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+              <Upload className="h-4 w-4" /> {uploading ? "Uploading…" : "Upload images"}
+              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
+            </label>
             <ProductUOMSection
               product={product}
               lovTypes={lovTypes}
