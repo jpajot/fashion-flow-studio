@@ -660,6 +660,126 @@ export default function BOMDetail() {
         onDeleted={(id) => setBomLines(prev => prev.filter(l => l.id !== id))}
       />
 
+      <BOMReleaseValidationDialog
+        open={showReleaseValidation}
+        onClose={() => setShowReleaseValidation(false)}
+        onConfirm={() => { setShowReleaseValidation(false); commitStatusTransition("released"); }}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        colorVariants={colorways}
+        styleSizes={styleSizes}
+        colorAndMores={variations}
+        onOpenChangeRouting={() => openChangeRouting()}
+      />
+      <BOMCreateRevisionDialog
+        open={showCreateRevision}
+        onClose={() => setShowCreateRevision(false)}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        user={user}
+      />
+      <BOMCreateVersionDialog
+        open={showCreateVersion}
+        onClose={() => setShowCreateVersion(false)}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        user={user}
+        viewStateId={viewStateId}
+      />
+      <BOMCreateProdBOMDialog
+        open={showCreateProdBOM}
+        onClose={() => setShowCreateProdBOM(false)}
+        bom={bom}
+        bomLines={bomLines}
+        bomLineVariants={bomVariants}
+        user={user}
+        lovValues={lovValues.map(v => ({
+          ...v,
+          category: lovTypes.find(t => t.id === v.type_of_lov_id)?.code || "",
+        }))}
+      />
+      <ChangeRoutingDialog
+        open={showChangeRouting}
+        onClose={() => { setShowChangeRouting(false); setPreselectedRoutingId(null); }}
+        bom={bom}
+        preselectedRoutingId={preselectedRoutingId}
+        user={user}
+        onChanged={loadAll}
+      />
+
     </div>
   );
 }
+
+function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, onChanged }: any) {
+  const [loading, setLoading] = useState(false);
+  const [availableRoutings, setAvailableRoutings] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const expectedType = bom?.bom_type === "production" ? "production" : "development";
+
+  useEffect(() => {
+    if (!open || !bom?.product_id) return;
+    setLoading(true);
+    supabase.from("supplier_routings").select("*")
+      .eq("product_id", bom.product_id).eq("routing_type", expectedType)
+      .then(({ data }) => {
+        const rs = (data ?? []).sort((a, b) => {
+          const r = (b.revision_code || "").localeCompare(a.revision_code || "");
+          return r !== 0 ? r : (b.version || 0) - (a.version || 0);
+        });
+        setAvailableRoutings(rs);
+        setSelectedId(preselectedRoutingId || bom?.selected_routing_id || rs[0]?.id || null);
+        setLoading(false);
+      });
+  }, [open, bom?.product_id, bom?.selected_routing_id, expectedType, preselectedRoutingId]);
+
+  const handleSave = async () => {
+    if (!selectedId || !bom) return;
+    setSaving(true);
+    const prev = bom.selected_routing_id;
+    await supabase.from("boms").update({ selected_routing_id: selectedId }).eq("id", bom.id);
+    await supabase.from("bom_change_logs").insert({
+      bom_id: bom.id, change_type: "routing_overridden",
+      payload: { from_routing_id: prev, to_routing_id: selectedId },
+      triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+    });
+    setSaving(false);
+    onClose();
+    await onChanged?.();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="text-sm">Change linked routing</DialogTitle></DialogHeader>
+        {loading ? (
+          <p className="text-sm text-muted-foreground py-4">Loading routings…</p>
+        ) : availableRoutings.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No {expectedType} routings exist for this product.</p>
+        ) : (
+          <div className="space-y-2 py-1 max-h-[400px] overflow-y-auto">
+            {availableRoutings.map(r => (
+              <button key={r.id} type="button" onClick={() => setSelectedId(r.id)}
+                className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors ${selectedId === r.id ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/30"}`}>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold">{r.name}</span>
+                  <span className="text-muted-foreground font-mono">Rev {r.revision_code || "—"} v{r.version || "—"} · [{(r.status || "").toUpperCase()}]</span>
+                  {r.is_default && <span className="px-1 py-0 rounded bg-primary/10 text-primary text-[10px]">default</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving || !selectedId || selectedId === bom?.selected_routing_id}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
