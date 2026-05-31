@@ -15,7 +15,16 @@ export type PickerItem = {
   hex: string | null;
   mainTechId?: string | null;
   paletteNames: string[];
+  // extras for rendering
+  linkedCommCode?: string | null;
+  subType?: string | null;
+  linkedTechHexes?: string[];
+  mainTechCode?: string | null;
+  mainTechName?: string | null;
+  linkedTechCount?: number;
 };
+
+const colorToHex = (c: any): string => c?.hex || "#cccccc";
 
 export default function ColorLibraryPickerModal({
   open,
@@ -70,6 +79,7 @@ export default function ColorLibraryPickerModal({
     const list: PickerItem[] = [];
     if (tab !== "commercial") {
       techColors.forEach((t) => {
+        const linkedComm = commColors.find((c) => c.main_technical_color_id === t.id);
         list.push({
           key: `tech--${t.id}`,
           type: "technical",
@@ -78,12 +88,18 @@ export default function ColorLibraryPickerModal({
           name: t.name || "",
           hex: t.hex || null,
           paletteNames: palettesForColor[`technical--${t.id}`] || [],
+          linkedCommCode: linkedComm?.code ?? null,
         });
       });
     }
     if (tab !== "technical") {
       commColors.forEach((c) => {
         const main = techColors.find((t) => t.id === c.main_technical_color_id);
+        const isCombined = String(c.sub_type || "").toLowerCase() === "combined";
+        const linkedIds: string[] = Array.isArray(c.linked_technical_color_ids) ? c.linked_technical_color_ids : [];
+        const linkedTechs = linkedIds
+          .map((id) => techColors.find((t: any) => t.id === id))
+          .filter(Boolean);
         list.push({
           key: `comm--${c.id}`,
           type: "commercial",
@@ -93,6 +109,11 @@ export default function ColorLibraryPickerModal({
           hex: main?.hex || null,
           mainTechId: c.main_technical_color_id || null,
           paletteNames: palettesForColor[`commercial--${c.id}`] || [],
+          subType: c.sub_type || null,
+          linkedTechHexes: isCombined && linkedTechs.length > 1 ? linkedTechs.map(colorToHex) : [],
+          mainTechCode: main?.code ?? null,
+          mainTechName: main?.name ?? null,
+          linkedTechCount: isCombined ? linkedTechs.length : 0,
         });
       });
     }
@@ -147,6 +168,8 @@ export default function ColorLibraryPickerModal({
             ) : (
               items.map((i) => {
                 const sel = selectedKeys.has(i.key);
+                const isComm = i.type === "commercial";
+                const showSplit = isComm && (i.linkedTechHexes?.length ?? 0) > 1;
                 return (
                   <button
                     key={i.key}
@@ -154,28 +177,53 @@ export default function ColorLibraryPickerModal({
                     onClick={() => toggle(i.key)}
                     className={`relative flex items-center gap-2 border rounded-md p-2 text-left ${sel ? "ring-2 ring-primary border-primary" : ""}`}
                   >
-                    <div
-                      className="h-10 w-10 rounded border shrink-0"
-                      style={{ backgroundColor: i.hex || "#e5e7eb" }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-[10px] text-muted-foreground">{i.code}</span>
-                        <Badge variant="outline" className="text-[9px] py-0 px-1">
-                          {i.type === "technical" ? "TCX" : "COM"}
-                        </Badge>
+                    {showSplit ? (
+                      <div className="h-10 w-10 rounded border shrink-0 overflow-hidden flex">
+                        {i.linkedTechHexes!.map((h, idx) => (
+                          <div key={idx} className="flex-1 h-full" style={{ backgroundColor: h }} />
+                        ))}
                       </div>
+                    ) : (
+                      <div
+                        className="h-10 w-10 rounded border shrink-0"
+                        style={{ backgroundColor: i.hex || "#e5e7eb" }}
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
                       <div className="text-sm truncate">{i.name}</div>
-                      {i.paletteNames.length > 0 && (
-                        <div className="flex flex-wrap gap-0.5 mt-0.5">
-                          {i.paletteNames.slice(0, 3).map((n) => (
-                            <Badge key={n} variant="secondary" className="text-[9px] py-0 px-1">{n}</Badge>
-                          ))}
-                          {i.paletteNames.length > 3 && (
-                            <span className="text-[9px] text-muted-foreground">+{i.paletteNames.length - 3}</span>
-                          )}
-                        </div>
-                      )}
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        {isComm ? (
+                          i.linkedTechCount && i.linkedTechCount > 1
+                            ? `${i.code} · ${i.linkedTechCount} linked colors`
+                            : i.mainTechCode
+                              ? `${i.code} · ${i.mainTechCode}${i.mainTechName ? ` – ${i.mainTechName}` : ""}`
+                              : i.code
+                        ) : (
+                          i.code
+                        )}
+                      </p>
+                      <div className="flex items-center flex-wrap gap-1 mt-0.5">
+                        {i.type === "technical" ? (
+                          <>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">TCX</Badge>
+                            {i.linkedCommCode && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+                                {i.linkedCommCode}
+                              </Badge>
+                            )}
+                          </>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {String(i.subType || "Solid").replace(/^./, (c) => c.toUpperCase())}
+                          </Badge>
+                        )}
+                        {i.paletteNames.slice(0, 3).map((n) => (
+                          <Badge key={n} variant="secondary" className="text-[9px] py-0 px-1">{n}</Badge>
+                        ))}
+                        {i.paletteNames.length > 3 && (
+                          <span className="text-[9px] text-muted-foreground">+{i.paletteNames.length - 3}</span>
+                        )}
+                      </div>
                     </div>
                     {sel && (
                       <div className="h-5 w-5 rounded-full bg-primary grid place-items-center shrink-0">

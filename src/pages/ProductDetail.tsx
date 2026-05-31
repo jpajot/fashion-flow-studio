@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, GitCommit, Info, Trash2, Upload, X, Star } from "lucide-react";
+import { ArrowLeft, GitCommit, Info, Trash2, Upload, X, Star, FileText, Palette, Ruler, Layers, Building2, ClipboardList, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
@@ -101,20 +101,20 @@ export default function ProductDetail() {
   // ── sub-nav ──
   const subNavItems = useMemo(
     () => [
-      { id: "details", label: "Details" },
-      { id: "colorways", label: "Colorways", count: colorwayCount },
-      { id: "sizes", label: "Sizes" },
-      { id: "more", label: "More Variations" },
-      { id: "suppliers", label: "Suppliers" },
-      { id: "boms", label: "BOMs", count: bomCount },
-      { id: "samples", label: "Samples" },
+      { id: "details", label: "Details", icon: FileText },
+      { id: "colorways", label: "Colorways", count: colorwayCount, icon: Palette },
+      { id: "sizes", label: "Sizes", icon: Ruler },
+      { id: "more", label: "More Variations", icon: Layers },
+      { id: "suppliers", label: "Suppliers", icon: Building2 },
+      { id: "boms", label: "BOMs", count: bomCount, icon: ClipboardList },
+      { id: "samples", label: "Samples", icon: Package },
     ],
     [colorwayCount, bomCount],
   );
   const pageTitle = isNew
     ? `New ${qsType}`
     : product ? `${product.code || ""} ${product.name || ""}`.trim() : "Product";
-  useRegisterSubNav(isNew ? [{ id: "details", label: "Details" }] : subNavItems, activeTab, setActiveTab, pageTitle);
+  useRegisterSubNav(isNew ? [{ id: "details", label: "Details", icon: FileText }] : subNavItems, activeTab, setActiveTab, pageTitle);
 
   // ── LOV helpers ──
   const lovTypeByCode = useMemo(() => Object.fromEntries(lovTypes.map((t) => [t.code, t])), [lovTypes]);
