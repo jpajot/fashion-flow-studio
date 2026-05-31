@@ -27,6 +27,7 @@ export interface GalleryViewProps {
   renderThumbnail: (row: any) => React.ReactNode;
   onClickItem?: (row: any) => void;
   activeViewId?: string;
+  onSelectView?: (id: string) => void;
 }
 
 // ───────────────────────── FieldContextMenu ─────────────────────────
