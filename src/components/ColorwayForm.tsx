@@ -56,9 +56,29 @@ export default function ColorwayForm({
     },
   );
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [revOpen, setRevOpen] = useState(false);
   const [revDiffs, setRevDiffs] = useState<any[]>([]);
   const [pendingPayload, setPendingPayload] = useState<any>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage
+      .from("colorway-images")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (error) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+      setUploading(false);
+      return;
+    }
+    const { data } = supabase.storage.from("colorway-images").getPublicUrl(path);
+    setForm((f: any) => ({ ...f, image_url: data.publicUrl }));
+    setUploading(false);
+  };
 
   const techOptions: InlineColorOption[] = useMemo(
     () => techColors.map((t) => {
