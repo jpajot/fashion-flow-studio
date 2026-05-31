@@ -293,7 +293,10 @@ export default function BOMGroupedMatrix({
                       const variant = getVariantForCell(line.id, pm, sm);
                       const isNA = variant?.is_not_applicable === true;
                       const cellKey = `${line.id}-${pm.id}-${sm.id}`;
-                      const isPickerOpen = openPicker === cellKey;
+                      const isPickerOpen =
+                        openPicker?.lineId === line.id &&
+                        openPicker?.pmId === pm.id &&
+                        openPicker?.smId === sm.id;
 
                       const isSupplierAxis = columnAxis === "supplier" || secondaryAxis === "supplier";
                       const supplierAxisIsPrimary = columnAxis === "supplier";
@@ -324,43 +327,90 @@ export default function BOMGroupedMatrix({
                       }
 
                       if (isSupplierAxis && parentVendorId) {
-                        const compApprovedSupplierId = variant?.approved_supplier_id || null;
                         const cacheKey = `${variant?.id || `${line.id}:${parentVendorId}`}`;
-                        const compApprovedSupplier = compApprovedSupplierId ? supplierCache[cacheKey]?.as : null;
-                        const compSupplier = compApprovedSupplier ? supplierCache[cacheKey]?.supplier : null;
-                        if (compApprovedSupplierId && !supplierCache[cacheKey]) {
+                        if (!supplierCache[cacheKey]) {
                           resolveSupplier(line, parentVendorId, variant);
                         }
+                        const cached = supplierCache[cacheKey];
+                        const hasExplicit = !!variant?.approved_supplier_id;
+                        const compApprovedSupplier = cached?.as || null;
+                        const compSupplier = cached?.supplier || null;
+
+                        const noCompSuppliers = cached && !cached.supplier && !hasExplicit;
+                        if (noCompSuppliers) {
+                          return (
+                            <td key={cellKey} className={`px-1 py-1 ${sIdx === 0 ? "border-l-2 border-border" : ""}`}>
+                              <div className="flex items-center justify-center gap-1 text-amber-600 text-[10px] min-h-[40px]">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/products/${line.component_product_id}`)}
+                                  className="underline hover:text-amber-800"
+                                >
+                                  No suppliers
+                                </button>
+                              </div>
+                            </td>
+                          );
+                        }
+
+                        const cellContent = compSupplier ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] font-medium truncate" title={compSupplier.name}>{compSupplier.name}</span>
+                            {compApprovedSupplier?.supplier_reference && (
+                              <span className="text-[9px] text-muted-foreground font-mono truncate">{compApprovedSupplier.supplier_reference}</span>
+                            )}
+                            {!hasExplicit && (
+                              <span className="text-[8px] italic text-muted-foreground/70">(component default)</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[9px] text-muted-foreground">Loading…</span>
+                        );
+
                         return (
                           <td key={cellKey} className={`px-1 py-1 ${sIdx === 0 ? "border-l-2 border-border" : ""}`}>
-                            {!isReadOnly ? (
-                              <button type="button"
-                                onClick={() => setOpenPicker(isPickerOpen ? null : cellKey)}
-                                className={`w-full min-h-[40px] rounded border text-left px-1.5 py-1 transition-colors ${
-                                  compApprovedSupplierId
-                                    ? "border-border hover:border-primary/60 hover:bg-primary/5"
-                                    : "border-2 border-dashed border-amber-300 bg-amber-50/50 hover:border-primary/60 hover:bg-primary/5"
-                                }`}>
-                                {compApprovedSupplierId && compSupplier ? (
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="text-[10px] font-medium truncate" title={compSupplier.name}>{compSupplier.name}</span>
-                                    {compApprovedSupplier?.supplier_reference && (
-                                      <span className="text-[9px] text-muted-foreground font-mono truncate">{compApprovedSupplier.supplier_reference}</span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-[9px] text-amber-600 font-medium">Pick supplier</span>
-                                )}
-                              </button>
-                            ) : (
-                              <div className="w-full min-h-[40px] rounded border border-border px-1.5 py-1">
-                                {compSupplier ? (
-                                  <span className="text-[10px]">{compSupplier.name}</span>
-                                ) : (
-                                  <span className="text-[9px] text-muted-foreground">—</span>
-                                )}
-                              </div>
-                            )}
+                            <div className="relative group/cell">
+                              {(!isReadOnly && line.varies_by_supplier) ? (
+                                <button type="button"
+                                  onClick={() => setOpenPicker(isPickerOpen ? null : { lineId: line.id, pmId: pm.id, smId: sm.id })}
+                                  className={`w-full min-h-[40px] rounded border text-left px-1.5 py-1 transition-colors ${
+                                    hasExplicit
+                                      ? "border-border hover:border-primary/60 hover:bg-primary/5"
+                                      : "border-border bg-muted/20 hover:border-primary/60 hover:bg-primary/5"
+                                  }`}>
+                                  {cellContent}
+                                </button>
+                              ) : (
+                                <div className="w-full min-h-[40px] rounded border border-border px-1.5 py-1">
+                                  {cellContent}
+                                </div>
+                              )}
+                              {!isReadOnly && line.varies_by_supplier && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const pFk = fkForAxis(columnAxis);
+                                    const sFk = fkForAxis(secondaryAxis);
+                                    const payload: any = {
+                                      bom_line_id: line.id,
+                                      ...(pFk ? { [pFk]: pm.id } : {}),
+                                      ...(sFk ? { [sFk]: sm.id } : {}),
+                                      is_not_applicable: true,
+                                    };
+                                    ["product_color_id", "size_id", "product_color_and_more_id", "parent_approved_supplier_id"].forEach((f) => {
+                                      if (f !== pFk && f !== sFk) payload[f] = null;
+                                    });
+                                    onUpsertVariant(payload);
+                                  }}
+                                  className="absolute top-0.5 right-0.5 opacity-0 group-hover/cell:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"
+                                  title="Mark as N/A"
+                                >
+                                  <Ban className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         );
                       }
