@@ -57,8 +57,16 @@ function ListSwatch({ cw, product, techColors, commColors }: { cw: any; product:
       ) : (
         <div className="w-full h-full" style={{ backgroundColor: cw.color_hex || "#ccc" }} />
       )}
-      {useProductImage && cw.color_hex && (
-        <div className="absolute bottom-0.5 left-0.5 w-3 h-3 rounded-sm border border-white/70" style={{ backgroundColor: cw.color_hex }} />
+      {useProductImage && (
+        linkedHexes ? (
+          <div className="absolute bottom-0.5 left-0.5 h-3 rounded-sm border border-white/70 overflow-hidden flex" style={{ width: linkedHexes.length * 6 }}>
+            {linkedHexes.map((h: string, i: number) => (
+              <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />
+            ))}
+          </div>
+        ) : cw.color_hex ? (
+          <div className="absolute bottom-0.5 left-0.5 w-3 h-3 rounded-sm border border-white/70" style={{ backgroundColor: cw.color_hex }} />
+        ) : null
       )}
     </div>
   );
@@ -395,9 +403,16 @@ export default function ColorwaySection({
                 ) : (
                   <div className="w-full h-full" style={{ backgroundColor: cv.color_hex || "#ccc" }} />
                 )}
-                {useProductImage && cv.color_hex && (
-                  <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50"
-                    style={{ backgroundColor: cv.color_hex }} />
+                {useProductImage && (
+                  linkedHexes ? (
+                    <div className="absolute bottom-2 left-2 w-7 h-6 rounded-md shadow-md border border-white/50 overflow-hidden flex">
+                      {linkedHexes.map((h: string, i: number) => (
+                        <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />
+                      ))}
+                    </div>
+                  ) : cv.color_hex ? (
+                    <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50" style={{ backgroundColor: cv.color_hex }} />
+                  ) : null
                 )}
                 <div className="absolute top-2 right-2 flex items-center gap-1.5">
                   {!cv.linked_color_id && (
