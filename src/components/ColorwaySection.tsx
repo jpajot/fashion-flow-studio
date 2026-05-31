@@ -136,7 +136,14 @@ export default function ColorwaySection({
   const [view, setView] = useState<"grid" | "list">(() => {
     try { return (localStorage.getItem(VIEW_KEY) as any) || "grid"; } catch { return "grid"; }
   });
-  const [colorwaysActiveViewId, setColorwaysActiveViewId] = useState("default");
+  const [colorwaysActiveViewId, _setColorwaysActiveViewId] = useState<string>(() => {
+    try { return localStorage.getItem("gallery_active_view_product_colorways") || "default"; }
+    catch { return "default"; }
+  });
+  const setColorwaysActiveViewId = (id: string) => {
+    _setColorwaysActiveViewId(id);
+    try { localStorage.setItem("gallery_active_view_product_colorways", id); } catch {}
+  };
   const [showViewMenu, setShowViewMenu] = useState(false);
 
   useEffect(() => {
