@@ -12,6 +12,8 @@ import { usePageOptions } from "@/contexts/PageOptionsContext";
 import DataTable from "@/components/shared/DataTable";
 import GalleryView from "@/components/GalleryView";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
+import ImageLightbox from "@/components/ImageLightbox";
+import RevisionBadge from "@/components/RevisionBadge";
 
 const VIEW_KEY = "colorway_section_view";
 
