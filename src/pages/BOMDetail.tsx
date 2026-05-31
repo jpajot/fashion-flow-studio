@@ -407,8 +407,6 @@ export default function BOMDetail() {
         onDeleted={(id) => setBomLines(prev => prev.filter(l => l.id !== id))}
       />
 
-      {/* Silence unused warnings; consumed in later phases */}
-      <span className="hidden">{colorways.length}</span>
     </div>
   );
 }
