@@ -25,7 +25,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
     if (!product?.id) return;
     setLoading(true);
     const [ss, sz] = await Promise.all([
-      supabase.from("style_sizes").select("*").eq("product_id", product.id).order("sort_order"),
+      supabase.from("style_sizes").select("*").eq("product_id", product.id).order("created_at"),
       supabase.from("sizes").select("*").order("size_code"),
     ]);
     setSizes(sz.data ?? []);
