@@ -291,7 +291,51 @@ export default function BOMDetail() {
           <div className="text-center py-16 text-muted-foreground">Matrix view — coming in Phase 3</div>
         )}
         {activeTab === "lines" && (
-          <div className="text-center py-16 text-muted-foreground">Lines view — coming in Phase 2</div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Search lines…"
+                  value={lineSearch}
+                  onChange={(e) => setLineSearch(e.target.value)}
+                  className="max-w-xs h-9"
+                />
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    {roleLov.map(r => (
+                      <SelectItem key={r} value={r}>{r.replace(/_/g, " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {isBomEditable(bom) && (
+                <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
+                  <Plus className="w-4 h-4" /> Add Line
+                </Button>
+              )}
+            </div>
+
+            {bomLines.length === 0 ? (
+              <div className="text-center py-16 bg-muted/30 rounded-xl border border-dashed">
+                <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground mb-3">No lines yet. Add the first component.</p>
+                {isBomEditable(bom) && (
+                  <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
+                    <Plus className="w-4 h-4" /> Add Line
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <DataTable
+                columns={lineColumns}
+                rows={filteredLines}
+                fixedColumns={["position", "component"]}
+                hideColumnToggle
+              />
+            )}
+          </div>
         )}
         {activeTab === "mfgops" && (
           <div className="text-center py-16 text-muted-foreground">Manufacturing Operations — coming in Phase 5</div>
