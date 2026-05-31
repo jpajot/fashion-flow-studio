@@ -524,8 +524,14 @@ export default function BOMDetail() {
               if (!window.confirm("Delete this line and all its variants?")) return;
               await supabase.from("bom_line_variants").delete().eq("bom_line_id", lineId);
               await supabase.from("bom_lines").delete().eq("id", lineId);
+              await supabase.from("bom_change_logs").insert({
+                bom_id: bom.id, change_type: "line_removed",
+                payload: { bom_line_id: lineId },
+                triggered_by: user?.email || "", triggered_at: new Date().toISOString(),
+              });
               setBomLines(prev => prev.filter(l => l.id !== lineId));
               setBomVariants(prev => prev.filter(v => v.bom_line_id !== lineId));
+              setChangeLog(prev => [{ bom_id: bom.id, change_type: "line_removed", payload: { bom_line_id: lineId }, triggered_by: user?.email || "", triggered_at: new Date().toISOString(), id: crypto.randomUUID() }, ...prev]);
             }}
             onUpsertVariant={async (payload: any) => {
               // Detect axis by which FK has a truthy (non-null) value.
