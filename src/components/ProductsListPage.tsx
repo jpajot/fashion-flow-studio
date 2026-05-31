@@ -308,7 +308,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const allStyleColumns: ColSpec[] = useMemo(() => [
     { id: "image", label: "", className: "w-12", render: (p) => {
       const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
-      return img ? <img src={img} className="h-10 w-10 object-cover rounded" alt="" />
+      return img ? <img src={img} className="h-10 w-10 object-contain rounded" alt="" />
         : <div className="h-10 w-10 bg-muted rounded grid place-items-center text-xs">{initials(p.name)}</div>;
     }},
     { id: "name", label: "Name", render: (p) => (
@@ -332,7 +332,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
     { id: "product_image", label: "", className: "w-12", render: (c) => {
       const prod = productById[c.product_id];
       const prodImg = Array.isArray(prod?.images) && prod.images[0];
-      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-contain rounded" alt="" />
         : <div className="h-10 w-10 bg-muted rounded" />;
     }},
     { id: "product_name", label: "Product", render: (c) => <span className="font-medium">{productById[c.product_id]?.name || "—"}</span> },
@@ -356,7 +356,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
       const cw = cwById[v.product_color_id];
       const prod = cw ? productById[cw.product_id] : null;
       const prodImg = Array.isArray(prod?.images) && prod.images[0];
-      return prodImg ? <img src={prodImg} className="h-10 w-10 object-cover rounded" alt="" />
+      return prodImg ? <img src={prodImg} className="h-10 w-10 object-contain rounded" alt="" />
         : <div className="h-10 w-10 bg-muted rounded" />;
     }},
     { id: "product_name", label: "Product", render: (v) => {
@@ -563,7 +563,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
             renderThumbnail={(p) => {
               const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
               return img
-                ? <img src={img} alt={p.name} className="w-full h-full object-cover" />
+                ? <img src={img} alt={p.name} className="w-full h-full object-contain" />
                 : <div className="w-full h-full bg-muted flex items-center justify-center text-2xl font-semibold text-muted-foreground/50">{initials(p.name)}</div>;
             }}
             onClickItem={(p) => navigate(`/products/${p.id}`)}
