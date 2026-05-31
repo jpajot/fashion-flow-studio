@@ -38,8 +38,9 @@ export default function BOMGroupedMatrix({
   const [parentVendors, setParentVendors] = useState<any[]>([]);
   const [parentSupplierMap, setParentSupplierMap] = useState<Record<string, any>>({});
   const [vendorsLoading, setVendorsLoading] = useState(false);
-  const [openPicker, setOpenPicker] = useState<string | null>(null);
+  const [openPicker, setOpenPicker] = useState<{ lineId: string; pmId: string; smId: string } | null>(null);
   const [supplierCache, setSupplierCache] = useState<Record<string, any>>({});
+  const navigate = useNavigate();
 
   const needsSupplierData = columnAxis === "supplier" || secondaryAxis === "supplier";
 
