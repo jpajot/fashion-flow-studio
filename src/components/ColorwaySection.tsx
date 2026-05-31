@@ -197,7 +197,7 @@ export default function ColorwaySection({
     () => [
       {
         id: "swatch",
-        label: "",
+        label: "Color",
         width: 56,
         render: (cv: any) => (
           <ListSwatch cw={cv} product={product} techColors={techColors} commColors={commColors} />
@@ -257,6 +257,30 @@ export default function ColorwaySection({
         },
       },
       {
+        id: "creation_project",
+        label: "Creation Project",
+        width: 160,
+        sortKey: (cv: any) => {
+          const p = projects.find((pr: any) => pr.id === cv.creation_project_id);
+          return p?.name || "";
+        },
+        render: (cv: any) => {
+          const p = projects.find((pr: any) => pr.id === cv.creation_project_id);
+          return <span className="text-xs text-muted-foreground">{p?.name || "—"}</span>;
+        },
+      },
+      {
+        id: "linked_projects",
+        label: "Linked Projects",
+        width: 200,
+        render: (cv: any) => {
+          const names = ((cv.project_ids || []) as string[])
+            .map((pid: string) => projects.find((pr: any) => pr.id === pid)?.name)
+            .filter(Boolean);
+          return <span className="text-xs text-muted-foreground">{names.length > 0 ? names.join(", ") : "—"}</span>;
+        },
+      },
+      {
         id: "actions",
         label: "",
         width: 80,
@@ -272,7 +296,7 @@ export default function ColorwaySection({
         ),
       },
     ],
-    [product, techColors, commColors],
+    [product, techColors, commColors, projects],
   );
 
   const galleryFields = useMemo(
@@ -311,8 +335,26 @@ export default function ColorwaySection({
         getValue: (cv: any) => cv.colorway_status,
         render: (cv: any) => renderStatusBadge(cv.colorway_status),
       },
+      {
+        id: "creation_project",
+        label: "Creation Project",
+        getValue: (cv: any) => projects.find((pr: any) => pr.id === cv.creation_project_id)?.name || "",
+        render: (cv: any) => {
+          const p = projects.find((pr: any) => pr.id === cv.creation_project_id);
+          return <span className="text-xs text-muted-foreground">{p?.name || "—"}</span>;
+        },
+      },
+      {
+        id: "linked_projects",
+        label: "Linked Projects",
+        getValue: (cv: any) => ((cv.project_ids || []) as string[]).map((pid: string) => projects.find((pr: any) => pr.id === pid)?.name).filter(Boolean).join(", "),
+        render: (cv: any) => {
+          const names = ((cv.project_ids || []) as string[]).map((pid: string) => projects.find((pr: any) => pr.id === pid)?.name).filter(Boolean);
+          return <span className="text-xs text-muted-foreground">{names.length > 0 ? names.join(", ") : "—"}</span>;
+        },
+      },
     ],
-    [techColors, commColors],
+    [techColors, commColors, projects],
   );
 
   // ── Options drawer ──
@@ -340,8 +382,7 @@ export default function ColorwaySection({
             setShowViewMenu(false);
           }}
           allFields={colorwayColumns
-            .map((c) => ({ id: c.id, label: c.label }))
-            .filter((c) => !!c.label)}
+            .map((c) => ({ id: c.id, label: c.label }))}
           currentViewType={view === "grid" ? "grid" : null}
         />
       ) : null,

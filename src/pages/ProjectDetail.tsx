@@ -111,12 +111,22 @@ function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:strin
     setLinking(true);
     const rows = ids.map(product_id => ({ product_id, project_id: projectId }));
     await supabase.from("product_project_links").upsert(rows, { onConflict: "product_id,project_id", ignoreDuplicates: true });
+    for (const productId of ids) {
+      const { data } = await supabase.from("products").select("project_ids").eq("id", productId).single();
+      const cur: string[] = data?.project_ids ?? [];
+      if (!cur.includes(projectId)) {
+        await supabase.from("products").update({ project_ids: [...cur, projectId] }).eq("id", productId);
+      }
+    }
     setLinking(false); setShowLink(false); onRefresh();
-    toast.success(`${ids.length} style${ids.length>1?"s":""} linked`);
+    toast.success(`${ids.length} style${ids.length > 1 ? "s" : ""} linked`);
   };
 
   const handleUnlink = async (productId: string) => {
     await supabase.from("product_project_links").delete().eq("product_id", productId).eq("project_id", projectId);
+    const { data } = await supabase.from("products").select("project_ids").eq("id", productId).single();
+    const cur: string[] = data?.project_ids ?? [];
+    await supabase.from("products").update({ project_ids: cur.filter(id => id !== projectId) }).eq("id", productId);
     onRefresh(); toast.success("Style unlinked");
   };
 
@@ -181,29 +191,63 @@ function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:strin
 function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId:string; linkedColorways:any[]; onRefresh:()=>void }) {
   const navigate = useNavigate();
   const [allColorways, setAllColorways] = useState<any[]>([]);
+  const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
+  const [productMap, setProductMap] = useState<Map<string,any>>(new Map());
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    supabase.from("product_colors").select("id,color_name,colorway_code,color_hex,colorway_status,product_id,products(name,code)").order("color_name")
+    supabase.from("product_colors").select("id,color_name,colorway_code,color_hex,colorway_status,product_id,linked_color_id,linked_color_type,linked_tech_color_id,image_url,project_ids,products(name,code)").order("color_name")
       .then(({data})=>setAllColorways(data??[]));
+    supabase.from("technical_colors").select("id,hex,code,name").then(({data})=>setTechColors(data??[]));
+    supabase.from("commercial_colors").select("id,sub_type,linked_technical_color_ids,code,color_name").then(({data})=>setCommColors(data??[]));
   }, []);
 
+  useEffect(() => {
+    if (!linkedColorways.length) return;
+    const pIds = [...new Set(linkedColorways.map(c=>c.product_id).filter(Boolean))] as string[];
+    if (!pIds.length) return;
+    supabase.from("products").select("id,images").in("id", pIds)
+      .then(({data})=>{
+        if (data) setProductMap(new Map(data.map(p=>[p.id, p])));
+      });
+  }, [linkedColorways]);
+
+  const getLinkedHexes = (c: any) => {
+    const cc = commColors.find(x => x.id === c.linked_color_id);
+    if (!cc || cc.sub_type !== "Combined") return null;
+    const hexes = (cc.linked_technical_color_ids || []).map((id: string) => techColors.find(t => t.id === id)?.hex).filter(Boolean) as string[];
+    return hexes.length > 1 ? hexes : null;
+  };
+
   const filtered = search.trim()
-    ? linkedColorways.filter(c => `${c.color_name} ${c.colorway_code} ${(c as any).product_name}`.toLowerCase().includes(search.toLowerCase()))
+    ? linkedColorways.filter(c => `${c.color_name} ${c.colorway_code}`.toLowerCase().includes(search.toLowerCase()))
     : linkedColorways;
 
   const handleLink = async (ids: string[]) => {
     setLinking(true);
     const rows = ids.map(product_color_id => ({ product_color_id, project_id: projectId }));
     await supabase.from("product_color_project_links").upsert(rows, { onConflict: "product_color_id,project_id", ignoreDuplicates: true });
+    for (const cwId of ids) {
+      const { data: cw } = await supabase.from("product_colors").select("project_ids,product_id").eq("id", cwId).single();
+      if (cw) {
+        const cur: string[] = cw.project_ids ?? [];
+        if (!cur.includes(projectId)) await supabase.from("product_colors").update({ project_ids: [...cur, projectId] }).eq("id", cwId);
+        const { data: prod } = await supabase.from("products").select("project_ids").eq("id", cw.product_id).single();
+        const curP: string[] = prod?.project_ids ?? [];
+        if (!curP.includes(projectId)) await supabase.from("products").update({ project_ids: [...curP, projectId] }).eq("id", cw.product_id);
+      }
+    }
     setLinking(false); setShowLink(false); onRefresh();
-    toast.success(`${ids.length} colorway${ids.length>1?"s":""} linked`);
+    toast.success(`${ids.length} colorway${ids.length > 1 ? "s" : ""} linked`);
   };
 
   const handleUnlink = async (colorId: string) => {
     await supabase.from("product_color_project_links").delete().eq("product_color_id", colorId).eq("project_id", projectId);
+    const { data: cw } = await supabase.from("product_colors").select("project_ids").eq("id", colorId).single();
+    if (cw) await supabase.from("product_colors").update({ project_ids: (cw.project_ids ?? []).filter((id: string) => id !== projectId) }).eq("id", colorId);
     onRefresh(); toast.success("Colorway unlinked");
   };
 
@@ -224,24 +268,49 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {filtered.map((c:any) => (
-            <div key={c.id} className="group relative bg-card rounded-xl border border-border overflow-hidden hover:shadow-md transition-all cursor-pointer"
-              onClick={()=>c.product_id && navigate(`/products/${c.product_id}`)}>
-              <div className="aspect-square" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
-              <div className="p-2.5 space-y-1">
-                <p className="text-xs font-medium truncate">{c.color_name || "—"}</p>
-                {c.colorway_code && <p className="text-[10px] font-mono text-muted-foreground truncate">{c.colorway_code}</p>}
-                {c.colorway_status && (
-                  <span className={`text-[10px] px-1 py-0.5 rounded ${CW_STATUS[c.colorway_status]||"bg-gray-100 text-gray-600"}`}>{c.colorway_status.replace(/_/g," ")}</span>
-                )}
-                {(c as any).product_name && <p className="text-[10px] text-muted-foreground truncate">{(c as any).product_name}</p>}
+          {filtered.map((c:any) => {
+            const product = productMap.get(c.product_id);
+            const productImage = product?.images?.[0];
+            const useProductFallback = !c.image_url && !!productImage;
+            const displayImage = c.image_url || productImage || null;
+            const linkedHexes = getLinkedHexes(c);
+            return (
+              <div key={c.id} className="group relative bg-card rounded-xl border border-border overflow-hidden hover:shadow-md transition-all cursor-pointer"
+                onClick={()=>c.product_id && navigate(`/products/${c.product_id}`)}>
+                <div className="relative aspect-square bg-muted overflow-hidden">
+                  {displayImage ? (
+                    <img src={displayImage} alt={c.color_name} className="w-full h-full object-contain"/>
+                  ) : linkedHexes ? (
+                    <div className="w-full h-full flex">
+                      {linkedHexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>)}
+                    </div>
+                  ) : (
+                    <div className="w-full h-full" style={{backgroundColor:c.color_hex||"#e5e7eb"}}/>
+                  )}
+                  {useProductFallback && (
+                    linkedHexes ? (
+                      <div className="absolute bottom-2 left-2 h-5 rounded-md shadow-md border border-white/70 overflow-hidden flex" style={{width: linkedHexes.length * 10}}>
+                        {linkedHexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>)}
+                      </div>
+                    ) : c.color_hex ? (
+                      <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md border-2 border-white shadow-md" style={{backgroundColor:c.color_hex}}/>
+                    ) : null
+                  )}
+                  <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(c.id);}}
+                    className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-1 rounded-full text-muted-foreground hover:text-destructive">
+                    <X className="w-3 h-3"/>
+                  </button>
+                </div>
+                <div className="p-2.5 space-y-0.5">
+                  <p className="text-xs font-medium truncate">{c.color_name || "—"}</p>
+                  {c.colorway_code && <p className="text-[10px] font-mono text-muted-foreground truncate">{c.colorway_code}</p>}
+                  {c.colorway_status && (
+                    <span className={`text-[10px] px-1 py-0.5 rounded ${CW_STATUS[c.colorway_status]||"bg-gray-100 text-gray-600"}`}>{c.colorway_status.replace(/_/g," ")}</span>
+                  )}
+                </div>
               </div>
-              <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(c.id);}}
-                className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-1 rounded-full text-muted-foreground hover:text-destructive">
-                <X className="w-3 h-3"/>
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -266,14 +335,16 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
 // ── VARIATIONS TAB ───────────────────────────────────────────────────────────
 function VariationsSection({ projectId, linkedVariations, onRefresh }: { projectId:string; linkedVariations:any[]; onRefresh:()=>void }) {
   const [allVariations, setAllVariations] = useState<any[]>([]);
+  const [sizes, setSizes] = useState<any[]>([]);
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code,products(name))")
+    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,product_color_id,size_ids,product_colors(color_name,colorway_code,products(name))")
       .order("created_at", {ascending:false})
       .then(({data})=>setAllVariations(data??[]));
+    supabase.from("sizes").select("id,name,size_code").then(({data})=>setSizes(data??[]));
   }, []);
 
   const filtered = search.trim() ? linkedVariations.filter(v=>`${v.name||""} ${v.sequence||""} ${v.pack_code||""}`.toLowerCase().includes(search.toLowerCase())) : linkedVariations;
@@ -341,10 +412,22 @@ function VariationsSection({ projectId, linkedVariations, onRefresh }: { project
         renderItem={item=>(
           <>
             {item.color_hex && <div className="w-4 h-4 rounded shrink-0 border border-border" style={{backgroundColor:item.color_hex}}/>}
-            <div className="flex-1 min-w-0">
-              <span className="font-medium">{item.name||item.sequence||"—"}</span>
-              {item.pack_code&&<span className="ml-1 text-muted-foreground font-mono">{item.pack_code}</span>}
-              {item.product_colors?.color_name&&<span className="ml-1 text-muted-foreground">· {item.product_colors.color_name}</span>}
+            <div className="flex-1 min-w-0 space-y-0.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-medium">{item.name||item.sequence||"—"}</span>
+                {item.pack_code && <span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded">{item.pack_code}</span>}
+                {item.variant && <span className="text-[10px] text-muted-foreground">{item.variant}</span>}
+              </div>
+              {item.product_colors?.color_name && <span className="text-[10px] text-muted-foreground">↳ {item.product_colors.color_name}{item.product_colors?.products?.name ? ` · ${item.product_colors.products.name}` : ""}</span>}
+              {(item.size_ids?.length > 0) && (
+                <div className="flex flex-wrap gap-0.5 mt-0.5">
+                  {(item.size_ids as string[]).slice(0, 8).map((sid: string) => {
+                    const sz = sizes.find(s => s.id === sid);
+                    return sz ? <span key={sid} className="text-[10px] px-1 py-0 bg-secondary text-secondary-foreground rounded">{sz.name || sz.size_code}</span> : null;
+                  })}
+                  {item.size_ids.length > 8 && <span className="text-[10px] text-muted-foreground">+{item.size_ids.length - 8}</span>}
+                </div>
+              )}
             </div>
           </>
         )}
@@ -625,7 +708,7 @@ export default function ProjectDetail() {
     const [projRes, stylesRes, colorwaysRes, variationsRes, palRes, docRes, sampRes] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("product_project_links").select("product_id, product:product_id(id,code,name,type,sub_type,category,images)").eq("project_id", id),
-      supabase.from("product_color_project_links").select("product_color_id, pc:product_color_id(id,color_name,colorway_code,color_hex,colorway_status,product_id)").eq("project_id", id),
+      supabase.from("product_color_project_links").select("product_color_id, pc:product_color_id(id,color_name,colorway_code,color_hex,colorway_status,product_id,linked_color_id,linked_color_type,linked_tech_color_id,image_url,project_ids)").eq("project_id", id),
       supabase.from("product_color_and_more_project_links").select("product_color_and_more_id, v:product_color_and_more_id(id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code))").eq("project_id", id),
       supabase.from("color_palettes").select("id",{count:"exact",head:true}).eq("project_id", id),
       supabase.from("uploaded_documents").select("id",{count:"exact",head:true}).eq("project_id", id),
