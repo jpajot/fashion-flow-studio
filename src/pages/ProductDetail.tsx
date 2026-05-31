@@ -420,7 +420,7 @@ export default function ProductDetail() {
               <div className="grid grid-cols-4 gap-1">
                 {product.images.slice(1).map((src: string, idx: number) => (
                   <div key={idx} className="relative aspect-square group">
-                    <img src={src} alt="" className="w-full h-full object-cover rounded" />
+                    <img src={src} alt="" className="w-full h-full object-contain rounded" />
                     <button
                       onClick={() => setMain(idx + 1)}
                       className="absolute inset-0 bg-black/0 hover:bg-black/40 grid place-items-center opacity-0 hover:opacity-100 transition rounded"
