@@ -88,7 +88,7 @@ export default function MoreVariationsSection({ productId, colorVariants = [], p
   }, [productId, refresh, colorVariants?.length]);
 
   const activeSizes = useMemo(
-    () => styleSizes.filter((ss) => ss.is_active !== false),
+    () => styleSizes.filter((ss) => ss.active !== false),
     [styleSizes],
   );
 
