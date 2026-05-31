@@ -100,6 +100,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [colorways, setColorways] = useState<any[]>([]);
   const [variations, setVariations] = useState<any[]>([]);
   const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [refresh, setRefresh] = useState(0);
