@@ -83,10 +83,11 @@ export default function BOMDetail() {
   const [filterConfig, setFilterConfig] = useState<any>({
     roles: [] as string[],
     suppliers: [] as string[],
+    colorway_ids: [] as string[],
     na_mode: "all" as "all" | "only" | "exclude",
   });
-  const [groupsState, setGroupsState] = useState<{ view: boolean; lines: boolean; bom: boolean }>({
-    view: true, lines: false, bom: false,
+  const [groupsState, setGroupsState] = useState<{ view: boolean; lines: boolean; bom: boolean; filters: boolean }>({
+    view: true, lines: false, bom: false, filters: false,
   });
   const [viewStateId, setViewStateId] = useState<string | null>(null);
   const [changeLog, setChangeLog] = useState<any[]>([]);
@@ -288,6 +289,7 @@ export default function BOMDetail() {
             bomVariants={bomVariants}
             approvedSuppliers={approvedSuppliers}
             suppliers={suppliers}
+            colorways={colorways}
             columnAxis={columnAxis}
             setColumnAxis={setColumnAxis}
             secondaryColumnAxis={secondaryColumnAxis}
@@ -497,7 +499,11 @@ export default function BOMDetail() {
             bom={bom}
             bomLines={bomLines}
             bomLineVariants={bomVariants}
-            colorVariants={colorways}
+            colorVariants={
+              filterConfig.colorway_ids?.length > 0
+                ? colorways.filter(c => filterConfig.colorway_ids.includes(c.id))
+                : colorways
+            }
             styleSizes={styleSizes}
             colorAndMores={variations}
             allProducts={allProducts}
