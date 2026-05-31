@@ -17,6 +17,7 @@ import ProjectDetail from "@/pages/ProjectDetail";
 import ColorLibrary from "@/pages/ColorLibrary";
 import ColorPalettes from "@/pages/ColorPalettes";
 import Suppliers from "@/pages/Suppliers";
+import SupplierDetail from "@/pages/SupplierDetail";
 import Ecos from "@/pages/Ecos";
 import Samples from "@/pages/Samples";
 import Rfqs from "@/pages/Rfqs";
