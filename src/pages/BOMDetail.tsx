@@ -119,16 +119,8 @@ export default function BOMDetail() {
     setCommColors(cc.data ?? []);
     setAllProductColors(apc.data ?? []);
 
-    setProduct(prod.data);
-    setBomLines(lines.data ?? []);
-    setRoutings(rts.data ?? []);
-    setColorways(cws.data ?? []);
-    setApprovedSuppliers(apps.data ?? []);
-    setSuppliers(sups.data ?? []);
-    setCurrencies(currs.data ?? []);
-    setLovTypes(lt.data ?? []);
-    setLovValues(lv.data ?? []);
-    setAllProducts(ap.data ?? []);
+
+
 
     if (lines.data?.length) {
       const { data: vars } = await supabase.from("bom_line_variants").select("*").in("bom_line_id", lines.data.map(l => l.id));
