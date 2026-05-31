@@ -36,79 +36,34 @@ function renderStatusBadge(status: string | null | undefined) {
   );
 }
 
-function SwatchThumb({
-  cw, product, techColors, commColors, asCard = false, onEdit
-}: {
-  cw: any; product: any; techColors: any[]; commColors: any[];
-  asCard?: boolean; onEdit?: () => void;
-}) {
-  const [lightbox, setLightbox] = useState(false);
-
+function ListSwatch({ cw, product, techColors, commColors }: { cw: any; product: any; techColors: any[]; commColors: any[] }) {
   const commColor = commColors.find((c: any) => c.id === cw.linked_color_id);
   const useProductImage = !cw.image_url && !!product?.images?.[0];
   const displayImage = cw.image_url || product?.images?.[0] || null;
-
   const linkedHexes = (() => {
-    if (!commColor || commColor.sub_type?.toLowerCase() !== "combined") return null;
+    if (!commColor || commColor.sub_type !== "Combined") return null;
     const ids: string[] = commColor.linked_technical_color_ids ?? [];
-    const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean);
+    const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean) as string[];
     return hexes.length > 1 ? hexes : null;
   })();
-
-  const swatch = (
-    <div className={`relative overflow-hidden ${asCard ? "aspect-square bg-muted" : "w-8 h-8 rounded border border-border"}`}>
+  return (
+    <div className="w-8 h-8 rounded border border-border relative overflow-hidden bg-muted flex items-center justify-center">
       {displayImage ? (
-        <img
-          src={displayImage}
-          alt={cw.color_name}
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 cursor-zoom-in"
-          onClick={asCard ? () => setLightbox(true) : undefined}
-        />
+        <img src={displayImage} alt={cw.color_name} className="w-full h-full object-contain" />
       ) : linkedHexes ? (
         <div className="w-full h-full flex">
-          {linkedHexes.map((h: string, i: number) => (
-            <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />
-          ))}
+          {linkedHexes.map((h: string, i: number) => <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />)}
         </div>
       ) : (
         <div className="w-full h-full" style={{ backgroundColor: cw.color_hex || "#ccc" }} />
       )}
-
       {useProductImage && cw.color_hex && (
-        <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50"
-          style={{ backgroundColor: cw.color_hex }} title={cw.color_hex} />
-      )}
-
-      {asCard && (
-        <div className="absolute top-2 right-2 flex gap-1.5">
-          {!cw.linked_color_id && (
-            <div title="No commercial color linked" className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600 shadow-sm" />
-          )}
-          {cw.linked_color_id && (
-            <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur-sm px-1.5">
-              {cw.linked_color_type === "technical" ? "TCX" : "COM"}
-            </Badge>
-          )}
-          {onEdit && (
-            <button type="button" onClick={e => { e.stopPropagation(); onEdit(); }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-md bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background">
-              <Pencil className="w-3 h-3" />
-            </button>
-          )}
-        </div>
+        <div className="absolute bottom-0.5 left-0.5 w-3 h-3 rounded-sm border border-white/70" style={{ backgroundColor: cw.color_hex }} />
       )}
     </div>
   );
-
-  return (
-    <>
-      {swatch}
-      {lightbox && displayImage && (
-        <ImageLightbox src={displayImage} alt={cw.color_name} onClose={() => setLightbox(false)} />
-      )}
-    </>
-  );
 }
+
 
 export default function ColorwaySection({
   productId,
@@ -145,6 +100,7 @@ export default function ColorwaySection({
     try { localStorage.setItem("gallery_active_view_product_colorways", id); } catch {}
   };
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const [lightboxCv, setLightboxCv] = useState<any>(null);
 
   useEffect(() => {
     try { localStorage.setItem(VIEW_KEY, view); } catch {}
@@ -236,7 +192,7 @@ export default function ColorwaySection({
         label: "",
         width: 56,
         render: (cv: any) => (
-          <SwatchThumb cw={cv} product={product} techColors={techColors} commColors={commColors} />
+          <ListSwatch cw={cv} product={product} techColors={techColors} commColors={commColors} />
         ),
       },
       {
@@ -413,7 +369,57 @@ export default function ColorwaySection({
           pageKey="product_colorways"
           allFields={galleryFields}
           rows={colorways}
-          renderThumbnail={(cv) => <SwatchThumb cw={cv} product={product} techColors={techColors} commColors={commColors} asCard onEdit={() => openEdit(cv)} />}
+          renderThumbnail={(cv) => {
+            const commColor = commColors.find((c: any) => c.id === cv.linked_color_id);
+            const useProductImage = !cv.image_url && !!product?.images?.[0];
+            const displayImage = cv.image_url || product?.images?.[0] || null;
+            const linkedHexes = (() => {
+              if (!commColor || commColor.sub_type !== "Combined") return null;
+              const ids: string[] = commColor.linked_technical_color_ids ?? [];
+              const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean) as string[];
+              return hexes.length > 1 ? hexes : null;
+            })();
+            return (
+              <div className="group w-full h-full relative bg-muted flex items-center justify-center overflow-hidden">
+                {displayImage ? (
+                  <img
+                    src={displayImage}
+                    alt={cv.color_name}
+                    className="w-full h-full object-contain cursor-zoom-in group-hover:scale-105 transition-transform duration-500"
+                    onClick={(e) => { e.stopPropagation(); setLightboxCv(cv); }}
+                  />
+                ) : linkedHexes ? (
+                  <div className="w-full h-full flex">
+                    {linkedHexes.map((h, i) => <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />)}
+                  </div>
+                ) : (
+                  <div className="w-full h-full" style={{ backgroundColor: cv.color_hex || "#ccc" }} />
+                )}
+                {useProductImage && cv.color_hex && (
+                  <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50"
+                    style={{ backgroundColor: cv.color_hex }} />
+                )}
+                <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                  {!cv.linked_color_id && (
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600 shadow-sm" title="No commercial color linked" />
+                  )}
+                  {cv.linked_color_id && (
+                    <span className="text-[10px] bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded border border-border/50 font-medium">
+                      {cv.linked_color_type === "technical" ? "TCX" : "COM"}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); openEdit(cv); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-md bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          }}
+          onClickItem={undefined}
           activeViewId={colorwaysActiveViewId}
         />
       ) : (
@@ -422,6 +428,14 @@ export default function ColorwaySection({
           rows={colorways}
           fixedColumns={["swatch", "color_name"]}
           hideColumnToggle
+        />
+      )}
+
+      {lightboxCv && (lightboxCv.image_url || product?.images?.[0]) && (
+        <ImageLightbox
+          src={lightboxCv.image_url || product?.images?.[0]}
+          alt={lightboxCv?.color_name}
+          onClose={() => setLightboxCv(null)}
         />
       )}
 
