@@ -39,8 +39,7 @@ export default function StyleSizesSection({ product, onSizesChange }: Props) {
         const inserts = gridSizes.map((gs: any) => ({
           product_id: product.id,
           size_id: gs.size_id,
-          is_active: gs.active !== false,
-          sort_order: gs.sort_order ?? 0,
+          active: gs.active !== false,
         }));
         const { data: created } = await supabase.from("style_sizes").insert(inserts).select();
         setStyleSizes(created ?? []);
