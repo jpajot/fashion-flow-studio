@@ -310,15 +310,27 @@ export default function ColorwaySection({
         id: "color_name",
         label: "Color Name",
         getValue: (cv: any) => cv.color_name,
-        render: (cv: any) => <span className="font-medium text-sm">{cv.color_name}</span>,
+        render: (cv: any) => (
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-full shrink-0 border border-border/50" style={{ backgroundColor: cv.color_hex || "#ccc" }} />
+            <span className="font-medium text-sm truncate">{cv.color_name}</span>
+            <RevisionBadge target_type="product_color" target_id={cv.id} size="xs" />
+          </div>
+        ),
       },
       {
         id: "colorway_code",
         label: "Code",
         getValue: (cv: any) => cv.colorway_code,
-        render: (cv: any) => (
-          <span className="font-mono text-xs text-muted-foreground">{cv.colorway_code || "—"}</span>
-        ),
+        render: (cv: any) => {
+          const tc = techColors.find((t: any) => t.id === cv.linked_tech_color_id);
+          return (
+            <div className="flex items-center gap-1">
+              {cv.colorway_code && <span className="font-mono text-xs text-muted-foreground">{cv.colorway_code}</span>}
+              {tc && <span className="font-mono text-xs text-muted-foreground/60">{tc.code}</span>}
+            </div>
+          );
+        },
       },
       {
         id: "status",
@@ -327,7 +339,7 @@ export default function ColorwaySection({
         render: (cv: any) => renderStatusBadge(cv.colorway_status),
       },
     ],
-    [],
+    [techColors, commColors],
   );
 
   // ── Options drawer ──
