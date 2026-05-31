@@ -619,8 +619,16 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
                   ) : (
                     <div className="w-full h-full" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
                   )}
-                  {useProductImage && c.color_hex && (
-                    <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50" style={{ backgroundColor: c.color_hex }} />
+                  {useProductImage && (
+                    linkedHexes ? (
+                      <div className="absolute bottom-2 left-2 w-7 h-6 rounded-md shadow-md border border-white/50 overflow-hidden flex">
+                        {linkedHexes.map((h: string, i: number) => (
+                          <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />
+                        ))}
+                      </div>
+                    ) : c.color_hex ? (
+                      <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50" style={{ backgroundColor: c.color_hex }} />
+                    ) : null
                   )}
                 </>
               );
