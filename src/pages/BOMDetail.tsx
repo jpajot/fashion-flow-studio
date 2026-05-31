@@ -47,8 +47,13 @@ export default function BOMDetail() {
   const [lovTypes, setLovTypes] = useState<any[]>([]);
   const [lovValues, setLovValues] = useState<any[]>([]);
   const [derivedFromBom, setDerivedFromBom] = useState<any>(null);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(!isNew);
   const [activeTab, setActiveTab] = useState("matrix");
+  const [showAddLine, setShowAddLine] = useState(false);
+  const [editLine, setEditLine] = useState<any | null>(null);
+  const [lineSearch, setLineSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
 
   const loadAll = async () => {
     if (!id) return;
