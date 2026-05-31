@@ -303,6 +303,9 @@ export default function ProductDetail() {
     if (codeErr) toast({ title: "Code generation failed", description: codeErr.message });
     const payload: any = { ...product, code: product.code || codeData || null, created_by: user?.email };
     delete payload.id;
+    // Remove any invented/non-existent columns
+    delete payload.sub_entity_type_id;
+    delete payload.linked_project_ids;
     const { data, error } = await supabase.from("products").insert(payload).select("id").single();
     if (error) {
       toast({ title: "Create failed", description: error.message, variant: "destructive" });
@@ -460,11 +463,11 @@ export default function ProductDetail() {
             {typeOptions.length > 0 && (
               <div>
                 <Label>Type</Label>
-                <Select value={product?.sub_entity_type_id || NONE} onValueChange={(v) => updateField("sub_entity_type_id", v === NONE ? null : v)}>
+                <Select value={product?.type || NONE} onValueChange={(v) => updateField("type", v === NONE ? null : v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>None</SelectItem>
-                    {typeOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                    {typeOptions.map((o) => <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
