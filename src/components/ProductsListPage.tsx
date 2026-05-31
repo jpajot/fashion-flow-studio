@@ -581,15 +581,31 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
             rows={filteredColorways}
             renderThumbnail={(c) => {
               const prod = productById[c.product_id];
-              const prodImg = Array.isArray(prod?.images) && prod.images[0];
-              if (c.image_url) return <img src={c.image_url} className="w-full h-full object-cover" alt={c.color_name} />;
-              if (prodImg) return (
+              const useProductImage = !c.image_url && prod?.images?.[0];
+              const displayImage = c.image_url || prod?.images?.[0] || null;
+              const commColor = commColors.find((cc: any) => cc.id === c.linked_color_id);
+              const linkedHexes = (() => {
+                if (!commColor || commColor.sub_type?.toLowerCase() !== "combined") return null;
+                const ids: string[] = commColor.linked_technical_color_ids ?? [];
+                const hexes = ids.map((id: string) => techColors.find((t: any) => t.id === id)?.hex).filter(Boolean);
+                return hexes.length > 1 ? hexes : null;
+              })();
+              return (
                 <>
-                  <img src={prodImg} className="w-full h-full object-cover" alt="" />
-                  <div className="absolute bottom-1 left-1 h-6 w-6 rounded border-2 border-white shadow" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+                  {displayImage ? (
+                    <img src={displayImage} className="w-full h-full object-contain" alt={c.color_name} />
+                  ) : linkedHexes ? (
+                    <div className="w-full h-full flex">
+                      {linkedHexes.map((h: string, i: number) => <div key={i} className="flex-1 h-full" style={{ backgroundColor: h }} />)}
+                    </div>
+                  ) : (
+                    <div className="w-full h-full" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />
+                  )}
+                  {useProductImage && c.color_hex && (
+                    <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md shadow-md border border-white/50" style={{ backgroundColor: c.color_hex }} />
+                  )}
                 </>
               );
-              return <div className="w-full h-full" style={{ backgroundColor: c.color_hex || "#e5e7eb" }} />;
             }}
             onClickItem={(c) => navigate(`/products/${c.product_id}`)}
             activeViewId={colorwaysActiveViewId}
