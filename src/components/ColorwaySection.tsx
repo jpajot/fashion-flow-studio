@@ -318,10 +318,12 @@ export default function ColorwaySection({
         label: "Color Name",
         getValue: (cv: any) => cv.color_name,
         render: (cv: any) => (
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded-full shrink-0 border border-border/50" style={{ backgroundColor: cv.color_hex || "#ccc" }} />
-            <span className="font-medium text-sm truncate">{cv.color_name}</span>
-            <RevisionBadge target_type="product_color" target_id={cv.id} size="xs" />
+          <div className="cursor-pointer hover:text-primary transition-colors" onClick={() => openEdit(cv)}>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-full shrink-0 border border-border/50" style={{ backgroundColor: cv.color_hex || "#ccc" }} />
+              <span className="font-medium text-sm truncate">{cv.color_name}</span>
+              <RevisionBadge target_type="product_color" target_id={cv.id} size="xs" />
+            </div>
           </div>
         ),
       },
