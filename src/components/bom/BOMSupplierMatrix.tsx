@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { AlertTriangle, Ban, GripVertical, Trash2, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -24,8 +25,9 @@ export default function BOMSupplierMatrix({
   const [parentVendors, setParentVendors] = useState<any[]>([]);
   const [parentSupplierMap, setParentSupplierMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
-  const [openPicker, setOpenPicker] = useState<string | null>(null);
+  const [openPicker, setOpenPicker] = useState<{ lineId: string; pvId: string } | null>(null);
   const [supplierCache, setSupplierCache] = useState<Record<string, any>>({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!bom?.product_id) { setLoading(false); return; }
@@ -243,12 +245,33 @@ export default function BOMSupplierMatrix({
                     }
 
                     const hasExplicit = !!variant?.approved_supplier_id;
+                    const noCompSuppliers = cached && !cached.supplier && !variant?.approved_supplier_id;
+                    if (noCompSuppliers) {
+                      return (
+                        <td key={cellKey} className="px-1 py-1 text-center">
+                          <div className="flex items-center justify-center gap-1 text-amber-600 text-[10px] min-h-[40px]">
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/products/${line.component_product_id}`)}
+                              className="underline hover:text-amber-800"
+                            >
+                              No suppliers
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    }
                     return (
                       <td key={cellKey} className="px-1 py-1 text-center">
-                        {!isReadOnly ? (
+                        {(!isReadOnly && line.varies_by_supplier) ? (
                           <div className="relative group/cell">
                             <button type="button"
-                              onClick={() => setOpenPicker(openPicker === cellKey ? null : cellKey)}
+                              onClick={() => setOpenPicker(
+                                openPicker?.lineId === line.id && openPicker?.pvId === pv.id
+                                  ? null
+                                  : { lineId: line.id, pvId: pv.id }
+                              )}
                               className={`w-full min-h-[40px] rounded border text-left px-1.5 py-1 transition-colors ${
                                 hasExplicit
                                   ? "border-border hover:border-primary/60 hover:bg-primary/5"
@@ -322,7 +345,7 @@ export default function BOMSupplierMatrix({
       </div>
 
       {openPicker && (() => {
-        const [lineId, pvId] = openPicker.split("-");
+        const { lineId, pvId } = openPicker;
         const line = bomLines.find((l: any) => l.id === lineId);
         if (!line) return null;
         const variant = getVariantForCell(line.id, pvId);
