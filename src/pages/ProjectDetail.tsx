@@ -111,12 +111,22 @@ function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:strin
     setLinking(true);
     const rows = ids.map(product_id => ({ product_id, project_id: projectId }));
     await supabase.from("product_project_links").upsert(rows, { onConflict: "product_id,project_id", ignoreDuplicates: true });
+    for (const productId of ids) {
+      const { data } = await supabase.from("products").select("project_ids").eq("id", productId).single();
+      const cur: string[] = data?.project_ids ?? [];
+      if (!cur.includes(projectId)) {
+        await supabase.from("products").update({ project_ids: [...cur, projectId] }).eq("id", productId);
+      }
+    }
     setLinking(false); setShowLink(false); onRefresh();
-    toast.success(`${ids.length} style${ids.length>1?"s":""} linked`);
+    toast.success(`${ids.length} style${ids.length > 1 ? "s" : ""} linked`);
   };
 
   const handleUnlink = async (productId: string) => {
     await supabase.from("product_project_links").delete().eq("product_id", productId).eq("project_id", projectId);
+    const { data } = await supabase.from("products").select("project_ids").eq("id", productId).single();
+    const cur: string[] = data?.project_ids ?? [];
+    await supabase.from("products").update({ project_ids: cur.filter(id => id !== projectId) }).eq("id", productId);
     onRefresh(); toast.success("Style unlinked");
   };
 
