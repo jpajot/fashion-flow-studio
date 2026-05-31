@@ -341,19 +341,26 @@ export default function ProductDetail() {
     updateImages(imgs);
   };
   const handleUpload = async (files: FileList | null) => {
-    if (!files?.length || !product?.id) return;
+    if (!files?.length) return;
+    setUploading(true);
     const urls: string[] = [];
     for (const file of Array.from(files)) {
-      const path = `${product.id}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${product?.id || "new"}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage
+        .from("product-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
       if (error) {
         toast({ title: "Upload failed", description: error.message, variant: "destructive" });
         continue;
       }
-      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-      urls.push(data.publicUrl);
+      const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
+      urls.push(urlData.publicUrl);
     }
-    if (urls.length) updateImages([...((product?.images || []) as string[]), ...urls]);
+    if (urls.length) {
+      updateField("images", [...((product?.images || []) as string[]), ...urls]);
+    }
+    setUploading(false);
   };
 
   if (loading) return <div className={PAGE_WRAPPER}>Loading…</div>;
