@@ -177,6 +177,9 @@ export default function BOMVariantCellEditor({
           <DialogTitle>{cell.variant ? "Edit cell" : "Add cell"}</DialogTitle>
           <DialogDescription>
             {(line.component_role || "—").replace(/_/g, " ")} · {axisLabel}: {cell.columnLabel}
+            {cell.secondaryColumnAxis && cell.secondaryColumnId && (
+              <> · {({ color: "Color", size: "Size", color_and_more: "Color & More", supplier: "Supplier" } as any)[cell.secondaryColumnAxis] || cell.secondaryColumnAxis}: {cell.secondaryColumnLabel || "—"}</>
+            )}
           </DialogDescription>
         </DialogHeader>
 
