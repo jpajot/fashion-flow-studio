@@ -1940,6 +1940,7 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
   const [activeViewId, setActiveViewId] = useState("default");
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [pinnedCols, setPinnedCols] = useState<string[]>(["code", "name"]);
+  const [srTab, setSrTab] = useState<"list"|"tracking">("list");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2015,6 +2016,24 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-2">
+        <button type="button" onClick={() => setSrTab("list")}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${srTab==="list"?"bg-primary text-primary-foreground border-primary":"border-border text-muted-foreground hover:text-foreground"}`}>
+          Supplier Requests
+        </button>
+        <button type="button" onClick={() => setSrTab("tracking")}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${srTab==="tracking"?"bg-primary text-primary-foreground border-primary":"border-border text-muted-foreground hover:text-foreground"}`}>
+          SR Tracking
+        </button>
+      </div>
+
+      {srTab === "tracking" && (
+        <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
+          <p className="text-sm text-muted-foreground">Open <a href="/rfqs" className="text-primary underline">RFQ &amp; Costing</a> to see the full tracking board.</p>
+        </div>
+      )}
+
+      {srTab === "list" && <>
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -2069,6 +2088,9 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
           {...({ activeViewId } as any)}
         />
       )}
+      </>}
+
+
 
       {showCreate && (
         <CreateSupplierRequestDialog
