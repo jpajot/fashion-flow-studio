@@ -1940,6 +1940,7 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
   const [activeViewId, setActiveViewId] = useState("default");
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [pinnedCols, setPinnedCols] = useState<string[]>(["code", "name"]);
+  const [srTab, setSrTab] = useState<"list"|"tracking">("list");
 
   const load = useCallback(async () => {
     setLoading(true);
