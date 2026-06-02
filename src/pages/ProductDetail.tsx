@@ -22,7 +22,7 @@ import StyleSizesSection from "@/components/StyleSizesSection";
 import MoreVariationsSection from "@/components/MoreVariationsSection";
 import ProductSuppliersTab from "@/components/ProductSuppliersTab";
 import ProductBomsTab from "@/components/ProductBomsTab";
-import ProductSamplesTab from "@/components/ProductSamplesTab";
+import ProductSamplesTab from "@/components/samples/ProductSamplesTab";
 import ProductUOMSection from "@/components/ProductUOMSection";
 
 const NONE = "__none__";
@@ -631,7 +631,7 @@ export default function ProductDetail() {
       )}
       {!isNew && activeTab === "suppliers" && <ProductSuppliersTab product={product} colorVariants={colorways} />}
       {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} />}
-      {!isNew && activeTab === "samples" && <ProductSamplesTab productId={product.id} />}
+      {!isNew && activeTab === "samples" && <ProductSamplesTab product={product} />}
 
       {/* Modals */}
       <RevisionContextModal

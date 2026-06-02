@@ -1139,13 +1139,7 @@ export default function SupplierRequestDetail() {
             setOptions={setOptions}
           />
         )}
-        {activeTab === "samples" && (
-          <div className="text-center py-20 bg-muted/20 rounded-xl border border-dashed border-border">
-            <FlaskConical className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm font-medium text-muted-foreground">Samples — Domain 7</p>
-            <p className="text-xs text-muted-foreground mt-1">Sample management coming in Domain 7.</p>
-          </div>
-        )}
+        {activeTab === "samples" && <RFQSamplesTab rfq={sr} />}
       </div>
 
       {/* Edit Header */}

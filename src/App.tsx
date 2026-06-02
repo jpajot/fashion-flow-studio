@@ -32,6 +32,7 @@ import Currencies from "@/pages/Currencies";
 import AppConfiguration from "@/pages/AppConfiguration";
 import RFQRounds from "@/pages/RFQRounds";
 import SupplierRequestDetail from "@/pages/SupplierRequestDetail";
+import SampleDetail from "@/pages/SampleDetail";
 
 import NotFound from "./pages/NotFound.tsx";
 
@@ -86,6 +87,7 @@ const App = () => (
                   <Route path="/rfq-rounds" element={<RFQRounds />} />
                   <Route path="/supplier-requests/:id" element={<SupplierRequestDetail />} />
                   <Route path="/samples" element={<Samples />} />
+                  <Route path="/samples/:id" element={<SampleDetail />} />
 
                   <Route path="/config" element={<SettingsHub />} />
                   <Route path="/config/admin" element={<Admin />} />

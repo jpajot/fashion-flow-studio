@@ -2660,7 +2660,7 @@ export default function ProjectDetail() {
         {activeTab === "dc_per_cot"&& <DCperCOTSection projectId={id!} linkedVariations={linkedVariations} setOptions={setOptions}/>}
         {activeTab === "boards"    && <StubSection icon={LayoutTemplate} label="Boards" note="Boards feature coming soon"/>}
         {activeTab === "rfqs"      && <SupplierRequestsSection projectId={id!} setOptions={setOptions} />}
-        {activeTab === "samples"   && <StubSection icon={FlaskConical} label="Samples" note="Sample management coming in Domain 7"/>}
+        {activeTab === "samples"   && <ProjectSamplesTab projectId={id!} />}
       </div>
     </div>
   );
