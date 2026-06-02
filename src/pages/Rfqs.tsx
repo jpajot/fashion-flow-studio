@@ -83,6 +83,24 @@ export default function Rfqs() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [roundMap, currencyMap, projectMap]);
 
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
+      ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="supplier_requests_list"
+          activeViewId={activeViewId}
+          onSelectView={id => { setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={tableColumns.map(c => ({ id: c.id, label: c.label }))}
+          currentViewType={null}
+        />
+      ) : null,
+    });
+    return () => setOptions(null);
+  }, [showViewMenu, activeViewId, tableColumns, setOptions]);
+
   return (
     <div className={PAGE_WRAPPER}>
       <div className="mb-5">
