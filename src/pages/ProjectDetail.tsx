@@ -1165,6 +1165,7 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
   const [search, setSearch] = useState("");
   const [filterDC, setFilterDC] = useState("all");
   const [filterCoT, setFilterCoT] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [showStats, setShowStats] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allVariations, setAllVariations] = useState<any[]>([]);
