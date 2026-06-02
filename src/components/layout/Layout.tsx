@@ -35,6 +35,7 @@ export const DRAWER_ITEMS = [
   { path: "/size-grid-library", label: "Size Studio", icon: Ruler },
   { path: "/suppliers", label: "Suppliers", icon: Building2 },
   { path: "/boms", label: "BOMs", icon: Layers },
+  { path: "/rfqs", label: "RFQ & Costing", icon: ClipboardList },
   { path: "/change-management/ecos", label: "Change Management", icon: GitPullRequestArrow },
 ];
 
