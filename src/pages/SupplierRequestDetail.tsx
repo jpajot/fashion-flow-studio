@@ -970,6 +970,14 @@ export default function SupplierRequestDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [currencies, setCurrencies] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase.from("currencies").select("id,code,decimal_places").eq("is_active", true).order("code")
+      .then(({ data }) => setCurrencies(data ?? []));
+  }, []);
 
   const load = useCallback(async () => {
     if (!id) return;
