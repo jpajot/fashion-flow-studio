@@ -4,9 +4,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, FlaskConical, List, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import SamplesDataTable, { Sample } from './SamplesDataTable';
-import SamplesTrackingBoard from './SamplesTrackingBoard';
-import SampleCreateDialog from './SampleCreateDialog';
+import SamplesDataTable, { Sample } from '@/components/samples/SamplesDataTable';
+import SamplesTrackingBoard from '@/components/samples/SamplesTrackingBoard';
+import SampleCreateDialog from '@/components/samples/SampleCreateDialog';
 import { SAMPLE_TYPE_LABELS } from '@/lib/sampleUtils';
 import WorkflowStatusBadge from '@/components/samples/WorkflowStatusBadge';
 
