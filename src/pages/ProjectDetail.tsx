@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import ProjectSamplesTab from "@/pages/ProjectSamplesTab";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { PAGE_WRAPPER } from "@/lib/utils";
