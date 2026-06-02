@@ -913,6 +913,35 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
           </AlertFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {panelLine && (
+        <ResponsesPanel
+          line={panelLine}
+          rfq={sr}
+          productMap={productMap}
+          stepMap={stepMap}
+          supplierMap={supplierMap}
+          onClose={() => setPanelLine(null)}
+          onLineChanged={() => {
+            onLinesRefresh();
+            if (lines.length > 0) {
+              supabase.from("rfq_responses").select("*").in("rfq_line_id", lines.map(l => l.id)).then(({ data }) => setResponses(data ?? []));
+            }
+          }}
+        />
+      )}
+
+      {responseTarget && (
+        <AddResponseDialog
+          line={responseTarget}
+          rfq={sr}
+          productMap={productMap}
+          stepMap={stepMap}
+          supplierMap={supplierMap}
+          onSaved={() => { setResponseTarget(null); onLinesRefresh(); }}
+          onClose={() => setResponseTarget(null)}
+        />
+      )}
     </div>
   );
 }
