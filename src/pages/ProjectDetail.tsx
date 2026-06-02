@@ -1004,8 +1004,8 @@ export default function ProjectDetail() {
         {activeTab === "bom_status"&& <BOMStatusSection linkedStyles={linkedStyles}/>}
         {activeTab === "sourcing"  && <SourcingSection  linkedStyles={linkedStyles}/>}
         {activeTab === "documents" && <DocumentsSection projectId={id!}/>}
-        {activeTab === "palettes"  && <StubSection icon={SwatchBook} label="Color Palettes" note="Full palette management coming in Phase 2"/>}
-        {activeTab === "dc_per_cot"&& <StubSection icon={BarChart2}  label="DC per CoT Planning" note="Full distribution channel × channel of trade planning coming in Phase 2"/>}
+        {activeTab === "palettes"  && <PalettesSection projectId={id!} setOptions={setOptions}/>}
+        {activeTab === "dc_per_cot"&& <DCperCOTSection projectId={id!} linkedVariations={linkedVariations} setOptions={setOptions}/>}
         {activeTab === "boards"    && <StubSection icon={LayoutTemplate} label="Boards" note="Boards feature coming soon"/>}
         {activeTab === "rfqs"      && <StubSection icon={FileSearch} label="Supplier Requests" note="RFQ management coming in Domain 6"/>}
         {activeTab === "samples"   && <StubSection icon={FlaskConical} label="Samples" note="Sample management coming in Domain 7"/>}
