@@ -671,6 +671,14 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
   const stepMap = useMemo(() => Object.fromEntries(steps.map(s => [s.id, s])), [steps]);
   const supplierMap = useMemo(() => Object.fromEntries(suppliers.map(s => [s.id, s])), [suppliers]);
 
+  useEffect(() => {
+    if (lines.length === 0) { setResponses([]); return; }
+    supabase.from("rfq_responses").select("*")
+      .in("rfq_line_id", lines.map(l => l.id))
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setResponses(data ?? []));
+  }, [lines]);
+
   const filtered = useMemo(() => lines.filter(l => {
     if (filterStatus !== "all" && l.status !== filterStatus) return false;
     if (search.trim()) {
