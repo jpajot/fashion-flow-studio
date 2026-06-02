@@ -80,7 +80,7 @@ export default function ResponsesPanel({ line, rfq, productMap, stepMap, supplie
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/award-rfq-response`,
+        `https://qpddwbrundmfkbfcltkl.supabase.co/functions/v1/award-rfq-response`,
         {
           method: "POST",
           headers: {
