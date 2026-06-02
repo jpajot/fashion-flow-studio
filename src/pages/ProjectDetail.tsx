@@ -11,10 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap } from "lucide-react";
 import GalleryView from "@/components/GalleryView";
 import DataTable from "@/components/shared/DataTable";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
+import LinkCommercialColorDialog from "@/components/LinkCommercialColorDialog";
+import { colorToHex } from "@/pages/ColorLibrary";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { format, isAfter, isBefore, parseISO } from "date-fns";
 
@@ -606,6 +609,629 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   );
 }
 
+// ── PALETTES TAB ─────────────────────────────────────────────────────────────
+function PalettesSection({ projectId, setOptions }: { projectId: string; setOptions: any }) {
+  const [palettes, setPalettes] = useState<any[]>([]);
+  const [paletteColors, setPaletteColors] = useState<any[]>([]);
+  const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [paletteCardSize, setPaletteCardSize] = useState<"S"|"M"|"L">(() => {
+    try { return (localStorage.getItem("palette_card_size") as any) || "M"; } catch { return "M"; }
+  });
+  const [showAddColor, setShowAddColor] = useState(false);
+  const [editDialog, setEditDialog] = useState(false);
+  const [editingPalette, setEditingPalette] = useState<any>(null);
+  const [formName, setFormName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [linkingTech, setLinkingTech] = useState<any>(null);
+  const [addTab, setAddTab] = useState<"technical"|"commercial">("technical");
+  const [addSearch, setAddSearch] = useState("");
+
+  const SIZE_CONFIGS: Record<string, { cols: string; cardClass: string; swatchSize: string; codeClass: string }> = {
+    S: { cols: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5", cardClass: "text-[10px]", swatchSize: "w-5 h-5", codeClass: "text-[9px]" },
+    M: { cols: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4", cardClass: "text-xs", swatchSize: "w-6 h-6", codeClass: "text-[10px]" },
+    L: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", cardClass: "text-sm", swatchSize: "w-8 h-8", codeClass: "text-xs" },
+  };
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const [p, pc, tc, cc] = await Promise.all([
+      supabase.from("color_palettes").select("*").eq("project_id", projectId).order("name"),
+      supabase.from("color_palette_colors").select("*").order("sort_order"),
+      supabase.from("technical_colors").select("*").order("code"),
+      supabase.from("commercial_colors").select("*").order("code"),
+    ]);
+    setPalettes(p.data ?? []);
+    setPaletteColors(pc.data ?? []);
+    setTechColors(tc.data ?? []);
+    setCommColors(cc.data ?? []);
+    setLoading(false);
+  }, [projectId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const techMap = useMemo(() => Object.fromEntries(techColors.map(t=>[t.id,t])), [techColors]);
+  const commMap = useMemo(() => Object.fromEntries(commColors.map(c=>[c.id,c])), [commColors]);
+
+  const resolveSwatch = (pc: any) => {
+    if (pc.color_type === "technical") {
+      const t = techMap[pc.color_id];
+      return { hex: colorToHex(t), code: t?.code ?? "?", name: t?.name ?? "Unknown" } as any;
+    }
+    const c = commMap[pc.color_id];
+    if (!c) return { hex: "#cccccc", code: "?", name: "Unknown" } as any;
+    const mainHex = colorToHex(c.main_technical_color_id ? techMap[c.main_technical_color_id] : null);
+    const ids = c.sub_type?.toLowerCase() === "combined" && c.linked_technical_color_ids?.length ? c.linked_technical_color_ids : null;
+    const linkedHexes = ids ? ids.map((id: string) => colorToHex(techMap[id])) : undefined;
+    return { hex: mainHex, code: c.code, name: c.color_name, linkedHexes } as any;
+  };
+
+  const getSwatchData = (palId: string) => {
+    const colors = paletteColors.filter(pc=>pc.palette_id===palId).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+    const commEntries = colors.filter(e=>e.color_type==="commercial");
+    const commColorIds = new Set(commEntries.map(e=>e.color_id));
+    const result: any[] = [];
+    for (const e of commEntries) {
+      const c = commMap[e.color_id]; if(!c) continue;
+      const ids = c.sub_type?.toLowerCase()==="combined"&&c.linked_technical_color_ids?.length ? c.linked_technical_color_ids : null;
+      const linkedHexes = ids ? ids.map((id:string) => colorToHex(techMap[id])) : undefined;
+      result.push({ hex: colorToHex(c.main_technical_color_id?techMap[c.main_technical_color_id]:null), name: c.color_name, code: c.code, linkedHexes });
+    }
+    for (const e of colors.filter(e=>e.color_type==="technical")) {
+      const linkedComm = commColors.find(c=>(c.main_technical_color_id===e.color_id||(c.linked_technical_color_ids||[]).includes(e.color_id))&&commColorIds.has(c.id));
+      if (linkedComm) continue;
+      const t = techMap[e.color_id]; if(!t) continue;
+      result.push({ hex: colorToHex(t), name: t.name, code: t.code });
+    }
+    return result;
+  };
+
+  const exportASE = () => {
+    if (!selectedId) return;
+    const swatches = getSwatchData(selectedId);
+    if (!swatches.length) return;
+    const palette = palettes.find(p=>p.id===selectedId);
+    const hexToRgb = (hex: string) => { const h=hex.replace("#",""); return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255]; };
+    const colorBlocks = swatches.map(s => {
+      const name = s.name||s.code||"Color"; const nameCharCount = name.length+1; const nameBytesLen = nameCharCount*2;
+      const blockDataSize = 2+nameBytesLen+4+12+2;
+      const block = new ArrayBuffer(2+4+blockDataSize); const v = new DataView(block); let o=0;
+      v.setUint16(o,0x0001); o+=2; v.setUint32(o,blockDataSize); o+=4;
+      v.setUint16(o,nameCharCount); o+=2;
+      for(let i=0;i<name.length;i++){v.setUint16(o,name.charCodeAt(i));o+=2;}
+      v.setUint16(o,0);o+=2;
+      v.setUint8(o,0x52);v.setUint8(o+1,0x47);v.setUint8(o+2,0x42);v.setUint8(o+3,0x20);o+=4;
+      const [r,g,b] = hexToRgb(s.hex||"#cccccc");
+      v.setFloat32(o,r);o+=4;v.setFloat32(o,g);o+=4;v.setFloat32(o,b);o+=4;
+      v.setUint16(o,0);
+      return block;
+    });
+    const header = new ArrayBuffer(12); const hv = new DataView(header);
+    hv.setUint8(0,0x41);hv.setUint8(1,0x53);hv.setUint8(2,0x45);hv.setUint8(3,0x46);
+    hv.setUint16(4,1);hv.setUint16(6,0);hv.setUint32(8,colorBlocks.length);
+    const totalSize = 12+colorBlocks.reduce((s,b)=>s+b.byteLength,0);
+    const combined = new Uint8Array(totalSize); let off=0;
+    combined.set(new Uint8Array(header),off); off+=12;
+    for(const b of colorBlocks){combined.set(new Uint8Array(b),off);off+=b.byteLength;}
+    const blob = new Blob([combined],{type:"application/octet-stream"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url;
+    a.download=`${palette?.name?.replace(/\s+/g,"_")||"palette"}.ase`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    const swatches = selectedId ? getSwatchData(selectedId) : [];
+    setOptions({
+      items: [
+        { label: "New Palette", icon: Plus, onClick: () => { setEditingPalette(null); setFormName(""); setEditDialog(true); }, className: "text-primary hover:bg-primary/10" },
+        ...(selectedId ? [
+          { divider: true },
+          { label: "Add Color", icon: Plus, onClick: () => setShowAddColor(true) },
+          { divider: true },
+          { label: "S", onClick: ()=>{setPaletteCardSize("S");localStorage.setItem("palette_card_size","S");}, className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="S"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}` },
+          { label: "M", onClick: ()=>{setPaletteCardSize("M");localStorage.setItem("palette_card_size","M");}, className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="M"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}` },
+          { label: "L", onClick: ()=>{setPaletteCardSize("L");localStorage.setItem("palette_card_size","L");}, className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="L"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}` },
+          ...(swatches.length > 0 ? [{ divider: true }, { label: "Export .ase", icon: Download, onClick: exportASE }] : []),
+        ] : []),
+      ],
+    });
+    return () => setOptions(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, paletteCardSize, palettes, paletteColors, setOptions]);
+
+  const addColorToPalette = async (type: "technical"|"commercial", colorId: string) => {
+    if (!selectedId) return;
+    const existing = paletteColors.find(pc=>pc.palette_id===selectedId&&pc.color_type===type&&pc.color_id===colorId);
+    if (existing) return;
+    const maxSort = paletteColors.filter(pc=>pc.palette_id===selectedId).reduce((m,c)=>Math.max(m,c.sort_order??0),-1);
+    await supabase.from("color_palette_colors").insert({ palette_id: selectedId, color_type: type, color_id: colorId, sort_order: maxSort+1 });
+    loadData();
+  };
+
+  const removeColor = async (entryId: string) => {
+    await supabase.from("color_palette_colors").delete().eq("id", entryId);
+    loadData();
+  };
+
+  const savePalette = async () => {
+    if (!formName.trim()) return;
+    setSaving(true);
+    if (editingPalette) {
+      await supabase.from("color_palettes").update({ name: formName.trim() }).eq("id", editingPalette.id);
+    } else {
+      const { data } = await supabase.from("color_palettes").insert({ name: formName.trim(), project_id: projectId }).select().single();
+      if (data) setSelectedId(data.id);
+    }
+    setSaving(false);
+    setEditDialog(false);
+    loadData();
+    toast.success(editingPalette ? "Palette updated" : "Palette created");
+  };
+
+  const deletePalette = async (pal: any) => {
+    if (!window.confirm(`Delete palette "${pal.name}"?`)) return;
+    await supabase.from("color_palette_colors").delete().eq("palette_id", pal.id);
+    await supabase.from("color_palettes").delete().eq("id", pal.id);
+    if (selectedId === pal.id) setSelectedId(null);
+    loadData();
+    toast.success("Palette deleted");
+  };
+
+  const filteredPalettes = search.trim() ? palettes.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())) : palettes;
+  const selectedPalette = palettes.find(p=>p.id===selectedId);
+  const selectedColors = paletteColors.filter(pc=>pc.palette_id===selectedId).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+  const selectedSwatches = selectedId ? getSwatchData(selectedId) : [];
+  const cfg = SIZE_CONFIGS[paletteCardSize];
+
+  const filteredAddColors = useMemo(() => {
+    const q = addSearch.toLowerCase();
+    const existing = new Set(selectedColors.map(c=>`${c.color_type}:${c.color_id}`));
+    if (addTab === "technical") {
+      return techColors.filter(t=>!existing.has(`technical:${t.id}`)&&(!q||`${t.code} ${t.name}`.toLowerCase().includes(q))).slice(0,300);
+    }
+    return commColors.filter(c=>!existing.has(`commercial:${c.id}`)&&(!q||`${c.code} ${c.color_name}`.toLowerCase().includes(q))).slice(0,300);
+  }, [addTab, addSearch, techColors, commColors, selectedColors]);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 h-[calc(100vh-200px)]">
+      <div className="bg-muted/30 rounded-xl border border-border p-3 space-y-3 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between flex-shrink-0">
+          <h3 className="font-semibold text-sm">Palettes ({palettes.length})</h3>
+          <Button size="sm" className="h-7 gap-1 text-xs" onClick={()=>{setEditingPalette(null);setFormName("");setEditDialog(true);}}>
+            <Plus className="w-3.5 h-3.5"/>Add
+          </Button>
+        </div>
+        <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" className="h-8 text-xs flex-shrink-0"/>
+        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          {filteredPalettes.length===0&&<p className="text-xs text-muted-foreground text-center py-6">No palettes yet</p>}
+          {filteredPalettes.map(p=>{
+            const sw = getSwatchData(p.id);
+            return (
+              <div key={p.id} onClick={()=>setSelectedId(p.id)}
+                className={`p-3 rounded-lg border cursor-pointer transition-colors group ${selectedId===p.id?"bg-primary/10 border-primary":"border-border hover:bg-muted bg-card"}`}>
+                <div className="h-5 rounded overflow-hidden flex mb-2">
+                  {sw.length===0 ? <div className="w-full bg-muted"/> : sw.slice(0,10).map((s,i)=>
+                    s.linkedHexes?.length>1
+                      ? <div key={i} className="flex-1 flex overflow-hidden">{s.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+                      : <div key={i} className="flex-1" style={{backgroundColor:s.hex}}/>
+                  )}
+                </div>
+                <div className="flex items-start justify-between gap-1">
+                  <div className="min-w-0">
+                    <p className={`font-medium text-sm truncate ${selectedId===p.id?"text-primary":""}`}>{p.name}</p>
+                    <p className="text-xs text-muted-foreground">{sw.length} color{sw.length!==1?"s":""}</p>
+                  </div>
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 shrink-0">
+                    <button type="button" onClick={e=>{e.stopPropagation();setEditingPalette(p);setFormName(p.name);setEditDialog(true);}} className="p-1 rounded hover:bg-muted"><Pencil className="w-3 h-3"/></button>
+                    <button type="button" onClick={e=>{e.stopPropagation();deletePalette(p);}} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="w-3 h-3"/></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border p-4 flex flex-col overflow-hidden">
+        {!selectedPalette ? (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <div className="text-center"><SwatchBook className="w-8 h-8 mx-auto mb-2 opacity-30"/><p className="text-sm">Select a palette to manage its colors</p></div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2 mb-3 flex-shrink-0">
+              <h3 className="font-semibold truncate">{selectedPalette.name}</h3>
+              <Button size="sm" className="gap-1.5 h-8 shrink-0" onClick={()=>setShowAddColor(true)}><Plus className="w-3.5 h-3.5"/>Add Color</Button>
+            </div>
+            {selectedSwatches.length>0&&(
+              <div className="h-10 rounded-lg overflow-hidden flex border border-border mb-4 flex-shrink-0">
+                {selectedSwatches.map((s,i)=>
+                  s.linkedHexes?.length>1
+                    ? <div key={i} className="flex-1 flex overflow-hidden" title={s.name}>{s.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+                    : <div key={i} className="flex-1" style={{backgroundColor:s.hex}} title={s.name}/>
+                )}
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto">
+              {selectedColors.length===0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No colors yet</div>
+              ) : (
+                <div className={`grid gap-3 ${cfg.cols}`}>
+                  {selectedColors.map(pc=>{
+                    const r = resolveSwatch(pc);
+                    const techRow = pc.color_type==="technical" ? techMap[pc.color_id] : null;
+                    const isUnlinked = pc.color_type==="technical"&&!commColors.some(c=>
+                      c.main_technical_color_id===pc.color_id||(c.linked_technical_color_ids||[]).includes(pc.color_id)
+                    );
+                    return (
+                      <div key={pc.id} className={`rounded-xl border overflow-hidden group relative ${isUnlinked?"border-amber-300":"border-border"}`}>
+                        {r.linkedHexes?.length>1
+                          ? <div className="aspect-square w-full flex">{r.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+                          : <div className="aspect-square w-full" style={{backgroundColor:r.hex}}/>}
+                        <div className={`p-2 ${cfg.cardClass}`}>
+                          <p className={`font-mono truncate ${cfg.codeClass}`}>{r.code}</p>
+                          <p className="font-medium truncate">{r.name}</p>
+                          <span className="text-[9px] text-muted-foreground capitalize">{pc.color_type}</span>
+                          {isUnlinked&&techRow&&(
+                            <button type="button" onClick={()=>setLinkingTech(techRow)}
+                              className="w-full mt-1 text-[10px] px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors">
+                              Link commercial
+                            </button>
+                          )}
+                        </div>
+                        <button type="button" onClick={()=>removeColor(pc.id)}
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-0.5 rounded hover:bg-background">
+                          <X className="w-3 h-3"/>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <Dialog open={editDialog} onOpenChange={o=>{if(!o){setEditDialog(false);setEditingPalette(null);}}}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{editingPalette?"Edit Palette":"New Palette"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-xs">Name</Label><Input value={formName} onChange={e=>setFormName(e.target.value)} autoFocus/></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={()=>setEditDialog(false)}>Cancel</Button>
+            <Button disabled={saving||!formName.trim()} onClick={savePalette}>{saving?<><Loader2 className="w-4 h-4 animate-spin mr-1"/>Saving…</>:editingPalette?"Save":"Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddColor} onOpenChange={setShowAddColor}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Add Color to Palette</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2 border-b border-border pb-2">
+              {(["technical","commercial"] as const).map(t=>(
+                <button key={t} type="button" onClick={()=>{setAddTab(t);setAddSearch("");}}
+                  className={`text-xs px-3 py-1.5 rounded-full transition-colors ${addTab===t?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-muted"}`}>
+                  {t==="technical"?"Technical":"Commercial"}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
+              <Input value={addSearch} onChange={e=>setAddSearch(e.target.value)} placeholder="Search…" className="pl-8 h-8 text-xs" autoFocus/>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[320px] overflow-y-auto">
+              {filteredAddColors.map((c:any)=>{
+                const hex = addTab==="technical" ? colorToHex(c) : colorToHex(c.main_technical_color_id ? techMap[c.main_technical_color_id] : null);
+                const code = addTab==="technical" ? c.code : c.code;
+                const name = addTab==="technical" ? c.name : c.color_name;
+                return (
+                  <button key={c.id} type="button" onClick={()=>{addColorToPalette(addTab,c.id);}}
+                    className="rounded-lg border overflow-hidden text-left hover:shadow-md transition-all">
+                    <div className="aspect-square w-full" style={{backgroundColor:hex}}/>
+                    <div className="p-1.5">
+                      <p className="font-mono text-[10px] truncate">{code}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{name}</p>
+                    </div>
+                  </button>
+                );
+              })}
+              {filteredAddColors.length===0&&<div className="col-span-4 text-xs text-muted-foreground text-center py-6">No more colors to add</div>}
+            </div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={()=>setShowAddColor(false)}>Close</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {linkingTech&&(
+        <LinkCommercialColorDialog
+          techColor={linkingTech}
+          commColors={commColors}
+          setCommColors={(fn:any)=>setCommColors(typeof fn==="function"?fn(commColors):fn)}
+          onClose={()=>{setLinkingTech(null);loadData();}}
+          paletteId={selectedId}
+          setPaletteColors={(fn:any)=>setPaletteColors(typeof fn==="function"?fn(paletteColors):fn)}
+          tech={techColors}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── DC PER COT TAB ───────────────────────────────────────────────────────────
+function NumberCell({ value, onSave }: { value: number|null; onSave: (v:number|null)=>void }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState<string>(value!=null?String(value):"");
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(()=>{ setVal(value!=null?String(value):""); },[value]);
+  useEffect(()=>{ if(editing&&ref.current) ref.current.focus(); },[editing]);
+  const save = () => { setEditing(false); const num=val===""?null:Number(val); if(num!==(value??null)) onSave(num); };
+  if(!editing) return <button type="button" onClick={()=>setEditing(true)} className="text-left text-xs w-full block px-2 py-1.5 rounded hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground">{value!=null?value:"—"}</button>;
+  return <input ref={ref} type="number" value={val} onChange={e=>setVal(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==="Enter")save();if(e.key==="Escape"){setVal(value!=null?String(value):"");setEditing(false);}}} className="text-xs border-0 ring-1 ring-primary rounded px-2 py-1.5 bg-background w-full outline-none"/>;
+}
+
+function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectId:string; linkedVariations:any[]; setOptions:any }) {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterDC, setFilterDC] = useState("all");
+  const [filterCoT, setFilterCoT] = useState("all");
+  const [showStats, setShowStats] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [allVariations, setAllVariations] = useState<any[]>([]);
+  const [colorways, setColorways] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [linkMap, setLinkMap] = useState<Record<string,any>>({});
+
+  const loadItems = useCallback(async () => {
+    setLoading(true);
+    const [dcRows, links, vars, cws, prods] = await Promise.all([
+      supabase.from("product_color_and_more_project_dc_cot_links").select("*").eq("project_id", projectId),
+      supabase.from("product_color_and_more_project_links").select("*").eq("project_id", projectId),
+      supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,product_color_id,image_url"),
+      supabase.from("product_colors").select("id,color_name,colorway_code,color_hex,product_id"),
+      supabase.from("products").select("id,name,code,sub_type,category,images"),
+    ]);
+    setItems(dcRows.data ?? []);
+    const m: Record<string,any> = {};
+    (links.data ?? []).forEach((l:any) => { m[l.id] = l; });
+    setLinkMap(m);
+    setAllVariations(vars.data ?? []);
+    setColorways(cws.data ?? []);
+    setProducts(prods.data ?? []);
+    setLoading(false);
+  }, [projectId]);
+
+  useEffect(() => { loadItems(); }, [loadItems]);
+
+  const getVar = useCallback((linkId: string) => {
+    const link = linkMap[linkId];
+    if (!link) return null;
+    return allVariations.find(v=>v.id===link.product_color_and_more_id) || null;
+  }, [linkMap, allVariations]);
+
+  const getCW = useCallback((v: any) => v ? colorways.find(c=>c.id===v.product_color_id) : null, [colorways]);
+  const getProd = useCallback((v: any) => { const cw=getCW(v); return cw ? products.find(p=>p.id===cw.product_id) : null; }, [getCW, products]);
+
+  const updateForecast = async (itemId: string, value: number|null) => {
+    await supabase.from("product_color_and_more_project_dc_cot_links").update({ forecasted_quantity: value }).eq("id", itemId);
+    setItems(prev => prev.map(i=>i.id===itemId?{...i,forecasted_quantity:value}:i));
+  };
+
+  const updateStatus = async (itemId: string, status: string) => {
+    await supabase.from("product_color_and_more_project_dc_cot_links").update({ forecast_status: status }).eq("id", itemId);
+    setItems(prev => prev.map(i=>i.id===itemId?{...i,forecast_status:status}:i));
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    const { data: links } = await supabase.from("product_color_and_more_project_links").select("*").eq("project_id", projectId);
+    const { data: existing } = await supabase.from("product_color_and_more_project_dc_cot_links").select("*").eq("project_id", projectId);
+    const existingKeys = new Set((existing||[]).map((e:any)=>`${e.project_link_id}__${e.distribution_channel}__${e.channel_of_trade}`));
+    const toCreate: any[] = [];
+    for (const link of (links||[])) {
+      for (const dc of (link.distribution_channels||[])) {
+        for (const cot of (link.channels_of_trade||[])) {
+          const key = `${link.id}__${dc}__${cot}`;
+          if (!existingKeys.has(key)) { toCreate.push({ project_link_id: link.id, project_id: projectId, distribution_channel: dc, channel_of_trade: cot }); existingKeys.add(key); }
+        }
+      }
+    }
+    if (toCreate.length) {
+      await supabase.from("product_color_and_more_project_dc_cot_links").insert(toCreate);
+    }
+    setGenerating(false);
+    loadItems();
+    toast.success(toCreate.length > 0 ? `Generated ${toCreate.length} new rows` : "All rows already exist");
+  };
+
+  const handleExport = async () => {
+    const toExport = selected.size > 0 ? filtered.filter(i=>selected.has(i.id)) : filtered;
+    if (!toExport.length) return;
+    await Promise.all(toExport.map(i=>supabase.from("product_color_and_more_project_dc_cot_links").update({forecast_status:"In Progress"}).eq("id",i.id)));
+    setItems(prev=>prev.map(i=>toExport.some(e=>e.id===i.id)?{...i,forecast_status:"In Progress"}:i));
+    const rows = toExport.map(item=>{
+      const v=getVar(item.project_link_id); const cw=getCW(v); const prod=getProd(v);
+      return {"Item ID":item.id,"Style Name":prod?.name||"","Style Sub-type":prod?.sub_type||"","Colorway Name":cw?.color_name||"","Colorway Code":cw?.colorway_code||"","Sequence":v?.sequence||"","Pack Code":v?.pack_code||"","Variant":v?.variant||"","Distribution Channel":item.distribution_channel||"","Channel of Trade":item.channel_of_trade||"","Forecast Qty":item.forecasted_quantity??""};
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DC per CoT");
+    XLSX.writeFile(wb, "dc_per_cot.xlsx");
+    setSelected(new Set());
+  };
+
+  const handleImport = async (file: File) => {
+    setImporting(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      const updates = rows.filter(r=>r["Item ID"]&&r["Forecast Qty"]!=null&&r["Forecast Qty"]!=="").map(r=>({id:r["Item ID"],qty:Number(r["Forecast Qty"])}));
+      await Promise.all(updates.map(u=>supabase.from("product_color_and_more_project_dc_cot_links").update({forecasted_quantity:u.qty,forecast_status:"Done"}).eq("id",u.id)));
+      await loadItems();
+      toast.success(`Imported ${updates.length} rows`);
+    } catch(e) { toast.error("Import failed"); }
+    setImporting(false);
+  };
+
+  const allDCs = useMemo(()=>[...new Set(items.map(i=>i.distribution_channel).filter(Boolean))].sort(),[items]);
+  const allCoTs = useMemo(()=>[...new Set(items.map(i=>i.channel_of_trade).filter(Boolean))].sort(),[items]);
+
+  const filtered = useMemo(()=>items.filter(item=>{
+    if(filterDC!=="all"&&item.distribution_channel!==filterDC) return false;
+    if(filterCoT!=="all"&&item.channel_of_trade!==filterCoT) return false;
+    if(!search.trim()) return true;
+    const q=search.toLowerCase(); const v=getVar(item.project_link_id); const cw=getCW(v); const prod=getProd(v);
+    return item.distribution_channel?.toLowerCase().includes(q)||item.channel_of_trade?.toLowerCase().includes(q)||prod?.name?.toLowerCase().includes(q)||v?.pack_code?.toLowerCase().includes(q)||cw?.color_name?.toLowerCase().includes(q);
+  }),[items,filterDC,filterCoT,search,getVar,getCW,getProd]);
+
+  const totalItems=filtered.length; const doneItems=filtered.filter(i=>i.forecast_status==="Done").length;
+  const forecastProgress=totalItems>0?Math.round((doneItems/totalItems)*100):0;
+  const qtyByDC=useMemo(()=>{ const m:Record<string,number>={}; filtered.forEach(i=>{if(i.forecast_status==="Done"){m[i.distribution_channel]=(m[i.distribution_channel]||0)+(i.forecasted_quantity||0);}}); return m; },[filtered]);
+  const qtyByCoT=useMemo(()=>{ const m:Record<string,number>={}; filtered.forEach(i=>{if(i.forecast_status==="Done"){m[i.channel_of_trade]=(m[i.channel_of_trade]||0)+(i.forecasted_quantity||0);}}); return m; },[filtered]);
+
+  const FORECAST_STATUS_COLORS: Record<string,string> = { "Not Started":"bg-muted text-muted-foreground","In Progress":"bg-blue-100 text-blue-800","Done":"bg-green-100 text-green-800","Revised":"bg-amber-100 text-amber-800" };
+
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: generating?"Generating…":"Generate DC per CoT", icon: Zap, onClick: handleGenerate, className: "text-primary hover:bg-primary/10" },
+        { label: "Export XLSX", icon: Download, onClick: handleExport },
+        { label: "Import XLSX", icon: Upload, onClick: () => document.getElementById("dc-import-input")?.click() },
+        { divider: true },
+        { label: showStats?"Hide Stats":"Show Stats", icon: BarChart2, onClick: ()=>setShowStats(v=>!v) },
+      ],
+    });
+    return () => setOptions(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generating, showStats, selected.size, filtered.length]);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>;
+
+  return (
+    <div className="space-y-4">
+      <input id="dc-import-input" type="file" accept=".xlsx,.xls" className="hidden" onChange={e=>{const f=e.target.files?.[0]; if(f) handleImport(f); e.target.value="";}}/>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
+          <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" className="pl-8 h-8 text-xs"/>
+        </div>
+        <Select value={filterDC} onValueChange={setFilterDC}>
+          <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All DC"/></SelectTrigger>
+          <SelectContent><SelectItem value="all">All DC</SelectItem>{allDCs.map(dc=><SelectItem key={dc} value={dc}>{dc}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={filterCoT} onValueChange={setFilterCoT}>
+          <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All CoT"/></SelectTrigger>
+          <SelectContent><SelectItem value="all">All CoT</SelectItem>{allCoTs.map(cot=><SelectItem key={cot} value={cot}>{cot}</SelectItem>)}</SelectContent>
+        </Select>
+        {importing&&<span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3.5 h-3.5 animate-spin"/>Importing…</span>}
+      </div>
+
+      {showStats&&(
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="bg-card rounded-lg border border-border p-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Forecast Progress</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden"><div className="bg-primary h-full transition-all" style={{width:`${forecastProgress}%`}}/></div>
+              <span className="text-lg font-semibold">{forecastProgress}%</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">{doneItems} of {totalItems} done</p>
+          </div>
+          <div className="bg-card rounded-lg border border-border p-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-3">Qty by DC</p>
+            <div className="space-y-2">{Object.entries(qtyByDC).map(([dc,qty])=><div key={dc} className="flex justify-between text-xs"><span className="text-muted-foreground">{dc}</span><span className="font-semibold">{(qty as number).toLocaleString()}</span></div>)}{Object.keys(qtyByDC).length===0&&<p className="text-xs text-muted-foreground">No completed forecasts</p>}</div>
+          </div>
+          <div className="bg-card rounded-lg border border-border p-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-3">Qty by CoT</p>
+            <div className="space-y-2">{Object.entries(qtyByCoT).map(([cot,qty])=><div key={cot} className="flex justify-between text-xs"><span className="text-muted-foreground">{cot}</span><span className="font-semibold">{(qty as number).toLocaleString()}</span></div>)}{Object.keys(qtyByCoT).length===0&&<p className="text-xs text-muted-foreground">No completed forecasts</p>}</div>
+          </div>
+        </div>
+      )}
+
+      {filtered.length===0 ? (
+        <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
+          <BarChart2 className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+          <p className="text-sm text-muted-foreground">{items.length===0?"No DC per CoT rows yet. Set Distribution Channels and Channels of Trade on your linked variations, then click \"Generate DC per CoT\" in the Options menu.":"No results match your filters."}</p>
+        </div>
+      ) : (
+        <div className="border border-border rounded-xl overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 border-b border-border">
+              <tr>
+                <th className="w-10 px-3 py-2.5">
+                  <input type="checkbox" className="w-4 h-4 cursor-pointer"
+                    checked={filtered.length>0&&selected.size===filtered.length}
+                    onChange={e=>{if(e.target.checked)setSelected(new Set(filtered.map(i=>i.id)));else setSelected(new Set());}}/>
+                </th>
+                {["Style","Colorway","Seq.","Pack Code","Variant","Distribution Channel","Channel of Trade","Forecast Qty","Status"].map(h=>(
+                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map(item=>{
+                const v=getVar(item.project_link_id); const cw=getCW(v); const prod=getProd(v);
+                return (
+                  <tr key={item.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-2.5"><input type="checkbox" className="w-4 h-4 cursor-pointer" checked={selected.has(item.id)} onChange={e=>{const n=new Set(selected);e.target.checked?n.add(item.id):n.delete(item.id);setSelected(n);}}/></td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        {prod?.images?.[0]&&<img src={prod.images[0]} className="w-7 h-7 object-contain rounded border border-border shrink-0" alt=""/>}
+                        <div><p className="text-xs font-medium">{prod?.name||"—"}</p>{prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded shrink-0 border border-border" style={{backgroundColor:cw?.color_hex||"#e5e7eb"}}/>
+                        <span className="text-xs">{cw?.color_name||"—"}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{v?.sequence||"—"}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{v?.pack_code||"—"}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{v?.variant||"—"}</td>
+                    <td className="px-4 py-2.5 text-xs font-medium">{item.distribution_channel||"—"}</td>
+                    <td className="px-4 py-2.5 text-xs font-medium">{item.channel_of_trade||"—"}</td>
+                    <td className="px-2 py-1 w-24">
+                      <NumberCell value={item.forecasted_quantity}
+                        onSave={val=>{
+                          updateForecast(item.id,val);
+                          if(item.forecast_status==="Done") updateStatus(item.id,"Revised");
+                        }}/>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Select value={item.forecast_status||"Not Started"} onValueChange={v=>updateStatus(item.id,v)}>
+                        <SelectTrigger className="h-7 text-xs border-0 bg-transparent p-0 hover:bg-muted rounded">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${FORECAST_STATUS_COLORS[item.forecast_status||"Not Started"]}`}>{item.forecast_status||"Not Started"}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Not Started","In Progress","Done","Revised"].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BOMStatusSection({ linkedStyles }: { linkedStyles:any[] }) {
   const navigate = useNavigate();
   const [boms, setBoms] = useState<any[]>([]);
@@ -1001,8 +1627,8 @@ export default function ProjectDetail() {
         {activeTab === "bom_status"&& <BOMStatusSection linkedStyles={linkedStyles}/>}
         {activeTab === "sourcing"  && <SourcingSection  linkedStyles={linkedStyles}/>}
         {activeTab === "documents" && <DocumentsSection projectId={id!}/>}
-        {activeTab === "palettes"  && <StubSection icon={SwatchBook} label="Color Palettes" note="Full palette management coming in Phase 2"/>}
-        {activeTab === "dc_per_cot"&& <StubSection icon={BarChart2}  label="DC per CoT Planning" note="Full distribution channel × channel of trade planning coming in Phase 2"/>}
+        {activeTab === "palettes"  && <PalettesSection projectId={id!} setOptions={setOptions}/>}
+        {activeTab === "dc_per_cot"&& <DCperCOTSection projectId={id!} linkedVariations={linkedVariations} setOptions={setOptions}/>}
         {activeTab === "boards"    && <StubSection icon={LayoutTemplate} label="Boards" note="Boards feature coming soon"/>}
         {activeTab === "rfqs"      && <StubSection icon={FileSearch} label="Supplier Requests" note="RFQ management coming in Domain 6"/>}
         {activeTab === "samples"   && <StubSection icon={FlaskConical} label="Samples" note="Sample management coming in Domain 7"/>}
