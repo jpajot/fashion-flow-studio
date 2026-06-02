@@ -22,12 +22,10 @@ export default function ExportTodoDialog({ sr, lines, productMap, colorMap, pcam
     setExporting(true);
     try {
       const exportLines = lines.filter(l => ["pending", "answered"].includes(l.status));
-
       const data = exportLines.map(line => {
         const prod = productMap[line.product_id];
         const sup = supplierMap[line.recipient_supplier_id];
         const step = stepMap[line.routing_step_id];
-
         let granLabel = "Product";
         if (line.product_color_and_more_id) {
           const c = colorMap[line.product_color_id];
@@ -37,7 +35,6 @@ export default function ExportTodoDialog({ sr, lines, productMap, colorMap, pcam
           const c = colorMap[line.product_color_id];
           granLabel = c ? `Color: ${c.color_name}` : "Color";
         }
-
         return {
           "Line ID": line.id,
           "Product Code": prod?.code || "",
@@ -58,17 +55,14 @@ export default function ExportTodoDialog({ sr, lines, productMap, colorMap, pcam
           "Supplier Notes": "",
         };
       });
-
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(data);
-
       ws["!cols"] = [
         { wch: 36 }, { wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 20 },
         { wch: 18 }, { wch: 14 }, { wch: 8 },  { wch: 20 }, { wch: 12 },
         { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 18 },
         { wch: 16 }, { wch: 20 },
       ];
-
       XLSX.utils.book_append_sheet(wb, ws, "Lines");
       const today = new Date().toISOString().split("T")[0].replace(/-/g, "");
       XLSX.writeFile(wb, `${sr.code}_ToDo_${today}.xlsx`);
@@ -86,7 +80,7 @@ export default function ExportTodoDialog({ sr, lines, productMap, colorMap, pcam
         <DialogHeader><DialogTitle>Export RFQ Lines</DialogTitle></DialogHeader>
         <div className="py-4 text-sm text-muted-foreground space-y-2">
           <p>Exporting <strong>{openCount}</strong> open lines from <strong>{sr.code}</strong>.</p>
-          <p>Columns A–I are read-only metadata. Fill columns J–Q with cost data and re-upload via Import.</p>
+          <p>Columns A–I are read-only metadata. Fill J–Q with cost data and re-upload via Import.</p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={exporting}>Cancel</Button>
