@@ -34,7 +34,7 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lineMap = Object.fromEntries(rfqLines.map(l => [l.id, l]));
+  const lineMap: Record<string, any> = Object.fromEntries(rfqLines.map(l => [l.id, l]));
 
   const handleFilePicked = async (file: File) => {
     if (!file.name.endsWith(".xlsx")) { toast.error("Only .xlsx files supported."); return; }

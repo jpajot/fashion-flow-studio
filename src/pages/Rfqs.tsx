@@ -88,7 +88,7 @@ function TrackingBoard() {
   const pcamMap     = useMemo(() => Object.fromEntries(refData.pcams.map((p:any) => [p.id,p])), [refData.pcams]);
   const stepMap     = useMemo(() => Object.fromEntries(refData.steps.map((s:any) => [s.id,s])), [refData.steps]);
   const supplierMap = useMemo(() => Object.fromEntries(refData.suppliers.map((s:any) => [s.id,s])), [refData.suppliers]);
-  const currencyMap = useMemo(() => Object.fromEntries(refData.currencies.map((c:any) => [c.id,c])), [refData.currencies]);
+  const currencyMap: Record<string, any> = useMemo(() => Object.fromEntries(refData.currencies.map((c:any) => [c.id,c])), [refData.currencies]);
   const projectMap  = useMemo(() => Object.fromEntries(refData.projects.map((p:any) => [p.id,p])), [refData.projects]);
 
   const kpis = useMemo(() => ({
@@ -429,9 +429,9 @@ function SupplierRequestsList() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const roundMap    = useMemo(() => Object.fromEntries(rounds.map((r:any) => [r.id,r])), [rounds]);
-  const currencyMap = useMemo(() => Object.fromEntries(currencies.map((c:any) => [c.id,c])), [currencies]);
-  const projectMap  = useMemo(() => Object.fromEntries(projects.map((p:any) => [p.id,p])), [projects]);
+  const roundMap: Record<string, any>    = useMemo(() => Object.fromEntries(rounds.map((r:any) => [r.id,r])), [rounds]);
+  const currencyMap: Record<string, any> = useMemo(() => Object.fromEntries(currencies.map((c:any) => [c.id,c])), [currencies]);
+  const projectMap: Record<string, any>  = useMemo(() => Object.fromEntries(projects.map((p:any) => [p.id,p])), [projects]);
 
   const filtered = useMemo(() => requests.filter((r:any) => {
     if (filterStatus!=="all"&&r.status!==filterStatus) return false;
@@ -451,7 +451,6 @@ function SupplierRequestsList() {
     {id:"target_currency",label:"Ccy",width:80,sortKey:(r:any)=>currencyMap[r.target_currency_id]?.code||"",render:(r:any)=>{const c=currencyMap[r.target_currency_id];return c?<span className="text-xs font-mono text-muted-foreground">{c.code}</span>:<span className="text-muted-foreground/40">—</span>;}},
     {id:"created_at",label:"Created",width:110,sortKey:(r:any)=>r.created_at||"",render:(r:any)=><span className="text-xs text-muted-foreground">{r.created_at?new Date(r.created_at).toLocaleDateString():"—"}</span>},
     {id:"created_by",label:"Created By",width:160,sortKey:(r:any)=>r.created_by||"",render:(r:any)=><span className="text-xs text-muted-foreground truncate">{r.created_by||"—"}</span>},
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [roundMap, currencyMap, projectMap, navigate]);
 
   useEffect(() => {
