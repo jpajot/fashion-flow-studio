@@ -1274,10 +1274,11 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
   const filtered = useMemo(()=>items.filter(item=>{
     if(filterDC!=="all"&&item.distribution_channel!==filterDC) return false;
     if(filterCoT!=="all"&&item.channel_of_trade!==filterCoT) return false;
+    if(filterStatus!=="all"&&(item.forecast_status||"Not Started")!==filterStatus) return false;
     if(!search.trim()) return true;
     const q=search.toLowerCase(); const v=getVar(item.project_link_id); const cw=getCW(v); const prod=getProd(v);
     return item.distribution_channel?.toLowerCase().includes(q)||item.channel_of_trade?.toLowerCase().includes(q)||prod?.name?.toLowerCase().includes(q)||v?.pack_code?.toLowerCase().includes(q)||cw?.color_name?.toLowerCase().includes(q);
-  }),[items,filterDC,filterCoT,search,getVar,getCW,getProd]);
+  }),[items,filterDC,filterCoT,filterStatus,search,getVar,getCW,getProd]);
 
   const totalItems=filtered.length; const doneItems=filtered.filter(i=>i.forecast_status==="Done").length;
   const forecastProgress=totalItems>0?Math.round((doneItems/totalItems)*100):0;
