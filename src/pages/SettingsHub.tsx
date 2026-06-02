@@ -24,6 +24,7 @@ const SECTIONS = [
   { to: "/size-studio", title: "Size Studio", desc: "Size grids and size library", icon: Ruler, ready: true },
   { to: "/currencies", title: "Currencies", desc: "Currencies and pricing units", icon: CircleDollarSign, ready: true },
   { to: "/app-config", title: "App Config", desc: "Application configuration values", icon: SettingsIcon, ready: true },
+  { to: "/rfq-rounds", title: "RFQ Rounds", desc: "Quotation round types for Supplier Requests", icon: RefreshCw, ready: true },
 ];
 
 export default function SettingsHub() {
