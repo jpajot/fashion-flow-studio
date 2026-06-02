@@ -790,226 +790,264 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
 
 // ── PALETTES TAB ─────────────────────────────────────────────────────────────
 function PalettesSection({ projectId, setOptions }: { projectId: string; setOptions: any }) {
-  const [palettes, setPalettes] = useState<any[]>([]);
-  const [paletteColors, setPaletteColors] = useState<any[]>([]);
-  const [techColors, setTechColors] = useState<any[]>([]);
-  const [commColors, setCommColors] = useState<any[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  type Tech2 = { id:string; code:string; name:string; hex:string|null; rgb:string|null; cmyk:string|null; rgb_r?:number|null; rgb_g?:number|null; rgb_b?:number|null; color_group:string|null; color_sub_group:string|null; };
+  type Comm2 = { id:string; sub_type:string; code:string; color_name:string; main_technical_color_id:string|null; linked_technical_color_ids:string[]|null; };
+  type Pal2 = { id:string; name:string; project_id:string|null; };
+  type PalColor2 = { id:string; palette_id:string; color_type:"technical"|"commercial"; color_id:string; sort_order:number; };
+  type Swatch2 = { hex:string; code:string; name:string; linkedHexes?:string[]; };
+
+  const SIZE_CFGS = {
+    S:{ cols:"grid-cols-3 sm:grid-cols-4 lg:grid-cols-5", cls:"text-[10px]", codeClass:"text-[9px]" },
+    M:{ cols:"grid-cols-2 sm:grid-cols-3 lg:grid-cols-4", cls:"text-xs", codeClass:"text-[10px]" },
+    L:{ cols:"grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", cls:"text-sm", codeClass:"text-xs" },
+  };
+
+  const [palettes, setPalettes] = useState<Pal2[]>([]);
+  const [paletteColors, setPaletteColors] = useState<PalColor2[]>([]);
+  const [tech, setTech] = useState<Tech2[]>([]);
+  const [comm, setComm] = useState<Comm2[]>([]);
+  const [selectedId, setSelectedId] = useState<string|null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [paletteCardSize, setPaletteCardSize] = useState<"S"|"M"|"L">(() => {
-    try { return (localStorage.getItem("palette_card_size") as any) || "M"; } catch { return "M"; }
-  });
+  const [dragId, setDragId] = useState<string|null>(null);
+  const [linkingTechColor, setLinkingTechColor] = useState<Tech2|null>(null);
   const [showAddColor, setShowAddColor] = useState(false);
-  const [editDialog, setEditDialog] = useState(false);
-  const [editingPalette, setEditingPalette] = useState<any>(null);
-  const [formName, setFormName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [linkingTech, setLinkingTech] = useState<any>(null);
-  const [addTab, setAddTab] = useState<"technical"|"commercial">("technical");
-  const [addSearch, setAddSearch] = useState("");
-
-  const SIZE_CONFIGS: Record<string, { cols: string; cardClass: string; swatchSize: string; codeClass: string }> = {
-    S: { cols: "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5", cardClass: "text-[10px]", swatchSize: "w-5 h-5", codeClass: "text-[9px]" },
-    M: { cols: "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4", cardClass: "text-xs", swatchSize: "w-6 h-6", codeClass: "text-[10px]" },
-    L: { cols: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3", cardClass: "text-sm", swatchSize: "w-8 h-8", codeClass: "text-xs" },
-  };
+  const [palDialog, setPalDialog] = useState(false);
+  const [editingPal, setEditingPal] = useState<Pal2|null>(null);
+  const [palFormName, setPalFormName] = useState("");
+  const [palSaving, setPalSaving] = useState(false);
+  const [deletePal, setDeletePal] = useState<Pal2|null>(null);
+  const [paletteCardSize, setPaletteCardSize] = useState<"S"|"M"|"L">(() => {
+    try { return (localStorage.getItem("palette_card_size") as any)||"M"; } catch { return "M"; }
+  });
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [p, pc, tc, cc] = await Promise.all([
-      supabase.from("color_palettes").select("*").eq("project_id", projectId).order("name"),
+    const [p, pc, t, c] = await Promise.all([
+      supabase.from("color_palettes").select("*").eq("project_id",projectId).order("name"),
       supabase.from("color_palette_colors").select("*").order("sort_order"),
       supabase.from("technical_colors").select("*").order("code"),
       supabase.from("commercial_colors").select("*").order("code"),
     ]);
-    setPalettes(p.data ?? []);
-    setPaletteColors(pc.data ?? []);
-    setTechColors(tc.data ?? []);
-    setCommColors(cc.data ?? []);
+    setPalettes((p.data??[]) as Pal2[]);
+    setPaletteColors((pc.data??[]) as PalColor2[]);
+    setTech((t.data??[]) as Tech2[]);
+    setComm((c.data??[]) as Comm2[]);
     setLoading(false);
   }, [projectId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const techMap = useMemo(() => Object.fromEntries(techColors.map(t=>[t.id,t])), [techColors]);
-  const commMap = useMemo(() => Object.fromEntries(commColors.map(c=>[c.id,c])), [commColors]);
+  const techMap = useMemo(()=>Object.fromEntries(tech.map(t=>[t.id,t])), [tech]);
+  const commMap = useMemo(()=>Object.fromEntries(comm.map(c=>[c.id,c])), [comm]);
 
-  const resolveSwatch = (pc: any) => {
-    if (pc.color_type === "technical") {
-      const t = techMap[pc.color_id];
-      return { hex: colorToHex(t), code: t?.code ?? "?", name: t?.name ?? "Unknown" } as any;
+  const resolveSwatch = (pc: PalColor2): Swatch2 => {
+    if (pc.color_type==="technical") {
+      const t=techMap[pc.color_id];
+      return { hex:colorToHex(t), code:t?.code??"?", name:t?.name??"Unknown" };
     }
-    const c = commMap[pc.color_id];
-    if (!c) return { hex: "#cccccc", code: "?", name: "Unknown" } as any;
-    const mainHex = colorToHex(c.main_technical_color_id ? techMap[c.main_technical_color_id] : null);
-    const ids = c.sub_type?.toLowerCase() === "combined" && c.linked_technical_color_ids?.length ? c.linked_technical_color_ids : null;
-    const linkedHexes = ids ? ids.map((id: string) => colorToHex(techMap[id])) : undefined;
-    return { hex: mainHex, code: c.code, name: c.color_name, linkedHexes } as any;
+    const c=commMap[pc.color_id];
+    if (!c) return { hex:"#cccccc", code:"?", name:"Unknown" };
+    const mainHex=colorToHex(c.main_technical_color_id?techMap[c.main_technical_color_id]:null);
+    const ids=c.sub_type?.toLowerCase()==="combined"&&c.linked_technical_color_ids?.length?c.linked_technical_color_ids:null;
+    const linkedHexes=ids?ids.map((id:string)=>colorToHex(techMap[id])):undefined;
+    return { hex:mainHex, code:c.code, name:c.color_name, linkedHexes };
   };
 
-  const getSwatchData = (palId: string) => {
-    const colors = paletteColors.filter(pc=>pc.palette_id===palId).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
-    const commEntries = colors.filter(e=>e.color_type==="commercial");
-    const commColorIds = new Set(commEntries.map(e=>e.color_id));
-    const result: any[] = [];
+  const getSwatchData = (palId: string): Swatch2[] => {
+    const colors=paletteColors.filter(pc=>pc.palette_id===palId).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+    const commEntries=colors.filter(e=>e.color_type==="commercial");
+    const commColorIds=new Set(commEntries.map(e=>e.color_id));
+    const result:Swatch2[]=[];
     for (const e of commEntries) {
-      const c = commMap[e.color_id]; if(!c) continue;
-      const ids = c.sub_type?.toLowerCase()==="combined"&&c.linked_technical_color_ids?.length ? c.linked_technical_color_ids : null;
-      const linkedHexes = ids ? ids.map((id:string) => colorToHex(techMap[id])) : undefined;
-      result.push({ hex: colorToHex(c.main_technical_color_id?techMap[c.main_technical_color_id]:null), name: c.color_name, code: c.code, linkedHexes });
+      const c=commMap[e.color_id]; if(!c) continue;
+      const ids=c.sub_type?.toLowerCase()==="combined"&&c.linked_technical_color_ids?.length?c.linked_technical_color_ids:null;
+      const linkedHexes=ids?ids.map((id:string)=>colorToHex(techMap[id])):undefined;
+      result.push({hex:colorToHex(c.main_technical_color_id?techMap[c.main_technical_color_id]:null),name:c.color_name,code:c.code,linkedHexes});
     }
     for (const e of colors.filter(e=>e.color_type==="technical")) {
-      const linkedComm = commColors.find(c=>(c.main_technical_color_id===e.color_id||(c.linked_technical_color_ids||[]).includes(e.color_id))&&commColorIds.has(c.id));
+      const linkedComm=comm.find(c=>(c.main_technical_color_id===e.color_id||(c.linked_technical_color_ids??[]).includes(e.color_id))&&commColorIds.has(c.id));
       if (linkedComm) continue;
-      const t = techMap[e.color_id]; if(!t) continue;
-      result.push({ hex: colorToHex(t), name: t.name, code: t.code });
+      const t=techMap[e.color_id]; if(!t) continue;
+      result.push({hex:colorToHex(t),name:t.name,code:t.code});
     }
     return result;
   };
 
+  const selectedColors=useMemo(()=>paletteColors.filter(pc=>pc.palette_id===selectedId).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)),[paletteColors,selectedId]);
+
   const exportASE = () => {
     if (!selectedId) return;
-    const swatches = getSwatchData(selectedId);
-    if (!swatches.length) return;
-    const palette = palettes.find(p=>p.id===selectedId);
-    const hexToRgb = (hex: string) => { const h=hex.replace("#",""); return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255]; };
-    const colorBlocks = swatches.map(s => {
-      const name = s.name||s.code||"Color"; const nameCharCount = name.length+1; const nameBytesLen = nameCharCount*2;
-      const blockDataSize = 2+nameBytesLen+4+12+2;
-      const block = new ArrayBuffer(2+4+blockDataSize); const v = new DataView(block); let o=0;
-      v.setUint16(o,0x0001); o+=2; v.setUint32(o,blockDataSize); o+=4;
-      v.setUint16(o,nameCharCount); o+=2;
+    const swatches=getSwatchData(selectedId); if(!swatches.length) return;
+    const palette=palettes.find(p=>p.id===selectedId);
+    const hexToRgb=(hex:string)=>{ const h=hex.replace("#",""); return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255]; };
+    const colorBlocks=swatches.map(s=>{
+      const name=s.name||s.code||"Color"; const nc=name.length+1; const nb=nc*2;
+      const bds=2+nb+4+12+2; const block=new ArrayBuffer(2+4+bds); const v=new DataView(block); let o=0;
+      v.setUint16(o,0x0001);o+=2;v.setUint32(o,bds);o+=4;v.setUint16(o,nc);o+=2;
       for(let i=0;i<name.length;i++){v.setUint16(o,name.charCodeAt(i));o+=2;}
-      v.setUint16(o,0);o+=2;
-      v.setUint8(o,0x52);v.setUint8(o+1,0x47);v.setUint8(o+2,0x42);v.setUint8(o+3,0x20);o+=4;
-      const [r,g,b] = hexToRgb(s.hex||"#cccccc");
-      v.setFloat32(o,r);o+=4;v.setFloat32(o,g);o+=4;v.setFloat32(o,b);o+=4;
-      v.setUint16(o,0);
+      v.setUint16(o,0);o+=2;v.setUint8(o,0x52);v.setUint8(o+1,0x47);v.setUint8(o+2,0x42);v.setUint8(o+3,0x20);o+=4;
+      const[r,g,b]=hexToRgb(s.hex||"#cccccc");v.setFloat32(o,r);o+=4;v.setFloat32(o,g);o+=4;v.setFloat32(o,b);o+=4;v.setUint16(o,0);
       return block;
     });
-    const header = new ArrayBuffer(12); const hv = new DataView(header);
-    hv.setUint8(0,0x41);hv.setUint8(1,0x53);hv.setUint8(2,0x45);hv.setUint8(3,0x46);
-    hv.setUint16(4,1);hv.setUint16(6,0);hv.setUint32(8,colorBlocks.length);
-    const totalSize = 12+colorBlocks.reduce((s,b)=>s+b.byteLength,0);
-    const combined = new Uint8Array(totalSize); let off=0;
-    combined.set(new Uint8Array(header),off); off+=12;
+    const hdr=new ArrayBuffer(12); const hv=new DataView(hdr);
+    hv.setUint8(0,0x41);hv.setUint8(1,0x53);hv.setUint8(2,0x45);hv.setUint8(3,0x46);hv.setUint16(4,1);hv.setUint16(6,0);hv.setUint32(8,colorBlocks.length);
+    const tot=12+colorBlocks.reduce((s,b)=>s+b.byteLength,0); const combined=new Uint8Array(tot); let off=0;
+    combined.set(new Uint8Array(hdr),off);off+=12;
     for(const b of colorBlocks){combined.set(new Uint8Array(b),off);off+=b.byteLength;}
-    const blob = new Blob([combined],{type:"application/octet-stream"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href=url;
-    a.download=`${palette?.name?.replace(/\s+/g,"_")||"palette"}.ase`; a.click();
-    URL.revokeObjectURL(url);
+    const blob=new Blob([combined],{type:"application/octet-stream"});
+    const url=URL.createObjectURL(blob); const a=document.createElement("a");
+    a.href=url;a.download=`${palette?.name?.replace(/\s+/g,"_")||"palette"}.ase`;a.click();URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
-    const swatches = selectedId ? getSwatchData(selectedId) : [];
+    const swatches=selectedId?getSwatchData(selectedId):[];
     setOptions({
-      items: [
-        { label: "New Palette", icon: Plus, onClick: () => { setEditingPalette(null); setFormName(""); setEditDialog(true); }, className: "text-primary hover:bg-primary/10" },
-        ...(selectedId ? [
-          { divider: true },
-          { label: "Add Color", icon: Plus, onClick: () => setShowAddColor(true) },
-          { divider: true },
-          { label: "S", onClick: ()=>{setPaletteCardSize("S");localStorage.setItem("palette_card_size","S");}, className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="S"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}` },
-          { label: "M", onClick: ()=>{setPaletteCardSize("M");localStorage.setItem("palette_card_size","M");}, className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="M"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}` },
-          { label: "L", onClick: ()=>{setPaletteCardSize("L");localStorage.setItem("palette_card_size","L");}, className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="L"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}` },
-          ...(swatches.length > 0 ? [{ divider: true }, { label: "Export .ase", icon: Download, onClick: exportASE }] : []),
-        ] : []),
+      items:[
+        {label:"New Palette",icon:Plus,onClick:()=>{setEditingPal(null);setPalFormName("");setPalDialog(true);},className:"text-primary hover:bg-primary/10"},
+        ...(selectedId?[
+          {divider:true},
+          {label:"Add Color",icon:Plus,onClick:()=>setShowAddColor(true)},
+          {divider:true},
+          {label:"S",onClick:()=>{setPaletteCardSize("S");localStorage.setItem("palette_card_size","S");},className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="S"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}`},
+          {label:"M",onClick:()=>{setPaletteCardSize("M");localStorage.setItem("palette_card_size","M");},className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="M"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}`},
+          {label:"L",onClick:()=>{setPaletteCardSize("L");localStorage.setItem("palette_card_size","L");},className:`px-2 py-1 text-xs font-medium rounded border ${paletteCardSize==="L"?"bg-primary text-primary-foreground border-primary":"border-border hover:bg-muted"}`},
+          ...(swatches.length>0?[{divider:true},{label:"Export .ase",icon:Download,onClick:exportASE}]:[]),
+        ]:[]),
       ],
     });
-    return () => setOptions(null);
+    return ()=>setOptions(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, paletteCardSize, palettes, paletteColors, setOptions]);
+  },[selectedId,paletteCardSize,palettes,paletteColors,setOptions]);
 
-  const addColorToPalette = async (type: "technical"|"commercial", colorId: string) => {
+  const addColorToPalette = async (type:"technical"|"commercial", colorId:string) => {
     if (!selectedId) return;
-    const existing = paletteColors.find(pc=>pc.palette_id===selectedId&&pc.color_type===type&&pc.color_id===colorId);
+    const existing=selectedColors.find(c=>c.color_type===type&&c.color_id===colorId);
     if (existing) return;
-    const maxSort = paletteColors.filter(pc=>pc.palette_id===selectedId).reduce((m,c)=>Math.max(m,c.sort_order??0),-1);
-    await supabase.from("color_palette_colors").insert({ palette_id: selectedId, color_type: type, color_id: colorId, sort_order: maxSort+1 });
+    const maxSort=selectedColors.reduce((m,c)=>Math.max(m,c.sort_order??0),-1);
+    await supabase.from("color_palette_colors").insert({palette_id:selectedId,color_type:type,color_id:colorId,sort_order:maxSort+1});
     loadData();
   };
 
-  const removeColor = async (entryId: string) => {
-    await supabase.from("color_palette_colors").delete().eq("id", entryId);
+  const removeColor = async (pc:PalColor2) => {
+    await supabase.from("color_palette_colors").delete().eq("id",pc.id);
     loadData();
   };
 
-  const savePalette = async () => {
-    if (!formName.trim()) return;
-    setSaving(true);
-    if (editingPalette) {
-      await supabase.from("color_palettes").update({ name: formName.trim() }).eq("id", editingPalette.id);
-    } else {
-      const { data } = await supabase.from("color_palettes").insert({ name: formName.trim(), project_id: projectId }).select().single();
-      if (data) setSelectedId(data.id);
-    }
-    setSaving(false);
-    setEditDialog(false);
-    loadData();
-    toast.success(editingPalette ? "Palette updated" : "Palette created");
+  const onDragStart=(id:string)=>setDragId(id);
+  const onDragOver=(e:React.DragEvent)=>e.preventDefault();
+  const onDrop=async(targetId:string)=>{
+    if(!dragId||dragId===targetId){setDragId(null);return;}
+    const reordered=[...selectedColors];
+    const fi=reordered.findIndex(c=>c.id===dragId); const ti=reordered.findIndex(c=>c.id===targetId);
+    if(fi===-1||ti===-1){setDragId(null);return;}
+    const[moved]=reordered.splice(fi,1); reordered.splice(ti,0,moved);
+    setDragId(null);
+    setPaletteColors(prev=>prev.map(pc=>{const ni=reordered.findIndex(c=>c.id===pc.id);return ni!==-1?{...pc,sort_order:ni}:pc;}));
+    await Promise.all(reordered.map((c,i)=>supabase.from("color_palette_colors").update({sort_order:i}).eq("id",c.id)));
   };
 
-  const deletePalette = async (pal: any) => {
-    if (!window.confirm(`Delete palette "${pal.name}"?`)) return;
-    await supabase.from("color_palette_colors").delete().eq("palette_id", pal.id);
-    await supabase.from("color_palettes").delete().eq("id", pal.id);
-    if (selectedId === pal.id) setSelectedId(null);
-    loadData();
-    toast.success("Palette deleted");
+  const savePalette=async()=>{
+    if(!palFormName.trim())return;
+    setPalSaving(true);
+    if(editingPal){await supabase.from("color_palettes").update({name:palFormName.trim()}).eq("id",editingPal.id);}
+    else{const{data}=await supabase.from("color_palettes").insert({name:palFormName.trim(),project_id:projectId}).select().single();if(data)setSelectedId(data.id);}
+    setPalSaving(false);setPalDialog(false);loadData();
+    toast.success(editingPal?"Palette updated":"Palette created");
   };
 
-  const filteredPalettes = search.trim() ? palettes.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())) : palettes;
-  const selectedPalette = palettes.find(p=>p.id===selectedId);
-  const selectedColors = paletteColors.filter(pc=>pc.palette_id===selectedId).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
-  const selectedSwatches = selectedId ? getSwatchData(selectedId) : [];
-  const cfg = SIZE_CONFIGS[paletteCardSize];
+  const doDeletePalette=async()=>{
+    if(!deletePal)return;
+    await supabase.from("color_palette_colors").delete().eq("palette_id",deletePal.id);
+    await supabase.from("color_palettes").delete().eq("id",deletePal.id);
+    if(selectedId===deletePal.id)setSelectedId(null);
+    setDeletePal(null);loadData();toast.success("Palette deleted");
+  };
 
-  const filteredAddColors = useMemo(() => {
-    const q = addSearch.toLowerCase();
-    const existing = new Set(selectedColors.map(c=>`${c.color_type}:${c.color_id}`));
-    if (addTab === "technical") {
-      return techColors.filter(t=>!existing.has(`technical:${t.id}`)&&(!q||`${t.code} ${t.name}`.toLowerCase().includes(q))).slice(0,300);
-    }
-    return commColors.filter(c=>!existing.has(`commercial:${c.id}`)&&(!q||`${c.code} ${c.color_name}`.toLowerCase().includes(q))).slice(0,300);
-  }, [addTab, addSearch, techColors, commColors, selectedColors]);
+  const filteredPalettes=useMemo(()=>search.trim()?palettes.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())):palettes,[palettes,search]);
+  const selectedPal=palettes.find(p=>p.id===selectedId)??null;
+  const selectedSwatches=useMemo(()=>selectedId?getSwatchData(selectedId):[], [selectedId,paletteColors,techMap,commMap]);// eslint-disable-line
+  const cfg=SIZE_CFGS[paletteCardSize];
+
+  const renderCard=(pc:PalColor2,opts?:{unlinked?:boolean})=>{
+    const r=resolveSwatch(pc);
+    const techRow=pc.color_type==="technical"?techMap[pc.color_id]:null;
+    return (
+      <div
+        key={pc.id}
+        draggable
+        onDragStart={()=>onDragStart(pc.id)}
+        onDragOver={onDragOver}
+        onDrop={()=>onDrop(pc.id)}
+        className={`rounded-xl border overflow-hidden group relative bg-card ${dragId===pc.id?"opacity-50":""} ${opts?.unlinked?"border-amber-300 border-2":"border-border"}`}
+      >
+        {r.linkedHexes&&r.linkedHexes.length>1
+          ?<div className="aspect-square w-full flex">{r.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+          :<div className="aspect-square w-full" style={{backgroundColor:r.hex}}/>}
+        <div className={`p-2 space-y-0.5 ${cfg.cls}`}>
+          <div className="flex items-center justify-between gap-1">
+            <span className={`font-mono ${cfg.codeClass}`}>{r.code}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground capitalize">{pc.color_type}</span>
+          </div>
+          <div className="font-medium truncate">{r.name}</div>
+          {opts?.unlinked&&techRow&&(
+            <button type="button" onClick={()=>setLinkingTechColor(techRow)}
+              className="w-full mt-1 text-[10px] px-1.5 py-1 rounded border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              Link
+            </button>
+          )}
+        </div>
+        <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab">
+          <svg className="h-4 w-4 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24"><path d="M8 6a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2zM8 12a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2zM8 18a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
+        </div>
+        <button type="button" onClick={()=>removeColor(pc)}
+          className="absolute top-1 right-1 p-0.5 rounded bg-background/80 opacity-0 group-hover:opacity-100 hover:bg-background">
+          <X className="h-3.5 w-3.5"/>
+        </button>
+      </div>
+    );
+  };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 h-[calc(100vh-200px)]">
-      <div className="bg-muted/30 rounded-xl border border-border p-3 space-y-3 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between flex-shrink-0">
-          <h3 className="font-semibold text-sm">Palettes ({palettes.length})</h3>
-          <Button size="sm" className="h-7 gap-1 text-xs" onClick={()=>{setEditingPalette(null);setFormName("");setEditDialog(true);}}>
-            <Plus className="w-3.5 h-3.5"/>Add
+    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
+      <div className={`bg-card rounded-xl border border-border p-3 space-y-3 h-[calc(100vh-220px)] flex-col ${selectedId?"hidden lg:flex":"flex"}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="font-semibold text-sm">Palettes ({palettes.length})</div>
+          <Button size="sm" onClick={()=>{setEditingPal(null);setPalFormName("");setPalDialog(true);}}>
+            <Plus className="h-4 w-4 mr-1"/>New
           </Button>
         </div>
-        <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" className="h-8 text-xs flex-shrink-0"/>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {filteredPalettes.length===0&&<p className="text-xs text-muted-foreground text-center py-6">No palettes yet</p>}
+        <div className="relative">
+          <Search className="h-3.5 w-3.5 absolute left-2 top-2.5 text-muted-foreground"/>
+          <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search palettes…" className="h-8 pl-7"/>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+          {filteredPalettes.length===0&&<div className="text-sm text-muted-foreground text-center py-6">No palettes</div>}
           {filteredPalettes.map(p=>{
-            const sw = getSwatchData(p.id);
+            const swatches=getSwatchData(p.id);
+            const sel=p.id===selectedId;
             return (
               <div key={p.id} onClick={()=>setSelectedId(p.id)}
-                className={`p-3 rounded-lg border cursor-pointer transition-colors group ${selectedId===p.id?"bg-primary/10 border-primary":"border-border hover:bg-muted bg-card"}`}>
-                <div className="h-5 rounded overflow-hidden flex mb-2">
-                  {sw.length===0 ? <div className="w-full bg-muted"/> : sw.slice(0,10).map((s,i)=>
-                    s.linkedHexes?.length>1
-                      ? <div key={i} className="flex-1 flex overflow-hidden">{s.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
-                      : <div key={i} className="flex-1" style={{backgroundColor:s.hex}}/>
-                  )}
+                className={`p-2 rounded border cursor-pointer hover:bg-muted/40 group ${sel?"border-primary bg-muted/40":"border-border"}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">{p.name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{swatches.length} color{swatches.length!==1?"s":""}</div>
+                  </div>
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                    <button type="button" onClick={e=>{e.stopPropagation();setEditingPal(p);setPalFormName(p.name);setPalDialog(true);}} className="p-1 rounded hover:bg-muted"><Pencil className="h-3 w-3"/></button>
+                    <button type="button" onClick={e=>{e.stopPropagation();setDeletePal(p);}} className="p-1 rounded hover:bg-destructive/10 text-destructive"><Trash2 className="h-3 w-3"/></button>
+                  </div>
                 </div>
-                <div className="flex items-start justify-between gap-1">
-                  <div className="min-w-0">
-                    <p className={`font-medium text-sm truncate ${selectedId===p.id?"text-primary":""}`}>{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{sw.length} color{sw.length!==1?"s":""}</p>
-                  </div>
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 shrink-0">
-                    <button type="button" onClick={e=>{e.stopPropagation();setEditingPalette(p);setFormName(p.name);setEditDialog(true);}} className="p-1 rounded hover:bg-muted"><Pencil className="w-3 h-3"/></button>
-                    <button type="button" onClick={e=>{e.stopPropagation();deletePalette(p);}} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="w-3 h-3"/></button>
-                  </div>
+                <div className="h-6 rounded-md overflow-hidden flex mt-2">
+                  {swatches.length===0?<div className="w-full bg-muted rounded-md"/>:swatches.slice(0,10).map((s,i)=>
+                    s.linkedHexes&&s.linkedHexes.length>1
+                      ?<div key={i} className="flex-1 flex overflow-hidden">{s.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+                      :<div key={i} className="flex-1" style={{backgroundColor:s.hex}}/>
+                  )}
                 </div>
               </div>
             );
@@ -1017,130 +1055,308 @@ function PalettesSection({ projectId, setOptions }: { projectId: string; setOpti
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border p-4 flex flex-col overflow-hidden">
-        {!selectedPalette ? (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center"><SwatchBook className="w-8 h-8 mx-auto mb-2 opacity-30"/><p className="text-sm">Select a palette to manage its colors</p></div>
-          </div>
-        ) : (
+      <div className={`bg-card rounded-xl border border-border p-4 h-[calc(100vh-220px)] flex-col ${selectedId?"flex":"hidden lg:flex"}`}>
+        {!selectedPal?(
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">Select a palette to manage its colors</div>
+        ):(
           <>
-            <div className="flex items-center justify-between gap-2 mb-3 flex-shrink-0">
-              <h3 className="font-semibold truncate">{selectedPalette.name}</h3>
-              <Button size="sm" className="gap-1.5 h-8 shrink-0" onClick={()=>setShowAddColor(true)}><Plus className="w-3.5 h-3.5"/>Add Color</Button>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <button type="button" onClick={()=>setSelectedId(null)} className="lg:hidden text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 mr-1">←</button>
+                <h2 className="text-lg font-semibold truncate">{selectedPal.name}</h2>
+                <span className="text-sm text-muted-foreground">({selectedColors.length})</span>
+              </div>
+              <Button size="sm" onClick={()=>setShowAddColor(true)}><Plus className="h-4 w-4 mr-1"/>Add Color</Button>
             </div>
+
             {selectedSwatches.length>0&&(
-              <div className="h-10 rounded-lg overflow-hidden flex border border-border mb-4 flex-shrink-0">
+              <div className="h-12 rounded-lg overflow-hidden flex border border-border mb-4">
                 {selectedSwatches.map((s,i)=>
-                  s.linkedHexes?.length>1
-                    ? <div key={i} className="flex-1 flex overflow-hidden" title={s.name}>{s.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
-                    : <div key={i} className="flex-1" style={{backgroundColor:s.hex}} title={s.name}/>
+                  s.linkedHexes&&s.linkedHexes.length>1
+                    ?<div key={i} className="flex-1 flex overflow-hidden" title={s.name||s.code}>{s.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+                    :<div key={i} className="flex-1" style={{backgroundColor:s.hex}} title={s.name||s.code}/>
                 )}
               </div>
             )}
-            <div className="flex-1 overflow-y-auto">
-              {selectedColors.length===0 ? (
-                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No colors yet</div>
-              ) : (
-                <div className={`grid gap-3 ${cfg.cols}`}>
-                  {selectedColors.map(pc=>{
-                    const r = resolveSwatch(pc);
-                    const techRow = pc.color_type==="technical" ? techMap[pc.color_id] : null;
-                    const isUnlinked = pc.color_type==="technical"&&!commColors.some(c=>
-                      c.main_technical_color_id===pc.color_id||(c.linked_technical_color_ids||[]).includes(pc.color_id)
-                    );
-                    return (
-                      <div key={pc.id} className={`rounded-xl border overflow-hidden group relative ${isUnlinked?"border-amber-300":"border-border"}`}>
-                        {r.linkedHexes?.length>1
-                          ? <div className="aspect-square w-full flex">{r.linkedHexes.map((h:string,j:number)=><div key={j} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
-                          : <div className="aspect-square w-full" style={{backgroundColor:r.hex}}/>}
-                        <div className={`p-2 ${cfg.cardClass}`}>
-                          <p className={`font-mono truncate ${cfg.codeClass}`}>{r.code}</p>
-                          <p className="font-medium truncate">{r.name}</p>
-                          <span className="text-[9px] text-muted-foreground capitalize">{pc.color_type}</span>
-                          {isUnlinked&&techRow&&(
-                            <button type="button" onClick={()=>setLinkingTech(techRow)}
-                              className="w-full mt-1 text-[10px] px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors">
-                              Link commercial
-                            </button>
-                          )}
-                        </div>
-                        <button type="button" onClick={()=>removeColor(pc.id)}
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-0.5 rounded hover:bg-background">
-                          <X className="w-3 h-3"/>
-                        </button>
+
+            <div className="flex-1 overflow-y-auto space-y-6">
+              {selectedColors.length===0?(
+                <div className="h-full flex items-center justify-center text-muted-foreground">No colors in this palette yet</div>
+              ):(()=>{
+                const commEntries=selectedColors.filter(c=>c.color_type==="commercial");
+                const techEntries=selectedColors.filter(c=>c.color_type==="technical");
+                const referencedTechIds=new Set<string>();
+                commEntries.forEach(ce=>{
+                  const cc=commMap[ce.color_id]; if(!cc) return;
+                  if(cc.main_technical_color_id) referencedTechIds.add(cc.main_technical_color_id);
+                  (cc.linked_technical_color_ids??[]).forEach((id:string)=>referencedTechIds.add(id));
+                });
+                const unlinkedTech=techEntries.filter(te=>!referencedTechIds.has(te.color_id));
+                return (
+                  <>
+                    {commEntries.length>0&&(
+                      <div className={`grid gap-3 ${cfg.cols}`}>
+                        {commEntries.map(pc=>renderCard(pc))}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    )}
+                    {unlinkedTech.length>0&&(
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unlinked Technical Colors ({unlinkedTech.length})</div>
+                        <div className={`grid gap-3 ${cfg.cols}`}>
+                          {unlinkedTech.map(pc=>renderCard(pc,{unlinked:true}))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
       </div>
 
-      <Dialog open={editDialog} onOpenChange={o=>{if(!o){setEditDialog(false);setEditingPalette(null);}}}>
+      <Dialog open={palDialog} onOpenChange={o=>{if(!o){setPalDialog(false);setEditingPal(null);}}}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{editingPalette?"Edit Palette":"New Palette"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingPal?"Edit Palette":"New Palette"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label className="text-xs">Name</Label><Input value={formName} onChange={e=>setFormName(e.target.value)} autoFocus/></div>
+            <div><Label className="text-xs">Name *</Label><Input value={palFormName} onChange={e=>setPalFormName(e.target.value)} autoFocus/></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={()=>setEditDialog(false)}>Cancel</Button>
-            <Button disabled={saving||!formName.trim()} onClick={savePalette}>{saving?<><Loader2 className="w-4 h-4 animate-spin mr-1"/>Saving…</>:editingPalette?"Save":"Create"}</Button>
+            <Button variant="outline" onClick={()=>setPalDialog(false)}>Cancel</Button>
+            <Button disabled={palSaving||!palFormName.trim()} onClick={savePalette}>{palSaving?<><Loader2 className="w-4 h-4 animate-spin mr-1"/>Saving…</>:editingPal?"Save":"Create"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAddColor} onOpenChange={setShowAddColor}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Add Color to Palette</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="flex gap-2 border-b border-border pb-2">
-              {(["technical","commercial"] as const).map(t=>(
-                <button key={t} type="button" onClick={()=>{setAddTab(t);setAddSearch("");}}
-                  className={`text-xs px-3 py-1.5 rounded-full transition-colors ${addTab===t?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-muted"}`}>
-                  {t==="technical"?"Technical":"Commercial"}
-                </button>
-              ))}
-            </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
-              <Input value={addSearch} onChange={e=>setAddSearch(e.target.value)} placeholder="Search…" className="pl-8 h-8 text-xs" autoFocus/>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[320px] overflow-y-auto">
-              {filteredAddColors.map((c:any)=>{
-                const hex = addTab==="technical" ? colorToHex(c) : colorToHex(c.main_technical_color_id ? techMap[c.main_technical_color_id] : null);
-                const code = addTab==="technical" ? c.code : c.code;
-                const name = addTab==="technical" ? c.name : c.color_name;
-                return (
-                  <button key={c.id} type="button" onClick={()=>{addColorToPalette(addTab,c.id);}}
-                    className="rounded-lg border overflow-hidden text-left hover:shadow-md transition-all">
-                    <div className="aspect-square w-full" style={{backgroundColor:hex}}/>
-                    <div className="p-1.5">
-                      <p className="font-mono text-[10px] truncate">{code}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{name}</p>
-                    </div>
-                  </button>
-                );
-              })}
-              {filteredAddColors.length===0&&<div className="col-span-4 text-xs text-muted-foreground text-center py-6">No more colors to add</div>}
-            </div>
-          </div>
-          <DialogFooter><Button variant="outline" onClick={()=>setShowAddColor(false)}>Close</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddColorDialogForProject
+        open={showAddColor}
+        onOpenChange={setShowAddColor}
+        tech={tech as any}
+        comm={comm as any}
+        techMap={techMap}
+        existing={selectedColors}
+        onAdd={addColorToPalette}
+        onReload={loadData}
+        paletteId={selectedId}
+        setCommColors={(fn:any)=>setComm(typeof fn==="function"?fn(comm):fn)}
+      />
 
-      {linkingTech&&(
+      {linkingTechColor&&(
         <LinkCommercialColorDialog
-          techColor={linkingTech}
-          commColors={commColors}
-          setCommColors={(fn:any)=>setCommColors(typeof fn==="function"?fn(commColors):fn)}
-          onClose={()=>{setLinkingTech(null);loadData();}}
+          techColor={linkingTechColor}
+          commColors={comm as any}
+          setCommColors={(fn:any)=>setComm(typeof fn==="function"?fn(comm):fn)}
+          onClose={()=>{setLinkingTechColor(null);loadData();}}
           paletteId={selectedId}
           setPaletteColors={(fn:any)=>setPaletteColors(typeof fn==="function"?fn(paletteColors):fn)}
-          tech={techColors}
+          tech={tech as any}
         />
       )}
+
+      <AlertDialog open={!!deletePal} onOpenChange={o=>!o&&setDeletePal(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete palette?</AlertDialogTitle><AlertDialogDescription>"{deletePal?.name}" will be permanently removed.</AlertDialogDescription></AlertDialogHeader>
+          <AlertFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={doDeletePalette}>Delete</AlertDialogAction></AlertFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function AddColorDialogForProject({
+  open, onOpenChange, tech, comm, techMap, existing, onAdd, onReload, paletteId, setCommColors,
+}: {
+  open:boolean; onOpenChange:(b:boolean)=>void;
+  tech:any[]; comm:any[]; techMap:Record<string,any>;
+  existing:any[]; onAdd:(type:"technical"|"commercial",id:string)=>void;
+  onReload:()=>void|Promise<void>; paletteId:string|null;
+  setCommColors:(fn:any)=>void;
+}) {
+  const [tab, setTab] = useState<"technical"|"commercial">("technical");
+  const [q, setQ] = useState("");
+  const [showTechNew, setShowTechNew] = useState(false);
+  const [showCommNew, setShowCommNew] = useState(false);
+  const [newCode, setNewCode] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newSubType, setNewSubType] = useState("Solid");
+  const [newMainTech, setNewMainTech] = useState<any>(null);
+  const [newLinkedIds, setNewLinkedIds] = useState<string[]>([]);
+  const [newCodeError, setNewCodeError] = useState<string|null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const regenCommCode=async()=>{
+    const{data,error}=await supabase.rpc("generate_code",{p_entity_name:"CommercialColor",p_entity_type:""});
+    if(!error&&data) setNewCode(String(data));
+  };
+  useEffect(()=>{ if(showCommNew&&!newCode) regenCommCode(); },[showCommNew]);// eslint-disable-line
+  useEffect(()=>{ if(newSubType==="Combined"&&newMainTech&&!newLinkedIds.includes(newMainTech.id)) setNewLinkedIds([newMainTech.id,...newLinkedIds]); },[newSubType,newMainTech]);// eslint-disable-line
+
+  const resetComm=()=>{ setNewCode("");setNewName("");setNewSubType("Solid");setNewMainTech(null);setNewLinkedIds([]);setNewCodeError(null); };
+
+  const saveNewComm=async()=>{
+    setNewCodeError(null);
+    if(!newCode.trim()||!newName.trim()){toast.error("Code and name required");return;}
+    const dup=comm.find((c:any)=>c.code.toLowerCase()===newCode.trim().toLowerCase());
+    if(dup){setNewCodeError(`Code "${newCode.trim()}" is already used by "${dup.color_name}".`);return;}
+    setSaving(true);
+    const linkedIds=newSubType==="Combined"?newLinkedIds:newMainTech?[newMainTech.id]:[];
+    const{data,error}=await supabase.from("commercial_colors").insert({sub_type:newSubType,code:newCode.trim(),color_name:newName.trim(),main_technical_color_id:newMainTech?.id??null,linked_technical_color_ids:linkedIds}).select().single();
+    setSaving(false);
+    if(error||!data){toast.error("Create failed: "+error?.message);return;}
+    setCommColors((prev:any[])=>[...prev,data]);
+    if(paletteId) onAdd("commercial",(data as any).id);
+    toast.success("Commercial color created");
+    resetComm();setShowCommNew(false);
+  };
+
+  const existingTech=new Set(existing.filter(x=>x.color_type==="technical").map(x=>x.color_id));
+  const existingComm=new Set(existing.filter(x=>x.color_type==="commercial").map(x=>x.color_id));
+  const filteredTech=useMemo(()=>{ const s=q.trim().toLowerCase(); return (s?tech.filter((t:any)=>`${t.code} ${t.name}`.toLowerCase().includes(s)):tech).slice(0,300); },[tech,q]);
+  const filteredComm=useMemo(()=>{ const s=q.trim().toLowerCase(); return (s?comm.filter((c:any)=>`${c.code} ${c.color_name}`.toLowerCase().includes(s)):comm).slice(0,300); },[comm,q]);
+
+  const TechPickerInline=({selected,onPick,placeholder,exclude=[]}:{selected:any;onPick:(t:any)=>void;placeholder:string;exclude?:string[]})=>{
+    const [sq,setSq]=useState("");
+    const filtered=useMemo(()=>(sq?tech.filter((t:any)=>!exclude.includes(t.id)&&`${t.code} ${t.name}`.toLowerCase().includes(sq.toLowerCase())):tech.filter((t:any)=>!exclude.includes(t.id))).slice(0,100),[sq,exclude]);
+    if(selected) return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
+        <div className="w-4 h-4 rounded-sm" style={{backgroundColor:colorToHex(selected)}}/>
+        <span className="text-xs flex-1">{selected.code} – {selected.name}</span>
+        <button type="button" onClick={()=>onPick(null)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+      </div>
+    );
+    return (
+      <div className="relative">
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="p-2 border-b border-border"><Input value={sq} onChange={e=>setSq(e.target.value)} placeholder={placeholder} className="h-8 text-xs" autoFocus={false}/></div>
+          <div className="max-h-36 overflow-y-auto">
+            {filtered.map((t:any)=>(
+              <button key={t.id} type="button" onClick={()=>{onPick(t);setSq("");}} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-left">
+                <div className="w-4 h-4 rounded-sm shrink-0" style={{backgroundColor:colorToHex(t)}}/>
+                <span className="text-xs">{t.code} – {t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Add Color to Palette</DialogTitle></DialogHeader>
+          {showCommNew?(
+            <div className="space-y-3">
+              <div className="text-sm font-medium">New Commercial Color</div>
+              <div><Label>Sub-type</Label>
+                <Select value={newSubType} onValueChange={setNewSubType}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent><SelectItem value="Solid">Solid</SelectItem><SelectItem value="Combined">Combined</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div><Label>Code *</Label>
+                <div className="flex gap-2">
+                  <Input value={newCode} onChange={e=>{setNewCode(e.target.value);setNewCodeError(null);}} className="font-mono"/>
+                  <Button variant="outline" size="icon" onClick={regenCommCode} title="Regenerate"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></Button>
+                </div>
+                {newCodeError&&<p className="text-xs text-destructive mt-1">{newCodeError}</p>}
+              </div>
+              <div><Label>Color Name *</Label><Input value={newName} onChange={e=>setNewName(e.target.value)}/></div>
+              <div><Label>Main Technical Color</Label>
+                <TechPickerInline selected={newMainTech} onPick={(t)=>{setNewMainTech(t);if(t&&newSubType==="Combined"&&!newLinkedIds.includes(t.id))setNewLinkedIds([t.id,...newLinkedIds.filter((x:string)=>x!==t.id)]);}} placeholder="Select technical color"/>
+              </div>
+              {newSubType==="Combined"&&(
+                <div><Label>Linked Technical Colors</Label>
+                  <div className="flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[44px]">
+                    {newLinkedIds.map((id:string)=>{ const t=techMap[id]; if(!t)return null; const isMain=newMainTech?.id===id; return(
+                      <div key={id} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary text-secondary-foreground text-xs">
+                        <div className="w-3 h-3 rounded-sm border" style={{backgroundColor:colorToHex(t)}}/>
+                        <span className="font-mono">{t.code}</span><span className="truncate max-w-[120px]">{t.name}</span>
+                        {isMain&&<span className="text-[10px] px-1 border rounded">main</span>}
+                        <button onClick={()=>setNewLinkedIds(newLinkedIds.filter((x:string)=>x!==id))} disabled={isMain} className="ml-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed" type="button"><X className="h-3 w-3"/></button>
+                      </div>
+                    );})}
+                    {newLinkedIds.length===0&&<span className="text-xs text-muted-foreground py-1">No linked colors</span>}
+                  </div>
+                  <div className="mt-2"><TechPickerInline selected={null} onPick={(t)=>{if(t)setNewLinkedIds([...newLinkedIds,t.id]);}} placeholder="Add linked technical color" exclude={newLinkedIds}/></div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="ghost" onClick={()=>{resetComm();setShowCommNew(false);}}>Back</Button>
+                <Button onClick={saveNewComm} disabled={saving}>{saving?"Creating…":"Create & Add"}</Button>
+              </DialogFooter>
+            </div>
+          ):(
+            <>
+              <div className="flex gap-2 border-b border-border pb-2 mb-3">
+                {(["technical","commercial"] as const).map(t=>(
+                  <button key={t} type="button" onClick={()=>{setTab(t);setQ("");}} className={`text-xs px-3 py-1.5 rounded-md transition-colors ${tab===t?"bg-secondary text-secondary-foreground":"text-muted-foreground hover:bg-muted"}`}>{t==="technical"?"Technical":"Commercial"}</button>
+                ))}
+              </div>
+              <Input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search…" className="h-8 mb-3"/>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto">
+                {tab==="technical"?filteredTech.map((t:any)=>{
+                  const used=existingTech.has(t.id);
+                  return(<button key={t.id} disabled={used} onClick={()=>onAdd("technical",t.id)} className={`rounded border overflow-hidden text-left hover:shadow-md transition ${used?"opacity-40 cursor-not-allowed":""}`}>
+                    <div className="aspect-square w-full" style={{backgroundColor:colorToHex(t)}}/>
+                    <div className="p-1.5"><div className="font-mono text-[10px] truncate">{t.code}</div><div className="text-[10px] text-muted-foreground truncate">{t.name}</div></div>
+                  </button>);
+                }):filteredComm.map((c:any)=>{
+                  const used=existingComm.has(c.id);
+                  const t=c.main_technical_color_id?techMap[c.main_technical_color_id]:null;
+                  return(<button key={c.id} disabled={used} onClick={()=>onAdd("commercial",c.id)} className={`rounded border overflow-hidden text-left hover:shadow-md transition ${used?"opacity-40 cursor-not-allowed":""}`}>
+                    <div className="aspect-square w-full" style={{backgroundColor:colorToHex(t)}}/>
+                    <div className="p-1.5"><div className="font-mono text-[10px] truncate">{c.code}</div><div className="text-[10px] text-muted-foreground truncate">{c.color_name}</div></div>
+                  </button>);
+                })}
+              </div>
+              <DialogFooter className="sm:justify-between mt-3">
+                <Button variant="outline" onClick={()=>{ if(tab==="technical")setShowTechNew(true); else setShowCommNew(true); }}><Plus className="h-4 w-4 mr-1"/>New</Button>
+                <Button variant="outline" onClick={()=>onOpenChange(false)}>Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+      {showTechNew&&(
+        <Dialog open={showTechNew} onOpenChange={setShowTechNew}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>New Technical Color</DialogTitle></DialogHeader>
+            <NewTechColorForm onSaved={async()=>{ setShowTechNew(false); await onReload(); }} onClose={()=>setShowTechNew(false)}/>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+function NewTechColorForm({onSaved,onClose}:{onSaved:(t:any)=>void;onClose:()=>void}) {
+  const [code,setCode]=useState("");const[name,setName]=useState("");const[hex,setHex]=useState("#cccccc");const[saving,setSaving]=useState(false);
+  const save=async()=>{
+    if(!code.trim()||!name.trim()) return;
+    setSaving(true);
+    const{data,error}=await supabase.from("technical_colors").insert({code:code.trim(),name:name.trim(),hex}).select().single();
+    setSaving(false);
+    if(!error&&data){toast.success("Technical color created");onSaved(data);}
+    else toast.error("Create failed: "+error?.message);
+  };
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5"><Label className="text-xs">Code</Label><Input value={code} onChange={e=>setCode(e.target.value)} placeholder="e.g. 19-4150 TCX" required/></div>
+        <div className="space-y-1.5"><Label className="text-xs">Name</Label><Input value={name} onChange={e=>setName(e.target.value)} required/></div>
+      </div>
+      <div className="space-y-1.5"><Label className="text-xs">HEX</Label>
+        <div className="flex gap-2">
+          <input type="color" value={hex} onChange={e=>setHex(e.target.value)} className="w-10 h-10 rounded-lg border border-border cursor-pointer"/>
+          <Input value={hex} onChange={e=>setHex(e.target.value)} className="flex-1"/>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button disabled={saving||!code.trim()||!name.trim()} onClick={save}>{saving?<><Loader2 className="w-4 h-4 animate-spin mr-1"/>Creating…</>:"Create & Add"}</Button>
+      </DialogFooter>
     </div>
   );
 }
