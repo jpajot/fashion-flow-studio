@@ -18,8 +18,10 @@ import ViewDrawerContent from "@/components/ViewDrawerContent";
 import { toast } from "sonner";
 import {
   Loader2, ArrowLeft, FileSearch, MoreVertical, Pencil, Trash2,
-  Plus, Search, X, AlertTriangle, FlaskConical,
+  Plus, Search, X, AlertTriangle, FlaskConical, MessageSquarePlus,
 } from "lucide-react";
+import ResponsesPanel from "@/components/rfq/ResponsesPanel";
+import AddResponseDialog from "@/components/rfq/AddResponseDialog";
 
 // ── Status config ────────────────────────────────────────────────────────────
 const SR_STATUS_COLORS: Record<string, string> = {
@@ -659,12 +661,23 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
   const [activeViewId, setActiveViewId] = useState("default");
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [pinnedCols, setPinnedCols] = useState<string[]>(["product", "status"]);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [panelLine, setPanelLine] = useState<any>(null);
+  const [responseTarget, setResponseTarget] = useState<any>(null);
 
   const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
   const colorMap = useMemo(() => Object.fromEntries(colors.map(c => [c.id, c])), [colors]);
   const pcamMap = useMemo(() => Object.fromEntries(pcams.map(p => [p.id, p])), [pcams]);
   const stepMap = useMemo(() => Object.fromEntries(steps.map(s => [s.id, s])), [steps]);
   const supplierMap = useMemo(() => Object.fromEntries(suppliers.map(s => [s.id, s])), [suppliers]);
+
+  useEffect(() => {
+    if (lines.length === 0) { setResponses([]); return; }
+    supabase.from("rfq_responses").select("*")
+      .in("rfq_line_id", lines.map(l => l.id))
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setResponses(data ?? []));
+  }, [lines]);
 
   const filtered = useMemo(() => lines.filter(l => {
     if (filterStatus !== "all" && l.status !== filterStatus) return false;
@@ -754,6 +767,35 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
         ? <span className="text-xs text-green-600">{new Date(l.awarded_at).toLocaleDateString()}</span>
         : <span className="text-muted-foreground/40">—</span>,
     },
+    {
+      id: "responses", label: "Responses", width: 100,
+      sortKey: (l: any) => responses.filter(r => r.rfq_line_id === l.id).length,
+      render: (l: any) => {
+        const count = responses.filter(r => r.rfq_line_id === l.id).length;
+        const isOpen = panelLine?.id === l.id;
+        return (
+          <button type="button"
+            onClick={e => { e.stopPropagation(); setPanelLine(isOpen ? null : l); }}
+            className={`flex items-center gap-1.5 transition-colors ${isOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+            <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold border ${count > 0 ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-muted text-muted-foreground border-border"}`}>
+              {count}
+            </span>
+            <span className="text-[10px] underline underline-offset-2">View</span>
+          </button>
+        );
+      },
+    },
+    {
+      id: "add_response", label: "", width: 44,
+      render: (l: any) => (
+        <button type="button"
+          onClick={e => { e.stopPropagation(); setResponseTarget(l); }}
+          className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          title="Add response">
+          <MessageSquarePlus className="w-3.5 h-3.5" />
+        </button>
+      ),
+    },
     ...(!locked ? [{
       id: "_delete", label: "", width: 40,
       render: (l: any) => (
@@ -764,7 +806,7 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [productMap, colorMap, pcamMap, stepMap, supplierMap, locked]);
+  ], [productMap, colorMap, pcamMap, stepMap, supplierMap, locked, responses, panelLine]);
 
   useEffect(() => {
     setOptions({
@@ -871,6 +913,35 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
           </AlertFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {panelLine && (
+        <ResponsesPanel
+          line={panelLine}
+          rfq={sr}
+          productMap={productMap}
+          stepMap={stepMap}
+          supplierMap={supplierMap}
+          onClose={() => setPanelLine(null)}
+          onLineChanged={() => {
+            onLinesRefresh();
+            if (lines.length > 0) {
+              supabase.from("rfq_responses").select("*").in("rfq_line_id", lines.map(l => l.id)).then(({ data }) => setResponses(data ?? []));
+            }
+          }}
+        />
+      )}
+
+      {responseTarget && (
+        <AddResponseDialog
+          line={responseTarget}
+          rfq={sr}
+          productMap={productMap}
+          stepMap={stepMap}
+          supplierMap={supplierMap}
+          onSaved={() => { setResponseTarget(null); onLinesRefresh(); }}
+          onClose={() => setResponseTarget(null)}
+        />
+      )}
     </div>
   );
 }
