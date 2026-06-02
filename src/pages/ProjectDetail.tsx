@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight } from "lucide-react";
 import GalleryView from "@/components/GalleryView";
 import DataTable from "@/components/shared/DataTable";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
@@ -1924,6 +1924,255 @@ function DocumentsSection({ projectId }: { projectId:string }) {
 }
 
 
+// ── PROJECT-SCOPED TRACKING BOARD ─────────────────────────────────────────────
+function ProjectTrackingBoard({ projectId }: { projectId: string }) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [srs, setSrs] = useState<any[]>([]);
+  const [lines, setLines] = useState<any[]>([]);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [steps, setSteps] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [currencies, setCurrencies] = useState<any[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const [awarding, setAwarding] = useState(false);
+  const [awardingResponse, setAwardingResponse] = useState<any>(null);
+  const [awardingLine, setAwardingLine] = useState<any>(null);
+  const [showAwardConfirm, setShowAwardConfirm] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [srRes, prodRes, stepRes, supRes, curRes] = await Promise.all([
+      supabase.from("supplier_requests").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
+      supabase.from("products").select("id,code,name,images"),
+      supabase.from("supplier_routing_steps").select("id,supplier_routing_id,sequence,step_type,supplier_id"),
+      supabase.from("suppliers").select("id,name"),
+      supabase.from("currencies").select("id,code,decimal_places").eq("is_active", true),
+    ]);
+    const allSrs = srRes.data ?? [];
+    setSrs(allSrs);
+    setProducts(prodRes.data ?? []);
+    setSteps(stepRes.data ?? []);
+    setSuppliers(supRes.data ?? []);
+    setCurrencies(curRes.data ?? []);
+    if (allSrs.length > 0) {
+      const { data: linesData } = await supabase.from("rfq_lines").select("*").in("supplier_request_id", allSrs.map((s: any) => s.id)).order("created_at");
+      const allLines = linesData ?? [];
+      setLines(allLines);
+      if (allLines.length > 0) {
+        const { data: respData } = await supabase.from("rfq_responses").select("*").in("rfq_line_id", allLines.map((l: any) => l.id));
+        setResponses(respData ?? []);
+      } else setResponses([]);
+    } else { setLines([]); setResponses([]); }
+    setLoading(false);
+  }, [projectId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const productMap  = useMemo(() => Object.fromEntries(products.map((p: any) => [p.id, p])), [products]);
+  const stepMap     = useMemo(() => Object.fromEntries(steps.map((s: any) => [s.id, s])), [steps]);
+  const supplierMap = useMemo(() => Object.fromEntries(suppliers.map((s: any) => [s.id, s])), [suppliers]);
+  const currencyMap = useMemo(() => Object.fromEntries(currencies.map((c: any) => [c.id, c])), [currencies]);
+
+  const kpis = useMemo(() => ({
+    open:        lines.filter((l: any) => ["pending","answered"].includes(l.status)).length,
+    awarded:     lines.filter((l: any) => l.status === "awarded").length,
+    noResponses: lines.filter((l: any) => l.status === "pending" && !responses.some((r: any) => r.rfq_line_id === l.id)).length,
+    avgResp:     lines.length > 0 ? (responses.length / lines.length).toFixed(1) : "0",
+  }), [lines, responses]);
+
+  const getAwardedCost = (line: any) => {
+    if (!line.awarded_response_id) return null;
+    const r = responses.find((x: any) => x.id === line.awarded_response_id);
+    if (!r) return null;
+    const sr = srs.find((s: any) => s.id === line.supplier_request_id);
+    const ccy = currencyMap[sr?.target_currency_id];
+    return `${r.total_cost_target_ccy?.toFixed(ccy?.decimal_places ?? 2) ?? ""} ${ccy?.code || "?"}`;
+  };
+
+  const getBestQuote = (lineId: string) => {
+    const lr = responses.filter((r: any) => r.rfq_line_id === lineId && r.status === "submitted");
+    if (!lr.length) return null;
+    const best = lr.reduce((min: any, r: any) => (!min || r.total_cost_target_ccy < min.total_cost_target_ccy) ? r : min, null as any);
+    const sr = srs.find((s: any) => s.id === lines.find((l: any) => l.id === lineId)?.supplier_request_id);
+    const ccy = currencyMap[sr?.target_currency_id];
+    return `${best.total_cost_target_ccy?.toFixed(ccy?.decimal_places ?? 2) ?? ""} ${ccy?.code || "?"}`;
+  };
+
+  const LINE_STATUS_COLORS: Record<string, string> = {
+    pending:   "bg-gray-100 text-gray-600 border-gray-200",
+    answered:  "bg-blue-100 text-blue-700 border-blue-200",
+    awarded:   "bg-green-100 text-green-700 border-green-200",
+    declined:  "bg-red-100 text-red-700 border-red-200",
+    cancelled: "bg-gray-100 text-gray-400 border-gray-200",
+  };
+  const SR_STATUS_COLORS: Record<string, string> = {
+    draft:         "bg-gray-100 text-gray-600 border-gray-200",
+    submitted:     "bg-blue-100 text-blue-700 border-blue-200",
+    in_collection: "bg-amber-100 text-amber-700 border-amber-200",
+    closed:        "bg-green-100 text-green-700 border-green-200",
+    archived:      "bg-gray-100 text-gray-400 border-gray-200",
+  };
+
+  const handleAwardConfirm = async () => {
+    if (!awardingResponse || !awardingLine) return;
+    setAwarding(true);
+    try {
+      const sr = srs.find((s: any) => s.id === awardingLine.supplier_request_id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/award-rfq-response`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ rfq_line_id: awardingLine.id, response_id: awardingResponse.id, rfq_id: sr?.id }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || "Award failed");
+      toast.success("Awarded" + (json.prior_cost_superseded ? " — prior cost superseded" : ""));
+      setShowAwardConfirm(false); setAwardingResponse(null); setAwardingLine(null);
+      load();
+    } catch (err: any) { toast.error("Award failed: " + err.message); }
+    setAwarding(false);
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-muted/40 border border-border rounded-lg px-4 py-3">
+          <p className="text-xs text-muted-foreground mb-1">Open Lines</p><p className="text-2xl font-bold">{kpis.open}</p>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+          <p className="text-xs text-green-700 mb-1">Awarded</p><p className="text-2xl font-bold text-green-700">{kpis.awarded}</p>
+        </div>
+        <div className={`rounded-lg px-4 py-3 border ${kpis.noResponses > 0 ? "bg-amber-50 border-amber-200" : "bg-muted/40 border-border"}`}>
+          <p className={`text-xs mb-1 ${kpis.noResponses > 0 ? "text-amber-700" : "text-muted-foreground"}`}>No Responses</p>
+          <p className={`text-2xl font-bold ${kpis.noResponses > 0 ? "text-amber-700" : ""}`}>{kpis.noResponses}</p>
+        </div>
+        <div className="bg-muted/40 border border-border rounded-lg px-4 py-3">
+          <p className="text-xs text-muted-foreground mb-1">Avg Resp/Line</p><p className="text-2xl font-bold">{kpis.avgResp}</p>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-1">
+        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setExpandedIds(new Set(lines.map((l: any) => l.id)))}>
+          <ChevronDown className="w-3 h-3" />Expand all
+        </Button>
+        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setExpandedIds(new Set())}>
+          <ChevronRight className="w-3 h-3" />Collapse
+        </Button>
+      </div>
+
+      {lines.length === 0 ? (
+        <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">
+          <FileSearch className="w-7 h-7 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No RFQ lines yet — create a Supplier Request and add lines.</p>
+        </div>
+      ) : (
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-separate border-spacing-0">
+              <thead>
+                <tr>
+                  <th className="sticky top-0 w-7 bg-muted/40 border-b border-border/60 px-1" />
+                  {([["sr","SR",80],["product","Product",180],["step","Step",150],["supplier","Supplier",150],["resp","Resp.",60],["best","Best Quote",110],["awarded","Awarded",110],["lstatus","Line Status",110],["srstatus","SR Status",100]] as [string,string,number][]).map(([id,label,w]) => (
+                    <th key={id} style={{width:w,minWidth:w}} className="sticky top-0 bg-muted/40 px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border/60">{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line: any) => {
+                  const lineResps = responses.filter((r: any) => r.rfq_line_id === line.id);
+                  const isExpanded = expandedIds.has(line.id);
+                  const sr = srs.find((s: any) => s.id === line.supplier_request_id);
+                  const prod = productMap[line.product_id];
+                  const step = stepMap[line.routing_step_id];
+                  const sup = supplierMap[line.recipient_supplier_id];
+                  const targetCcy = currencyMap[sr?.target_currency_id];
+                  const submittedResps = lineResps.filter((r: any) => r.status === "submitted");
+                  return [
+                    <tr key={line.id} className="hover:bg-muted/20 transition-colors border-b border-border/40">
+                      <td className="px-1 py-2 text-center">
+                        {lineResps.length > 0
+                          ? <button type="button" onClick={() => setExpandedIds(prev => { const n = new Set(prev); n.has(line.id) ? n.delete(line.id) : n.add(line.id); return n; })} className="p-0.5 rounded text-muted-foreground hover:text-foreground">{isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}</button>
+                          : <span className="text-muted-foreground/30"><ChevronRight className="w-3.5 h-3.5" /></span>}
+                      </td>
+                      <td className="px-3 py-2">{sr ? <button type="button" onClick={() => navigate(`/supplier-requests/${sr.id}`)} className="text-xs font-mono text-primary hover:underline">{sr.code}</button> : <span className="text-muted-foreground/40">—</span>}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {prod?.images?.[0] && <img src={prod.images[0]} className="w-5 h-5 object-contain rounded shrink-0" alt="" />}
+                          <div><p className="text-xs font-medium">{prod?.name || "—"}</p>{prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">{step ? <span className="text-xs text-muted-foreground">Step {step.sequence}: {(step.step_type || "").replace(/_/g, " ")}</span> : <span className="text-muted-foreground/40">—</span>}</td>
+                      <td className="px-3 py-2">{sup ? <span className="text-xs">{sup.name}</span> : <span className="text-muted-foreground/40">—</span>}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold border ${lineResps.length > 0 ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-muted text-muted-foreground border-border"}`}>
+                          {lineResps.length}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2"><span className="text-xs font-mono">{getBestQuote(line.id) || "—"}</span></td>
+                      <td className="px-3 py-2"><span className="text-xs font-mono text-green-700">{getAwardedCost(line) || "—"}</span></td>
+                      <td className="px-3 py-2"><span className={`text-[11px] px-1.5 py-0.5 rounded border font-medium capitalize ${LINE_STATUS_COLORS[line.status] ?? "bg-muted text-muted-foreground border-border"}`}>{(line.status || "pending").replace(/_/g, " ")}</span></td>
+                      <td className="px-3 py-2">{sr && <span className={`text-[11px] px-1.5 py-0.5 rounded border font-medium capitalize ${SR_STATUS_COLORS[sr.status] ?? "bg-muted text-muted-foreground border-border"}`}>{(sr.status || "").replace(/_/g, " ")}</span>}</td>
+                    </tr>,
+                    ...(isExpanded ? lineResps.map((resp: any) => {
+                      const respCcy = currencyMap[resp.supplier_currency_id];
+                      const canAward = !resp.is_awarded && ["submitted", "under_review"].includes(resp.status);
+                      return (
+                        <tr key={resp.id} className="bg-muted/10 border-b border-border/30">
+                          <td className="px-1 py-1.5 border-l-2 border-l-slate-300" />
+                          <td className="px-3 py-1.5" />
+                          <td className="px-3 py-1.5 pl-6"><span className="text-[10px] text-muted-foreground flex items-center gap-1"><ChevronRight className="w-3 h-3 shrink-0" />Response</span></td>
+                          <td className="px-3 py-1.5" /><td className="px-3 py-1.5"><span className="text-xs text-muted-foreground">{supplierMap[line.recipient_supplier_id]?.name || "—"}</span></td>
+                          <td className="px-3 py-1.5" />
+                          <td className="px-3 py-1.5">
+                            <span className="text-xs font-mono">
+                              {resp.total_cost_supplier_ccy != null ? `${resp.total_cost_supplier_ccy?.toFixed(respCcy?.decimal_places ?? 2)} ${respCcy?.code || "?"}` : "—"}
+                              {resp.total_cost_target_ccy != null && resp.supplier_currency_id !== sr?.target_currency_id && targetCcy ? ` = ${resp.total_cost_target_ccy?.toFixed(targetCcy.decimal_places ?? 2)} ${targetCcy.code}` : ""}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5">{resp.is_awarded && targetCcy && <span className="text-xs font-mono text-green-700">{resp.total_cost_target_ccy?.toFixed(targetCcy.decimal_places ?? 2)} {targetCcy.code}</span>}</td>
+                          <td className="px-3 py-1.5"><span className="text-[10px] text-muted-foreground capitalize">{(resp.status || "").replace(/_/g, " ")}{resp.is_awarded ? " ★" : ""}</span></td>
+                          <td className="px-3 py-1.5">
+                            {canAward && submittedResps.length === 1 && (
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                onClick={e => { e.stopPropagation(); setAwardingResponse(resp); setAwardingLine(line); setShowAwardConfirm(true); }}>
+                                <Trophy className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    }) : []),
+                  ];
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={showAwardConfirm} onOpenChange={o => { if (!o) { setShowAwardConfirm(false); setAwardingResponse(null); setAwardingLine(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Award this response?</AlertDialogTitle>
+            <AlertDialogDescription>All other responses for this line will be rejected. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertFooter>
+            <AlertDialogCancel disabled={awarding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAwardConfirm} disabled={awarding} className="gap-2">
+              {awarding && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Confirm Award
+            </AlertDialogAction>
+          </AlertFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 // ── SUPPLIER REQUESTS TAB ─────────────────────────────────────────────────
 function SupplierRequestsSection({ projectId, setOptions }: { projectId: string; setOptions: any }) {
   const navigate = useNavigate();
@@ -2028,9 +2277,7 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
       </div>
 
       {srTab === "tracking" && (
-        <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
-          <p className="text-sm text-muted-foreground">Open <a href="/rfqs" className="text-primary underline">RFQ &amp; Costing</a> to see the full tracking board.</p>
-        </div>
+        <ProjectTrackingBoard projectId={projectId} />
       )}
 
       {srTab === "list" && <>
