@@ -1171,6 +1171,10 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
   const [colorways, setColorways] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [linkMap, setLinkMap] = useState<Record<string,any>>({});
+  // View management
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [pinnedCols, setPinnedCols] = useState<string[]>(["style","colorway"]);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -1226,9 +1230,7 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
         }
       }
     }
-    if (toCreate.length) {
-      await supabase.from("product_color_and_more_project_dc_cot_links").insert(toCreate);
-    }
+    if (toCreate.length) await supabase.from("product_color_and_more_project_dc_cot_links").insert(toCreate);
     setGenerating(false);
     loadItems();
     toast.success(toCreate.length > 0 ? `Generated ${toCreate.length} new rows` : "All rows already exist");
@@ -1261,7 +1263,7 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
       await Promise.all(updates.map(u=>supabase.from("product_color_and_more_project_dc_cot_links").update({forecasted_quantity:u.qty,forecast_status:"Done"}).eq("id",u.id)));
       await loadItems();
       toast.success(`Imported ${updates.length} rows`);
-    } catch(e) { toast.error("Import failed"); }
+    } catch { toast.error("Import failed"); }
     setImporting(false);
   };
 
@@ -1283,6 +1285,75 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
 
   const FORECAST_STATUS_COLORS: Record<string,string> = { "Not Started":"bg-muted text-muted-foreground","In Progress":"bg-blue-100 text-blue-800","Done":"bg-green-100 text-green-800","Revised":"bg-amber-100 text-amber-800" };
 
+  // DataTable columns
+  const tableColumns = useMemo(() => [
+    { id:"_select", label:"",  width:44,
+      render:(item:any)=>(
+        <input type="checkbox" className="w-4 h-4 cursor-pointer"
+          checked={selected.has(item.id)}
+          onChange={e=>{const n=new Set(selected);e.target.checked?n.add(item.id):n.delete(item.id);setSelected(n);}}
+          onClick={e=>e.stopPropagation()}/>
+      )
+    },
+    { id:"style", label:"Style", width:180,
+      sortKey:(item:any)=>getProd(getVar(item.project_link_id))?.name||"",
+      render:(item:any)=>{ const v=getVar(item.project_link_id); const prod=getProd(v); return (
+        <div className="flex items-center gap-2">
+          {prod?.images?.[0]&&<img src={prod.images[0]} className="w-7 h-7 object-contain rounded border border-border shrink-0" alt=""/>}
+          <div><p className="text-xs font-medium">{prod?.name||"—"}</p>{prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+        </div>
+      );}
+    },
+    { id:"colorway", label:"Colorway", width:160,
+      sortKey:(item:any)=>getCW(getVar(item.project_link_id))?.color_name||"",
+      render:(item:any)=>{ const cw=getCW(getVar(item.project_link_id)); return (
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded shrink-0 border border-border" style={{backgroundColor:cw?.color_hex||"#e5e7eb"}}/>
+          <span className="text-xs">{cw?.color_name||"—"}</span>
+        </div>
+      );}
+    },
+    { id:"sequence", label:"Seq.", width:70,
+      sortKey:(item:any)=>getVar(item.project_link_id)?.sequence||"",
+      render:(item:any)=><span className="font-mono text-xs text-muted-foreground">{getVar(item.project_link_id)?.sequence||"—"}</span>
+    },
+    { id:"pack_code", label:"Pack Code", width:110,
+      sortKey:(item:any)=>getVar(item.project_link_id)?.pack_code||"",
+      render:(item:any)=><span className="text-xs text-muted-foreground">{getVar(item.project_link_id)?.pack_code||"—"}</span>
+    },
+    { id:"variant", label:"Variant", width:100,
+      sortKey:(item:any)=>getVar(item.project_link_id)?.variant||"",
+      render:(item:any)=><span className="text-xs text-muted-foreground">{getVar(item.project_link_id)?.variant||"—"}</span>
+    },
+    { id:"distribution_channel", label:"Distribution Channel", width:170,
+      sortKey:(item:any)=>item.distribution_channel||"",
+      render:(item:any)=><span className="text-xs font-medium">{item.distribution_channel||"—"}</span>
+    },
+    { id:"channel_of_trade", label:"Channel of Trade", width:150,
+      sortKey:(item:any)=>item.channel_of_trade||"",
+      render:(item:any)=><span className="text-xs font-medium">{item.channel_of_trade||"—"}</span>
+    },
+    { id:"forecasted_quantity", label:"Forecast Qty", width:110,
+      sortKey:(item:any)=>item.forecasted_quantity??-1,
+      render:(item:any)=><NumberCell value={item.forecasted_quantity} onSave={val=>{updateForecast(item.id,val); if(item.forecast_status==="Done") updateStatus(item.id,"Revised");}}/>
+    },
+    { id:"forecast_status", label:"Status", width:150,
+      sortKey:(item:any)=>item.forecast_status||"",
+      render:(item:any)=>(
+        <Select value={item.forecast_status||"Not Started"} onValueChange={v=>updateStatus(item.id,v)}>
+          <SelectTrigger className="h-7 text-xs border-0 bg-transparent p-0 hover:bg-muted rounded" onClick={e=>e.stopPropagation()}>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${FORECAST_STATUS_COLORS[item.forecast_status||"Not Started"]}`}>{item.forecast_status||"Not Started"}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {["Not Started","In Progress","Done","Revised"].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [selected, linkMap, allVariations, colorways, products]);
+
+  // Options menu
   useEffect(() => {
     setOptions({
       items: [
@@ -1291,11 +1362,21 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
         { label: "Import XLSX", icon: Upload, onClick: () => document.getElementById("dc-import-input")?.click() },
         { divider: true },
         { label: showStats?"Hide Stats":"Show Stats", icon: BarChart2, onClick: ()=>setShowStats(v=>!v) },
+        { label: "Manage Views", icon: Pencil, onClick: ()=>setShowViewMenu(v=>!v) },
       ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="project_dc_per_cot"
+          activeViewId={activeViewId}
+          onSelectView={id=>{ setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={tableColumns.map(c=>({ id:c.id, label:c.label }))}
+          currentViewType={null}
+        />
+      ) : null,
     });
     return () => setOptions(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generating, showStats, selected.size, filtered.length]);
+  }, [generating, showStats, showViewMenu, activeViewId, tableColumns, selected.size, setOptions]);
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>;
 
@@ -1303,22 +1384,35 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
     <div className="space-y-4">
       <input id="dc-import-input" type="file" accept=".xlsx,.xls" className="hidden" onChange={e=>{const f=e.target.files?.[0]; if(f) handleImport(f); e.target.value="";}}/>
 
+      {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" className="pl-8 h-8 text-xs"/>
         </div>
         <Select value={filterDC} onValueChange={setFilterDC}>
-          <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All DC"/></SelectTrigger>
+          <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="All DC"/></SelectTrigger>
           <SelectContent><SelectItem value="all">All DC</SelectItem>{allDCs.map(dc=><SelectItem key={dc} value={dc}>{dc}</SelectItem>)}</SelectContent>
         </Select>
         <Select value={filterCoT} onValueChange={setFilterCoT}>
-          <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All CoT"/></SelectTrigger>
+          <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="All CoT"/></SelectTrigger>
           <SelectContent><SelectItem value="all">All CoT</SelectItem>{allCoTs.map(cot=><SelectItem key={cot} value={cot}>{cot}</SelectItem>)}</SelectContent>
         </Select>
+        {filtered.length > 0 && (
+          <div className="ml-auto flex items-center gap-2">
+            <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+              <input type="checkbox" className="w-3.5 h-3.5"
+                checked={filtered.length>0&&selected.size===filtered.length}
+                onChange={e=>{ if(e.target.checked) setSelected(new Set(filtered.map(i=>i.id))); else setSelected(new Set()); }}/>
+              Select all
+            </label>
+            {selected.size > 0 && <span className="text-xs text-muted-foreground">{selected.size} selected</span>}
+          </div>
+        )}
         {importing&&<span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3.5 h-3.5 animate-spin"/>Importing…</span>}
       </div>
 
+      {/* Stats */}
       {showStats&&(
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <div className="bg-card rounded-lg border border-border p-4">
@@ -1340,72 +1434,20 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
         </div>
       )}
 
+      {/* Table */}
       {filtered.length===0 ? (
         <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
           <BarChart2 className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
           <p className="text-sm text-muted-foreground">{items.length===0?"No DC per CoT rows yet. Set Distribution Channels and Channels of Trade on your linked variations, then click \"Generate DC per CoT\" in the Options menu.":"No results match your filters."}</p>
         </div>
       ) : (
-        <div className="border border-border rounded-xl overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 border-b border-border">
-              <tr>
-                <th className="w-10 px-3 py-2.5">
-                  <input type="checkbox" className="w-4 h-4 cursor-pointer"
-                    checked={filtered.length>0&&selected.size===filtered.length}
-                    onChange={e=>{if(e.target.checked)setSelected(new Set(filtered.map(i=>i.id)));else setSelected(new Set());}}/>
-                </th>
-                {["Style","Colorway","Seq.","Pack Code","Variant","Distribution Channel","Channel of Trade","Forecast Qty","Status"].map(h=>(
-                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map(item=>{
-                const v=getVar(item.project_link_id); const cw=getCW(v); const prod=getProd(v);
-                return (
-                  <tr key={item.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-3 py-2.5"><input type="checkbox" className="w-4 h-4 cursor-pointer" checked={selected.has(item.id)} onChange={e=>{const n=new Set(selected);e.target.checked?n.add(item.id):n.delete(item.id);setSelected(n);}}/></td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
-                        {prod?.images?.[0]&&<img src={prod.images[0]} className="w-7 h-7 object-contain rounded border border-border shrink-0" alt=""/>}
-                        <div><p className="text-xs font-medium">{prod?.name||"—"}</p>{prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-4 rounded shrink-0 border border-border" style={{backgroundColor:cw?.color_hex||"#e5e7eb"}}/>
-                        <span className="text-xs">{cw?.color_name||"—"}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{v?.sequence||"—"}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{v?.pack_code||"—"}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{v?.variant||"—"}</td>
-                    <td className="px-4 py-2.5 text-xs font-medium">{item.distribution_channel||"—"}</td>
-                    <td className="px-4 py-2.5 text-xs font-medium">{item.channel_of_trade||"—"}</td>
-                    <td className="px-2 py-1 w-24">
-                      <NumberCell value={item.forecasted_quantity}
-                        onSave={val=>{
-                          updateForecast(item.id,val);
-                          if(item.forecast_status==="Done") updateStatus(item.id,"Revised");
-                        }}/>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <Select value={item.forecast_status||"Not Started"} onValueChange={v=>updateStatus(item.id,v)}>
-                        <SelectTrigger className="h-7 text-xs border-0 bg-transparent p-0 hover:bg-muted rounded">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${FORECAST_STATUS_COLORS[item.forecast_status||"Not Started"]}`}>{item.forecast_status||"Not Started"}</span>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["Not Started","In Progress","Done","Revised"].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          fixedColumns={pinnedCols}
+          onPinColumn={id=>setPinnedCols(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id])}
+          {...({ activeViewId } as any)}
+        />
       )}
     </div>
   );
