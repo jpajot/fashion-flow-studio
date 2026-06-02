@@ -800,6 +800,11 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
+        {!locked && (
+          <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setShowBuilder(true)}>
+            <Plus className="w-3.5 h-3.5" />Add Lines
+          </Button>
+        )}
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search lines…" className="pl-8 h-8 text-xs" />
