@@ -97,16 +97,23 @@ const CW_STATUS: Record<string, string> = {
 };
 
 // ── STYLES TAB ───────────────────────────────────────────────────────────────
-function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:string; linkedStyles:any[]; onRefresh:()=>void }) {
+function StylesSection({ projectId, linkedStyles, onRefresh, setOptions }: { projectId:string; linkedStyles:any[]; onRefresh:()=>void; setOptions:any }) {
   const navigate = useNavigate();
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"grid"|"list">(() => (localStorage.getItem("proj_styles_view") as any) ?? "list");
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
 
   useEffect(() => {
-    supabase.from("products").select("id,code,name,type,sub_type,category").order("name").then(({data})=>setAllProducts(data??[]));
+    supabase.from("products").select("id,code,name,type,sub_type,category,images,creation_project_id,project_ids").order("name").then(({data})=>setAllProducts(data??[]));
+    supabase.from("projects").select("id,name").order("name").then(({data})=>setProjects(data??[]));
   }, []);
+
+  useEffect(() => { localStorage.setItem("proj_styles_view", view); }, [view]);
 
   const filtered = search.trim() ? linkedStyles.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase())) : linkedStyles;
 
@@ -114,12 +121,10 @@ function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:strin
     setLinking(true);
     const rows = ids.map(product_id => ({ product_id, project_id: projectId }));
     await supabase.from("product_project_links").upsert(rows, { onConflict: "product_id,project_id", ignoreDuplicates: true });
-    for (const productId of ids) {
-      const { data } = await supabase.from("products").select("project_ids").eq("id", productId).single();
+    for (const pid of ids) {
+      const { data } = await supabase.from("products").select("project_ids").eq("id", pid).single();
       const cur: string[] = data?.project_ids ?? [];
-      if (!cur.includes(projectId)) {
-        await supabase.from("products").update({ project_ids: [...cur, projectId] }).eq("id", productId);
-      }
+      if (!cur.includes(projectId)) await supabase.from("products").update({ project_ids: [...cur, projectId] }).eq("id", pid);
     }
     setLinking(false); setShowLink(false); onRefresh();
     toast.success(`${ids.length} style${ids.length > 1 ? "s" : ""} linked`);
@@ -133,14 +138,64 @@ function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:strin
     onRefresh(); toast.success("Style unlinked");
   };
 
+  const galleryFields = useMemo(() => [
+    { id: "code",    label: "Code",     getValue: (p:any) => p.code,     render: (p:any) => <span className="font-mono text-xs text-muted-foreground">{p.code||"—"}</span> },
+    { id: "name",    label: "Name",     getValue: (p:any) => p.name,     render: (p:any) => <span className="font-medium text-xs">{p.name}</span> },
+    { id: "type",    label: "Type",     getValue: (p:any) => p.type,     render: (p:any) => <span className="text-xs text-muted-foreground">{p.type||"—"}</span> },
+    { id: "sub_type",label: "Sub-type", getValue: (p:any) => p.sub_type, render: (p:any) => <span className="text-xs text-muted-foreground">{p.sub_type||"—"}</span> },
+    { id: "category",label: "Category", getValue: (p:any) => p.category, render: (p:any) => <span className="text-xs text-muted-foreground">{p.category||"—"}</span> },
+    { id: "creation_project", label: "Creation Project",
+      getValue: (p:any) => projects.find((pr:any) => pr.id === p.creation_project_id)?.name || "",
+      render: (p:any) => { const pr = projects.find((x:any) => x.id === p.creation_project_id); return <span className="text-xs text-muted-foreground">{pr?.name||"—"}</span>; } },
+    { id: "linked_projects", label: "Linked Projects",
+      getValue: (p:any) => ((p.project_ids||[]) as string[]).map((id:string) => projects.find((pr:any) => pr.id === id)?.name).filter(Boolean).join(", "),
+      render: (p:any) => { const names = ((p.project_ids||[]) as string[]).map((id:string) => projects.find((pr:any) => pr.id === id)?.name).filter(Boolean); return <span className="text-xs text-muted-foreground">{names.length ? names.join(", ") : "—"}</span>; } },
+  ], [projects]);
+
+  const tableColumns = useMemo(() => [
+    { id:"code",    label:"Code",     width:110, sortKey:(p:any)=>p.code||"",     render:(p:any)=><span className="font-mono text-xs text-muted-foreground">{p.code||"—"}</span> },
+    { id:"name",    label:"Name",     width:200, sortKey:(p:any)=>p.name||"",     render:(p:any)=><span className="font-medium text-sm">{p.name}</span> },
+    { id:"type",    label:"Type",     width:140, sortKey:(p:any)=>p.type||"",     render:(p:any)=><span className="text-xs text-muted-foreground">{p.type||"—"}</span> },
+    { id:"sub_type",label:"Sub-type", width:130, sortKey:(p:any)=>p.sub_type||"", render:(p:any)=><span className="text-xs text-muted-foreground">{p.sub_type||"—"}</span> },
+    { id:"category",label:"Category", width:130, sortKey:(p:any)=>p.category||"", render:(p:any)=><span className="text-xs text-muted-foreground">{p.category||"—"}</span> },
+    { id:"creation_project", label:"Creation Project", width:160,
+      sortKey:(p:any)=>projects.find((pr:any)=>pr.id===p.creation_project_id)?.name||"",
+      render:(p:any)=>{ const pr=projects.find((x:any)=>x.id===p.creation_project_id); return <span className="text-xs text-muted-foreground">{pr?.name||"—"}</span>; } },
+    { id:"linked_projects", label:"Linked Projects", width:200,
+      render:(p:any)=>{ const names=((p.project_ids||[]) as string[]).map((id:string)=>projects.find((pr:any)=>pr.id===id)?.name).filter(Boolean); return <span className="text-xs text-muted-foreground">{names.length?names.join(", "):"—"}</span>; } },
+    { id:"unlink", label:"", width:44,
+      render:(p:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(p.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
+  ], [projects]);
+
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: "Link Style", icon: Plus, onClick: () => setShowLink(true), className: "text-primary hover:bg-primary/10" },
+        { divider: true },
+        { label: view === "grid" ? "View: List" : "View: Grid", icon: view === "grid" ? ListIcon : LayoutGrid,
+          onClick: () => setView(v => v === "grid" ? "list" : "grid") },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
+      ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="project_styles"
+          activeViewId={activeViewId}
+          onSelectView={id => { setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={view === "grid" ? galleryFields : tableColumns}
+          currentViewType={view === "grid" ? "grid" : null}
+        />
+      ) : null,
+    });
+    return () => setOptions(null);
+  }, [view, showViewMenu, activeViewId, galleryFields, tableColumns, setOptions]);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 flex-wrap justify-between">
-        <div className="relative max-w-xs flex-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search styles…" className="pl-8 h-8 text-xs" />
         </div>
-        <Button size="sm" className="gap-1.5 h-8" onClick={()=>setShowLink(true)}><Plus className="w-3.5 h-3.5"/>Link Style</Button>
       </div>
 
       {filtered.length === 0 ? (
@@ -148,31 +203,34 @@ function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:strin
           <Package className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
           <p className="text-sm text-muted-foreground">{linkedStyles.length === 0 ? "No styles linked yet" : "No matches"}</p>
         </div>
+      ) : view === "grid" ? (
+        <GalleryView
+          pageKey="project_styles"
+          allFields={galleryFields}
+          rows={filtered}
+          renderThumbnail={(p) => (
+            <div className="w-full h-full bg-muted flex items-center justify-center overflow-hidden group">
+              {p.images?.[0]
+                ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"/>
+                : <Package className="w-8 h-8 text-muted-foreground/30"/>}
+              <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(p.id);}}
+                className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-1 rounded-full text-muted-foreground hover:text-destructive">
+                <X className="w-3 h-3"/>
+              </button>
+            </div>
+          )}
+          onClickItem={(p) => navigate(`/products/${p.id}`)}
+          activeViewId={activeViewId}
+          onSelectView={setActiveViewId}
+        />
       ) : (
-        <div className="border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 border-b border-border">
-              <tr>{["Code","Name","Type","Sub-type","Category",""].map((h,i)=><th key={i} className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">{h}</th>)}</tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map(p=>(
-                <tr key={p.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={()=>navigate(`/products/${p.id}`)}>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.code??"—"}</td>
-                  <td className="px-4 py-3 font-medium">{p.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{p.type??"—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{p.sub_type??"—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{p.category??"—"}</td>
-                  <td className="px-2 py-3">
-                    <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(p.id);}}
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Unlink">
-                      <X className="w-3.5 h-3.5"/>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          onRowClick={(p) => navigate(`/products/${p.id}`)}
+          fixedColumns={["code","name"]}
+          {...({ activeViewId } as any)}
+        />
       )}
 
       <LinkModal open={showLink} onClose={()=>setShowLink(false)} title="Link Styles"
@@ -191,7 +249,7 @@ function StylesSection({ projectId, linkedStyles, onRefresh }: { projectId:strin
 }
 
 // ── COLORWAYS TAB ────────────────────────────────────────────────────────────
-function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId:string; linkedColorways:any[]; onRefresh:()=>void }) {
+function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }: { projectId:string; linkedColorways:any[]; onRefresh:()=>void; setOptions:any }) {
   const navigate = useNavigate();
   const [allColorways, setAllColorways] = useState<any[]>([]);
   const [techColors, setTechColors] = useState<any[]>([]);
@@ -200,10 +258,12 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"grid"|"list">(() => (localStorage.getItem("proj_colorways_view") as any) ?? "grid");
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
 
   useEffect(() => {
-    supabase.from("product_colors").select("id,color_name,colorway_code,color_hex,colorway_status,product_id,linked_color_id,linked_color_type,linked_tech_color_id,image_url,project_ids,products(name,code)").order("color_name")
-      .then(({data})=>setAllColorways(data??[]));
+    supabase.from("product_colors").select("id,color_name,colorway_code,color_hex,colorway_status,product_id,linked_color_id,linked_color_type,linked_tech_color_id,image_url,project_ids,products(name,code)").order("color_name").then(({data})=>setAllColorways(data??[]));
     supabase.from("technical_colors").select("id,hex,code,name").then(({data})=>setTechColors(data??[]));
     supabase.from("commercial_colors").select("id,sub_type,linked_technical_color_ids,code,color_name").then(({data})=>setCommColors(data??[]));
   }, []);
@@ -212,56 +272,132 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
     if (!linkedColorways.length) return;
     const pIds = [...new Set(linkedColorways.map(c=>c.product_id).filter(Boolean))] as string[];
     if (!pIds.length) return;
-    supabase.from("products").select("id,images").in("id", pIds)
-      .then(({data})=>{
-        if (data) setProductMap(new Map(data.map(p=>[p.id, p])));
-      });
+    supabase.from("products").select("id,images").in("id",pIds).then(({data})=>{ if(data) setProductMap(new Map(data.map(p=>[p.id,p]))); });
   }, [linkedColorways]);
+
+  useEffect(() => { localStorage.setItem("proj_colorways_view", view); }, [view]);
 
   const getLinkedHexes = (c: any) => {
     const cc = commColors.find(x => x.id === c.linked_color_id);
     if (!cc || cc.sub_type !== "Combined") return null;
-    const hexes = (cc.linked_technical_color_ids || []).map((id: string) => techColors.find(t => t.id === id)?.hex).filter(Boolean) as string[];
+    const hexes = (cc.linked_technical_color_ids||[]).map((id:string) => techColors.find(t=>t.id===id)?.hex).filter(Boolean) as string[];
     return hexes.length > 1 ? hexes : null;
   };
 
-  const filtered = search.trim()
-    ? linkedColorways.filter(c => `${c.color_name} ${c.colorway_code}`.toLowerCase().includes(search.toLowerCase()))
-    : linkedColorways;
+  const filtered = search.trim() ? linkedColorways.filter(c=>`${c.color_name} ${c.colorway_code}`.toLowerCase().includes(search.toLowerCase())) : linkedColorways;
 
   const handleLink = async (ids: string[]) => {
     setLinking(true);
-    const rows = ids.map(product_color_id => ({ product_color_id, project_id: projectId }));
-    await supabase.from("product_color_project_links").upsert(rows, { onConflict: "product_color_id,project_id", ignoreDuplicates: true });
+    const rows = ids.map(product_color_id=>({product_color_id,project_id:projectId}));
+    await supabase.from("product_color_project_links").upsert(rows,{onConflict:"product_color_id,project_id",ignoreDuplicates:true});
     for (const cwId of ids) {
-      const { data: cw } = await supabase.from("product_colors").select("project_ids,product_id").eq("id", cwId).single();
-      if (cw) {
-        const cur: string[] = cw.project_ids ?? [];
-        if (!cur.includes(projectId)) await supabase.from("product_colors").update({ project_ids: [...cur, projectId] }).eq("id", cwId);
-        const { data: prod } = await supabase.from("products").select("project_ids").eq("id", cw.product_id).single();
-        const curP: string[] = prod?.project_ids ?? [];
-        if (!curP.includes(projectId)) await supabase.from("products").update({ project_ids: [...curP, projectId] }).eq("id", cw.product_id);
+      const {data:cw} = await supabase.from("product_colors").select("project_ids,product_id").eq("id",cwId).single();
+      if(cw){
+        const cur:string[]=cw.project_ids??[];
+        if(!cur.includes(projectId)) await supabase.from("product_colors").update({project_ids:[...cur,projectId]}).eq("id",cwId);
+        const {data:prod}=await supabase.from("products").select("project_ids").eq("id",cw.product_id).single();
+        const curP:string[]=prod?.project_ids??[];
+        if(!curP.includes(projectId)) await supabase.from("products").update({project_ids:[...curP,projectId]}).eq("id",cw.product_id);
       }
     }
     setLinking(false); setShowLink(false); onRefresh();
-    toast.success(`${ids.length} colorway${ids.length > 1 ? "s" : ""} linked`);
+    toast.success(`${ids.length} colorway${ids.length>1?"s":""} linked`);
   };
 
   const handleUnlink = async (colorId: string) => {
-    await supabase.from("product_color_project_links").delete().eq("product_color_id", colorId).eq("project_id", projectId);
-    const { data: cw } = await supabase.from("product_colors").select("project_ids").eq("id", colorId).single();
-    if (cw) await supabase.from("product_colors").update({ project_ids: (cw.project_ids ?? []).filter((id: string) => id !== projectId) }).eq("id", colorId);
+    await supabase.from("product_color_project_links").delete().eq("product_color_id",colorId).eq("project_id",projectId);
+    const {data:cw}=await supabase.from("product_colors").select("project_ids").eq("id",colorId).single();
+    if(cw) await supabase.from("product_colors").update({project_ids:(cw.project_ids??[]).filter((id:string)=>id!==projectId)}).eq("id",colorId);
     onRefresh(); toast.success("Colorway unlinked");
   };
 
+  const renderThumb = (c: any) => {
+    const product = productMap.get(c.product_id);
+    const productImage = product?.images?.[0];
+    const useProductFallback = !c.image_url && !!productImage;
+    const displayImage = c.image_url || productImage || null;
+    const linkedHexes = getLinkedHexes(c);
+    return (
+      <div className="relative w-full h-full group">
+        {displayImage ? <img src={displayImage} alt={c.color_name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"/>
+          : linkedHexes ? <div className="w-full h-full flex">{linkedHexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+          : <div className="w-full h-full" style={{backgroundColor:c.color_hex||"#e5e7eb"}}/>}
+        {useProductFallback && (linkedHexes
+          ? <div className="absolute bottom-2 left-2 h-5 rounded-md shadow-md border border-white/70 overflow-hidden flex" style={{width:linkedHexes.length*10}}>{linkedHexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+          : c.color_hex ? <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md border-2 border-white shadow-md" style={{backgroundColor:c.color_hex}}/> : null)}
+        <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(c.id);}}
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-1 rounded-full text-muted-foreground hover:text-destructive">
+          <X className="w-3 h-3"/>
+        </button>
+      </div>
+    );
+  };
+
+  const ListSwatch = ({ c }: { c: any }) => {
+    const linkedHexes = getLinkedHexes(c);
+    const product = productMap.get(c.product_id);
+    const displayImage = c.image_url || product?.images?.[0] || null;
+    return (
+      <div className="w-8 h-8 rounded border border-border overflow-hidden bg-muted flex-shrink-0">
+        {displayImage ? <img src={displayImage} alt={c.color_name} className="w-full h-full object-contain"/>
+          : linkedHexes ? <div className="w-full h-full flex">{linkedHexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>)}</div>
+          : <div className="w-full h-full" style={{backgroundColor:c.color_hex||"#e5e7eb"}}/>}
+      </div>
+    );
+  };
+
+  const galleryFields = useMemo(() => [
+    { id:"color_name", label:"Color Name",  getValue:(c:any)=>c.color_name, render:(c:any)=><span className="font-medium text-xs">{c.color_name||"—"}</span> },
+    { id:"colorway_code", label:"Code",     getValue:(c:any)=>c.colorway_code, render:(c:any)=><span className="font-mono text-[10px] text-muted-foreground">{c.colorway_code||"—"}</span> },
+    { id:"colorway_status", label:"Status", getValue:(c:any)=>c.colorway_status,
+      render:(c:any)=>c.colorway_status ? <span className={`text-[10px] px-1 py-0.5 rounded ${CW_STATUS[c.colorway_status]||"bg-gray-100 text-gray-600"}`}>{c.colorway_status.replace(/_/g," ")}</span> : <span className="text-muted-foreground/40">—</span> },
+    { id:"product_name", label:"Style",
+      getValue:(c:any)=>(c as any).products?.name||"",
+      render:(c:any)=><span className="text-[10px] text-muted-foreground">{(c as any).products?.name||"—"}</span> },
+  ], []);
+
+  const tableColumns = useMemo(() => [
+    { id:"swatch", label:"Color", width:48, render:(c:any)=><ListSwatch c={c}/> },
+    { id:"color_name", label:"Color Name", width:180, sortKey:(c:any)=>c.color_name||"", render:(c:any)=><span className="font-medium text-sm">{c.color_name||"—"}</span> },
+    { id:"colorway_code", label:"Code", width:120, sortKey:(c:any)=>c.colorway_code||"", render:(c:any)=><span className="font-mono text-xs text-muted-foreground">{c.colorway_code||"—"}</span> },
+    { id:"colorway_status", label:"Status", width:150, sortKey:(c:any)=>c.colorway_status||"",
+      render:(c:any)=>c.colorway_status ? <span className={`text-[10px] px-1.5 py-0.5 rounded border ${CW_STATUS[c.colorway_status]||"bg-gray-100 text-gray-600"}`}>{c.colorway_status.replace(/_/g," ")}</span> : <span className="text-muted-foreground/40">—</span> },
+    { id:"product_name", label:"Style", width:180, sortKey:(c:any)=>(c as any).products?.name||"",
+      render:(c:any)=><span className="text-xs text-muted-foreground">{(c as any).products?.name||"—"}</span> },
+    { id:"unlink", label:"", width:44,
+      render:(c:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(c.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [commColors, techColors, productMap]);
+
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: "Link Colorway", icon: Plus, onClick: ()=>setShowLink(true), className: "text-primary hover:bg-primary/10" },
+        { divider: true },
+        { label: view === "grid" ? "View: List" : "View: Grid", icon: view === "grid" ? ListIcon : LayoutGrid,
+          onClick: () => setView(v => v === "grid" ? "list" : "grid") },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v=>!v) },
+      ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="project_colorways"
+          activeViewId={activeViewId}
+          onSelectView={id=>{ setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={view === "grid" ? galleryFields : tableColumns}
+          currentViewType={view === "grid" ? "grid" : null}
+        />
+      ) : null,
+    });
+    return () => setOptions(null);
+  }, [view, showViewMenu, activeViewId, galleryFields, tableColumns, setOptions]);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 justify-between flex-wrap">
-        <div className="relative max-w-xs flex-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search colorways…" className="pl-8 h-8 text-xs"/>
         </div>
-        <Button size="sm" className="gap-1.5 h-8" onClick={()=>setShowLink(true)}><Plus className="w-3.5 h-3.5"/>Link Colorway</Button>
       </div>
 
       {filtered.length === 0 ? (
@@ -269,52 +405,24 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
           <Palette className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
           <p className="text-sm text-muted-foreground">{linkedColorways.length===0?"No colorways linked yet":"No matches"}</p>
         </div>
+      ) : view === "grid" ? (
+        <GalleryView
+          pageKey="project_colorways"
+          allFields={galleryFields}
+          rows={filtered}
+          renderThumbnail={renderThumb}
+          onClickItem={(c)=>c.product_id&&navigate(`/products/${c.product_id}`)}
+          activeViewId={activeViewId}
+          onSelectView={setActiveViewId}
+        />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {filtered.map((c:any) => {
-            const product = productMap.get(c.product_id);
-            const productImage = product?.images?.[0];
-            const useProductFallback = !c.image_url && !!productImage;
-            const displayImage = c.image_url || productImage || null;
-            const linkedHexes = getLinkedHexes(c);
-            return (
-              <div key={c.id} className="group relative bg-card rounded-xl border border-border overflow-hidden hover:shadow-md transition-all cursor-pointer"
-                onClick={()=>c.product_id && navigate(`/products/${c.product_id}`)}>
-                <div className="relative aspect-square bg-muted overflow-hidden">
-                  {displayImage ? (
-                    <img src={displayImage} alt={c.color_name} className="w-full h-full object-contain"/>
-                  ) : linkedHexes ? (
-                    <div className="w-full h-full flex">
-                      {linkedHexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>)}
-                    </div>
-                  ) : (
-                    <div className="w-full h-full" style={{backgroundColor:c.color_hex||"#e5e7eb"}}/>
-                  )}
-                  {useProductFallback && (
-                    linkedHexes ? (
-                      <div className="absolute bottom-2 left-2 h-5 rounded-md shadow-md border border-white/70 overflow-hidden flex" style={{width: linkedHexes.length * 10}}>
-                        {linkedHexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>)}
-                      </div>
-                    ) : c.color_hex ? (
-                      <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md border-2 border-white shadow-md" style={{backgroundColor:c.color_hex}}/>
-                    ) : null
-                  )}
-                  <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(c.id);}}
-                    className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-1 rounded-full text-muted-foreground hover:text-destructive">
-                    <X className="w-3 h-3"/>
-                  </button>
-                </div>
-                <div className="p-2.5 space-y-0.5">
-                  <p className="text-xs font-medium truncate">{c.color_name || "—"}</p>
-                  {c.colorway_code && <p className="text-[10px] font-mono text-muted-foreground truncate">{c.colorway_code}</p>}
-                  {c.colorway_status && (
-                    <span className={`text-[10px] px-1 py-0.5 rounded ${CW_STATUS[c.colorway_status]||"bg-gray-100 text-gray-600"}`}>{c.colorway_status.replace(/_/g," ")}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          onRowClick={(c)=>c.product_id&&navigate(`/products/${c.product_id}`)}
+          fixedColumns={["swatch","color_name"]}
+          {...({ activeViewId } as any)}
+        />
       )}
 
       <LinkModal open={showLink} onClose={()=>setShowLink(false)} title="Link Colorways"
@@ -325,8 +433,8 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
             <div className="w-5 h-5 rounded shrink-0 border border-border" style={{backgroundColor:item.color_hex||"#e5e7eb"}}/>
             <div className="flex-1 min-w-0">
               <span className="font-medium">{item.color_name||"—"}</span>
-              {item.colorway_code && <span className="ml-1 font-mono text-muted-foreground">{item.colorway_code}</span>}
-              {(item as any).products?.name && <span className="ml-1 text-muted-foreground">· {(item as any).products.name}</span>}
+              {item.colorway_code&&<span className="ml-1 font-mono text-muted-foreground">{item.colorway_code}</span>}
+              {(item as any).products?.name&&<span className="ml-1 text-muted-foreground">· {(item as any).products.name}</span>}
             </div>
           </>
         )}
@@ -336,25 +444,31 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh }: { projectId
 }
 
 // ── VARIATIONS TAB ───────────────────────────────────────────────────────────
-function VariationsSection({ projectId, linkedVariations, onRefresh }: { projectId:string; linkedVariations:any[]; onRefresh:()=>void }) {
+function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions }: { projectId:string; linkedVariations:any[]; onRefresh:()=>void; setOptions:any }) {
+  const navigate = useNavigate();
   const [allVariations, setAllVariations] = useState<any[]>([]);
   const [sizes, setSizes] = useState<any[]>([]);
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"grid"|"list">(() => (localStorage.getItem("proj_variations_view") as any) ?? "list");
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
 
   useEffect(() => {
-    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,product_color_id,size_ids,product_colors(color_name,colorway_code,products(name))")
-      .order("created_at", {ascending:false})
-      .then(({data})=>setAllVariations(data??[]));
+    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,image_url,product_color_id,size_ids,product_colors(color_name,colorway_code,color_hex,products(name,images))").order("created_at",{ascending:false}).then(({data})=>setAllVariations(data??[]));
     supabase.from("sizes").select("id,name,size_code").then(({data})=>setSizes(data??[]));
   }, []);
 
-  const filtered = search.trim() ? linkedVariations.filter(v=>`${v.name||""} ${v.sequence||""} ${v.pack_code||""}`.toLowerCase().includes(search.toLowerCase())) : linkedVariations;
+  useEffect(() => { localStorage.setItem("proj_variations_view", view); }, [view]);
+
+  const getSizes = (v: any) => ((v.size_ids||[]) as string[]).map((sid:string)=>sizes.find(s=>s.id===sid)).filter(Boolean);
+
+  const filtered = search.trim() ? linkedVariations.filter(v=>`${v.name||""} ${v.sequence||""} ${v.pack_code||""} ${v.variant||""}`.toLowerCase().includes(search.toLowerCase())) : linkedVariations;
 
   const handleLink = async (ids: string[]) => {
     setLinking(true);
-    const rows = ids.map(product_color_and_more_id=>({product_color_and_more_id, project_id:projectId}));
+    const rows = ids.map(product_color_and_more_id=>({product_color_and_more_id,project_id:projectId}));
     await supabase.from("product_color_and_more_project_links").upsert(rows,{onConflict:"product_color_and_more_id,project_id",ignoreDuplicates:true});
     setLinking(false); setShowLink(false); onRefresh();
     toast.success(`${ids.length} variation${ids.length>1?"s":""} linked`);
@@ -365,70 +479,123 @@ function VariationsSection({ projectId, linkedVariations, onRefresh }: { project
     onRefresh(); toast.success("Variation unlinked");
   };
 
+  const renderThumb = (v: any) => {
+    const cwColor = (v as any).product_colors?.color_hex;
+    const productImg = (v as any).product_colors?.products?.images?.[0];
+    const displayImage = v.image_url || productImg;
+    const useColorFallback = !displayImage && (v.color_hex || cwColor);
+    return (
+      <div className="relative w-full h-full group bg-muted overflow-hidden">
+        {displayImage ? <img src={displayImage} alt={v.name||v.sequence} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"/>
+          : useColorFallback ? <div className="w-full h-full" style={{backgroundColor:v.color_hex||cwColor||"#e5e7eb"}}/>
+          : <Layers className="w-8 h-8 text-muted-foreground/30 m-auto"/>}
+        {displayImage && (v.color_hex||cwColor) && <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md border-2 border-white shadow-md" style={{backgroundColor:v.color_hex||cwColor}}/>}
+        <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(v.id);}}
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-1 rounded-full text-muted-foreground hover:text-destructive">
+          <X className="w-3 h-3"/>
+        </button>
+      </div>
+    );
+  };
+
+  const galleryFields = useMemo(() => [
+    { id:"sequence",  label:"Seq.",     getValue:(v:any)=>v.sequence,  render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.sequence||"—"}</span> },
+    { id:"name",      label:"Name",     getValue:(v:any)=>v.name,      render:(v:any)=><span className="font-medium text-xs">{v.name||"—"}</span> },
+    { id:"pack_code", label:"Pack Code",getValue:(v:any)=>v.pack_code, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.pack_code||"—"}</span> },
+    { id:"variant",   label:"Variant",  getValue:(v:any)=>v.variant,   render:(v:any)=><span className="text-[10px] text-muted-foreground">{v.variant||"—"}</span> },
+    { id:"colorway",  label:"Colorway", getValue:(v:any)=>(v as any).product_colors?.color_name||"",
+      render:(v:any)=><div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full border border-border shrink-0" style={{backgroundColor:(v as any).product_colors?.color_hex||"#e5e7eb"}}/><span className="text-[10px] text-muted-foreground truncate">{(v as any).product_colors?.color_name||"—"}</span></div> },
+    { id:"sizes",     label:"Sizes",    getValue:(v:any)=>getSizes(v).map((s:any)=>s.name||s.size_code).join(","),
+      render:(v:any)=>{ const sz=getSizes(v); return sz.length ? <div className="flex flex-wrap gap-0.5">{sz.slice(0,5).map((s:any)=><span key={s.id} className="text-[9px] px-1 bg-secondary text-secondary-foreground rounded">{s.name||s.size_code}</span>)}{sz.length>5&&<span className="text-[9px] text-muted-foreground">+{sz.length-5}</span>}</div> : <span className="text-muted-foreground/40">—</span>; } },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sizes]);
+
+  const tableColumns = useMemo(() => [
+    { id:"swatch", label:"", width:36,
+      render:(v:any)=>{ const hex=v.color_hex||(v as any).product_colors?.color_hex; return <div className="w-5 h-5 rounded border border-border shrink-0" style={{backgroundColor:hex||"#e5e7eb"}}/>; } },
+    { id:"sequence",  label:"Seq.",     width:80,  sortKey:(v:any)=>v.sequence||"",  render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.sequence||"—"}</span> },
+    { id:"name",      label:"Name",     width:180, sortKey:(v:any)=>v.name||"",      render:(v:any)=><span className="font-medium text-sm">{v.name||"—"}</span> },
+    { id:"pack_code", label:"Pack Code",width:110, sortKey:(v:any)=>v.pack_code||"", render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.pack_code||"—"}</span> },
+    { id:"variant",   label:"Variant",  width:110, sortKey:(v:any)=>v.variant||"",   render:(v:any)=><span className="text-xs text-muted-foreground">{v.variant||"—"}</span> },
+    { id:"colorway",  label:"Colorway", width:160, sortKey:(v:any)=>(v as any).product_colors?.color_name||"",
+      render:(v:any)=><div className="flex items-center gap-1.5"><div className="w-3.5 h-3.5 rounded-full border border-border shrink-0" style={{backgroundColor:(v as any).product_colors?.color_hex||"#e5e7eb"}}/><span className="text-xs text-muted-foreground">{(v as any).product_colors?.color_name||"—"}</span></div> },
+    { id:"sizes",     label:"Sizes",    width:200,
+      render:(v:any)=>{ const sz=getSizes(v); return sz.length ? <div className="flex flex-wrap gap-0.5">{sz.slice(0,6).map((s:any)=><span key={s.id} className="text-[10px] px-1 bg-secondary text-secondary-foreground rounded">{s.name||s.size_code}</span>)}{sz.length>6&&<span className="text-[10px] text-muted-foreground">+{sz.length-6}</span>}</div> : <span className="text-muted-foreground/40">—</span>; } },
+    { id:"unlink", label:"", width:44,
+      render:(v:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(v.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [sizes]);
+
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: "Link Variation", icon: Plus, onClick: ()=>setShowLink(true), className: "text-primary hover:bg-primary/10" },
+        { divider: true },
+        { label: view === "grid" ? "View: List" : "View: Grid", icon: view === "grid" ? ListIcon : LayoutGrid,
+          onClick: () => setView(v => v === "grid" ? "list" : "grid") },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v=>!v) },
+      ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="project_variations"
+          activeViewId={activeViewId}
+          onSelectView={id=>{ setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={view === "grid" ? galleryFields : tableColumns}
+          currentViewType={view === "grid" ? "grid" : null}
+        />
+      ) : null,
+    });
+    return () => setOptions(null);
+  }, [view, showViewMenu, activeViewId, galleryFields, tableColumns, setOptions]);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 justify-between flex-wrap">
-        <div className="relative max-w-xs flex-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search variations…" className="pl-8 h-8 text-xs"/>
         </div>
-        <Button size="sm" className="gap-1.5 h-8" onClick={()=>setShowLink(true)}><Plus className="w-3.5 h-3.5"/>Link Variation</Button>
       </div>
-      {filtered.length===0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
           <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
           <p className="text-sm text-muted-foreground">{linkedVariations.length===0?"No variations linked yet":"No matches"}</p>
         </div>
+      ) : view === "grid" ? (
+        <GalleryView
+          pageKey="project_variations"
+          allFields={galleryFields}
+          rows={filtered}
+          renderThumbnail={renderThumb}
+          onClickItem={undefined}
+          activeViewId={activeViewId}
+          onSelectView={setActiveViewId}
+        />
       ) : (
-        <div className="border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 border-b border-border">
-              <tr>{["Seq.","Name","Pack Code","Variant","Colorway",""].map((h,i)=><th key={i} className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">{h}</th>)}</tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map((v:any)=>(
-                <tr key={v.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{v.sequence??"—"}</td>
-                  <td className="px-4 py-3 font-medium">{v.name||"—"}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{v.pack_code??"—"}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{v.variant??"—"}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {v.color_hex && <div className="w-3.5 h-3.5 rounded-full border border-border shrink-0" style={{backgroundColor:v.color_hex}}/>}
-                      <span className="text-xs text-muted-foreground">{v.product_colors?.color_name??v.product_color_id?.slice(0,8)??"—"}</span>
-                    </div>
-                  </td>
-                  <td className="px-2 py-3">
-                    <button type="button" onClick={()=>handleUnlink(v.id)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Unlink">
-                      <X className="w-3.5 h-3.5"/>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          fixedColumns={["swatch","sequence","name"]}
+          {...({ activeViewId } as any)}
+        />
       )}
       <LinkModal open={showLink} onClose={()=>setShowLink(false)} title="Link Variations"
         items={allVariations} alreadyLinkedIds={linkedVariations.map(v=>v.id)}
         onConfirm={handleLink} confirming={linking}
         renderItem={item=>(
           <>
-            {item.color_hex && <div className="w-4 h-4 rounded shrink-0 border border-border" style={{backgroundColor:item.color_hex}}/>}
+            {item.color_hex&&<div className="w-4 h-4 rounded shrink-0 border border-border" style={{backgroundColor:item.color_hex}}/>}
             <div className="flex-1 min-w-0 space-y-0.5">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-medium">{item.name||item.sequence||"—"}</span>
-                {item.pack_code && <span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded">{item.pack_code}</span>}
-                {item.variant && <span className="text-[10px] text-muted-foreground">{item.variant}</span>}
+                {item.pack_code&&<span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded">{item.pack_code}</span>}
+                {item.variant&&<span className="text-[10px] text-muted-foreground">{item.variant}</span>}
               </div>
-              {item.product_colors?.color_name && <span className="text-[10px] text-muted-foreground">↳ {item.product_colors.color_name}{item.product_colors?.products?.name ? ` · ${item.product_colors.products.name}` : ""}</span>}
-              {(item.size_ids?.length > 0) && (
+              {item.product_colors?.color_name&&<span className="text-[10px] text-muted-foreground">↳ {item.product_colors.color_name}{item.product_colors?.products?.name?` · ${item.product_colors.products.name}`:""}</span>}
+              {(item.size_ids?.length>0)&&(
                 <div className="flex flex-wrap gap-0.5 mt-0.5">
-                  {(item.size_ids as string[]).slice(0, 8).map((sid: string) => {
-                    const sz = sizes.find(s => s.id === sid);
-                    return sz ? <span key={sid} className="text-[10px] px-1 py-0 bg-secondary text-secondary-foreground rounded">{sz.name || sz.size_code}</span> : null;
-                  })}
-                  {item.size_ids.length > 8 && <span className="text-[10px] text-muted-foreground">+{item.size_ids.length - 8}</span>}
+                  {(item.size_ids as string[]).slice(0,8).map((sid:string)=>{ const sz=sizes.find(s=>s.id===sid); return sz?<span key={sid} className="text-[10px] px-1 py-0 bg-secondary text-secondary-foreground rounded">{sz.name||sz.size_code}</span>:null; })}
+                  {item.size_ids.length>8&&<span className="text-[10px] text-muted-foreground">+{item.size_ids.length-8}</span>}
                 </div>
               )}
             </div>
@@ -439,7 +606,6 @@ function VariationsSection({ projectId, linkedVariations, onRefresh }: { project
   );
 }
 
-// ── BOM STATUS TAB ───────────────────────────────────────────────────────────
 function BOMStatusSection({ linkedStyles }: { linkedStyles:any[] }) {
   const navigate = useNavigate();
   const [boms, setBoms] = useState<any[]>([]);
