@@ -20,6 +20,7 @@ import { colorToHex } from "@/pages/ColorLibrary";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { format, isAfter, isBefore, parseISO } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TYPES = ["Seasonal Collection","Artist Collaboration","Capsule","Limited Edition","Core Range","Other"];
