@@ -83,6 +83,8 @@ const App = () => (
                   <Route path="/ecos" element={<Navigate to="/change-management/ecos" replace />} />
 
                   <Route path="/rfqs" element={<Rfqs />} />
+                  <Route path="/rfq-rounds" element={<RFQRounds />} />
+                  <Route path="/supplier-requests/:id" element={<SupplierRequestDetail />} />
                   <Route path="/samples" element={<Samples />} />
 
                   <Route path="/config" element={<SettingsHub />} />
