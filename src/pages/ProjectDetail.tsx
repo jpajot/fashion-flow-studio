@@ -1937,6 +1937,9 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterRound, setFilterRound] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [pinnedCols, setPinnedCols] = useState<string[]>(["code", "name"]);
 
   const load = useCallback(async () => {
     setLoading(true);
