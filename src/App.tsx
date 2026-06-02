@@ -30,6 +30,8 @@ import SystemCodeGeneratorLibrary from "@/pages/SystemCodeGeneratorLibrary";
 import SizeGridLibrary from "@/pages/SizeGridLibrary";
 import Currencies from "@/pages/Currencies";
 import AppConfiguration from "@/pages/AppConfiguration";
+import RFQRounds from "@/pages/RFQRounds";
+import SupplierRequestDetail from "@/pages/SupplierRequestDetail";
 
 import NotFound from "./pages/NotFound.tsx";
 
@@ -81,6 +83,8 @@ const App = () => (
                   <Route path="/ecos" element={<Navigate to="/change-management/ecos" replace />} />
 
                   <Route path="/rfqs" element={<Rfqs />} />
+                  <Route path="/rfq-rounds" element={<RFQRounds />} />
+                  <Route path="/supplier-requests/:id" element={<SupplierRequestDetail />} />
                   <Route path="/samples" element={<Samples />} />
 
                   <Route path="/config" element={<SettingsHub />} />
