@@ -1400,6 +1400,13 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
           <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="All CoT"/></SelectTrigger>
           <SelectContent><SelectItem value="all">All CoT</SelectItem>{allCoTs.map(cot=><SelectItem key={cot} value={cot}>{cot}</SelectItem>)}</SelectContent>
         </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All statuses"/></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {["Not Started","In Progress","Done","Revised"].map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {filtered.length > 0 && (
           <div className="ml-auto flex items-center gap-2">
             <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
@@ -1413,6 +1420,15 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
         )}
         {importing&&<span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3.5 h-3.5 animate-spin"/>Importing…</span>}
       </div>
+
+      {(filterDC!=="all"||filterCoT!=="all"||filterStatus!=="all") && (
+        <div className="flex flex-wrap gap-1.5">
+          {filterDC!=="all"&&<span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">DC: {filterDC}<button type="button" onClick={()=>setFilterDC("all")} className="hover:opacity-70"><X className="w-3 h-3"/></button></span>}
+          {filterCoT!=="all"&&<span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">CoT: {filterCoT}<button type="button" onClick={()=>setFilterCoT("all")} className="hover:opacity-70"><X className="w-3 h-3"/></button></span>}
+          {filterStatus!=="all"&&<span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Status: {filterStatus}<button type="button" onClick={()=>setFilterStatus("all")} className="hover:opacity-70"><X className="w-3 h-3"/></button></span>}
+          <button type="button" onClick={()=>{setFilterDC("all");setFilterCoT("all");setFilterStatus("all");}} className="text-xs text-muted-foreground underline hover:text-foreground">Clear all</button>
+        </div>
+      )}
 
       {/* Stats */}
       {showStats&&(
