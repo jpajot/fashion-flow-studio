@@ -1153,6 +1153,28 @@ export default function SupplierRequestDetail() {
         <EditHeaderDialog sr={sr} onSaved={updated => { setSr(updated); setShowEditHeader(false); }} onClose={() => setShowEditHeader(false)} />
       )}
 
+      {showExport && sr && (
+        <ExportTodoDialog
+          sr={sr}
+          lines={lines}
+          productMap={Object.fromEntries(refData.products.map(p => [p.id, p]))}
+          colorMap={Object.fromEntries(refData.colors.map(c => [c.id, c]))}
+          pcamMap={Object.fromEntries(refData.pcams.map(p => [p.id, p]))}
+          stepMap={Object.fromEntries(refData.steps.map(s => [s.id, s]))}
+          supplierMap={Object.fromEntries(refData.suppliers.map(s => [s.id, s]))}
+          onClose={() => setShowExport(false)}
+        />
+      )}
+      {showImport && sr && (
+        <ImportResponsesDialog
+          sr={sr}
+          rfqLines={lines}
+          currencies={currencies}
+          onClose={() => setShowImport(false)}
+          onImportSuccess={load}
+        />
+      )}
+
       {/* Submit confirm */}
       <AlertDialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
         <AlertDialogContent>
