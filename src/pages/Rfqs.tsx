@@ -170,7 +170,14 @@ export default function Rfqs() {
           </p>
         </div>
       ) : (
-        <DataTable columns={tableColumns} rows={filtered} onRowClick={r => navigate(`/supplier-requests/${r.id}`)} fixedColumns={["code", "name"]} />
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          onRowClick={r => navigate(`/supplier-requests/${r.id}`)}
+          fixedColumns={pinnedCols}
+          onPinColumn={id => setPinnedCols(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+          {...({ activeViewId } as any)}
+        />
       )}
     </div>
   );
