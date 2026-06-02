@@ -2028,9 +2028,7 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
       </div>
 
       {srTab === "tracking" && (
-        <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
-          <p className="text-sm text-muted-foreground">Open <a href="/rfqs" className="text-primary underline">RFQ &amp; Costing</a> to see the full tracking board.</p>
-        </div>
+        <ProjectTrackingBoard projectId={projectId} />
       )}
 
       {srTab === "list" && <>
