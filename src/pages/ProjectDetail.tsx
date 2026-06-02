@@ -2060,7 +2060,14 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
           {requests.length === 0 && <p className="text-xs text-muted-foreground mt-1">Create a Supplier Request to start collecting costs from suppliers.</p>}
         </div>
       ) : (
-        <DataTable columns={tableColumns} rows={filtered} onRowClick={r => navigate(`/supplier-requests/${r.id}`)} fixedColumns={["code", "name"]} />
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          onRowClick={r => navigate(`/supplier-requests/${r.id}`)}
+          fixedColumns={pinnedCols}
+          onPinColumn={id => setPinnedCols(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+          {...({ activeViewId } as any)}
+        />
       )}
 
       {showCreate && (
