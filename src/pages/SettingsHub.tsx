@@ -8,6 +8,7 @@ import {
   Ruler,
   CircleDollarSign,
   Settings as SettingsIcon,
+  RefreshCw,
 } from "lucide-react";
 
 const SECTIONS = [
