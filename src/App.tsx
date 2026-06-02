@@ -30,6 +30,8 @@ import SystemCodeGeneratorLibrary from "@/pages/SystemCodeGeneratorLibrary";
 import SizeGridLibrary from "@/pages/SizeGridLibrary";
 import Currencies from "@/pages/Currencies";
 import AppConfiguration from "@/pages/AppConfiguration";
+import RFQRounds from "@/pages/RFQRounds";
+import SupplierRequestDetail from "@/pages/SupplierRequestDetail";
 
 import NotFound from "./pages/NotFound.tsx";
 
