@@ -1937,6 +1937,9 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterRound, setFilterRound] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [pinnedCols, setPinnedCols] = useState<string[]>(["code", "name"]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1953,15 +1956,6 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
   }, [projectId]);
 
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    setOptions({
-      items: [
-        { label: "New Supplier Request", icon: Plus, onClick: () => setShowCreate(true), className: "text-primary hover:bg-primary/10" },
-      ],
-    });
-    return () => setOptions(null);
-  }, [setOptions]);
 
   const roundMap = useMemo(() => Object.fromEntries(rounds.map(r => [r.id, r])), [rounds]);
   const currencyMap = useMemo(() => Object.fromEntries(currencies.map(c => [c.id, c])), [currencies]);
@@ -1996,6 +1990,26 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
     { id: "created_by", label: "Created By", width: 160, sortKey: (r: any) => r.created_by || "", render: (r: any) => <span className="text-xs text-muted-foreground truncate">{r.created_by || "—"}</span> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [roundMap, currencyMap]);
+
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: "New Supplier Request", icon: Plus, onClick: () => setShowCreate(true), className: "text-primary hover:bg-primary/10" },
+        { divider: true },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
+      ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="project_supplier_requests"
+          activeViewId={activeViewId}
+          onSelectView={id => { setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={tableColumns.map(c => ({ id: c.id, label: c.label }))}
+          currentViewType={null}
+        />
+      ) : null,
+    });
+    return () => setOptions(null);
+  }, [setOptions, showViewMenu, activeViewId, tableColumns]);
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
@@ -2046,7 +2060,14 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
           {requests.length === 0 && <p className="text-xs text-muted-foreground mt-1">Create a Supplier Request to start collecting costs from suppliers.</p>}
         </div>
       ) : (
-        <DataTable columns={tableColumns} rows={filtered} onRowClick={r => navigate(`/supplier-requests/${r.id}`)} fixedColumns={["code", "name"]} />
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          onRowClick={r => navigate(`/supplier-requests/${r.id}`)}
+          fixedColumns={pinnedCols}
+          onPinColumn={id => setPinnedCols(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+          {...({ activeViewId } as any)}
+        />
       )}
 
       {showCreate && (

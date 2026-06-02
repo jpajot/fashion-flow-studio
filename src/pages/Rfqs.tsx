@@ -5,8 +5,9 @@ import { PAGE_WRAPPER } from "@/lib/utils";
 import { usePageOptions } from "@/contexts/PageOptionsContext";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, X, FileSearch } from "lucide-react";
+import { Loader2, Search, X, FileSearch, Pencil } from "lucide-react";
 import DataTable from "@/components/shared/DataTable";
+import ViewDrawerContent from "@/components/ViewDrawerContent";
 
 const STATUS_COLORS: Record<string, string> = {
   draft:         "bg-gray-100 text-gray-600 border-gray-200",
@@ -31,6 +32,9 @@ export default function Rfqs() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterRound, setFilterRound] = useState("all");
   const [filterProject, setFilterProject] = useState("all");
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [pinnedCols, setPinnedCols] = useState<string[]>(["code", "name"]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,7 +53,7 @@ export default function Rfqs() {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => { setOptions(null); return () => setOptions(null); }, [setOptions]);
+  
 
   const roundMap = useMemo(() => Object.fromEntries(rounds.map(r => [r.id, r])), [rounds]);
   const currencyMap = useMemo(() => Object.fromEntries(currencies.map(c => [c.id, c])), [currencies]);
@@ -78,6 +82,24 @@ export default function Rfqs() {
     { id: "created_by", label: "Created By", width: 160, sortKey: (r: any) => r.created_by || "", render: (r: any) => <span className="text-xs text-muted-foreground truncate">{r.created_by || "—"}</span> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [roundMap, currencyMap, projectMap]);
+
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
+      ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="supplier_requests_list"
+          activeViewId={activeViewId}
+          onSelectView={id => { setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={tableColumns.map(c => ({ id: c.id, label: c.label }))}
+          currentViewType={null}
+        />
+      ) : null,
+    });
+    return () => setOptions(null);
+  }, [showViewMenu, activeViewId, tableColumns, setOptions]);
 
   return (
     <div className={PAGE_WRAPPER}>
@@ -148,7 +170,14 @@ export default function Rfqs() {
           </p>
         </div>
       ) : (
-        <DataTable columns={tableColumns} rows={filtered} onRowClick={r => navigate(`/supplier-requests/${r.id}`)} fixedColumns={["code", "name"]} />
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          onRowClick={r => navigate(`/supplier-requests/${r.id}`)}
+          fixedColumns={pinnedCols}
+          onPinColumn={id => setPinnedCols(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+          {...({ activeViewId } as any)}
+        />
       )}
     </div>
   );
