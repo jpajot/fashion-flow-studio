@@ -59,14 +59,12 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
 
         if (!lineId) { status = ROW_STATUS.INVALID; reason = "Line ID required (col A)."; }
         else if (!lineMap[lineId]) { status = ROW_STATUS.INVALID; reason = "Line not in this SR."; }
-
         if (status === ROW_STATUS.READY && !supplierCcy && totalCost == null) status = ROW_STATUS.SKIP;
-
         if (status === ROW_STATUS.READY && (supplierCcy || totalCost != null)) {
           if (!supplierCcy || totalCost == null) { status = ROW_STATUS.INVALID; reason = "Both currency & cost required."; }
         }
         if (status === ROW_STATUS.READY && supplierCcy) {
-          const curr = currencies.find(c => c.code.toUpperCase() === supplierCcy);
+          const curr = currencies.find((c: any) => c.code.toUpperCase() === supplierCcy);
           if (!curr) { status = ROW_STATUS.INVALID; reason = `Unknown currency: ${supplierCcy}`; }
           else currencyId = curr.id;
         }
@@ -95,7 +93,7 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
 
     for (const row of readyRows) {
       const line = lineMap[row.lineId];
-      const supCurr = currencies.find(c => c.id === row.currencyId);
+      const supCurr = currencies.find((c: any) => c.id === row.currencyId);
       let totalCostTarget = row.totalCost!;
       let rateUsed = 1;
       let rateId: string | null = null;
@@ -116,13 +114,11 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
       }
 
       await supabase.from("rfq_responses").insert({
-        rfq_line_id: row.lineId,
-        valid_from: row.validFrom || null, valid_until: row.validUntil || null,
+        rfq_line_id: row.lineId, valid_from: row.validFrom || null, valid_until: row.validUntil || null,
         min_qty: row.minQty, max_qty: row.maxQty, leadtime_days: row.leadTimeDays,
-        supplier_currency_id: row.currencyId,
-        total_cost_supplier_ccy: row.totalCost,
-        total_cost_target_ccy: totalCostTarget,
-        conversion_rate_used: rateUsed, conversion_rate_id: rateId, conversion_rate_date: rateDate,
+        supplier_currency_id: row.currencyId, total_cost_supplier_ccy: row.totalCost,
+        total_cost_target_ccy: totalCostTarget, conversion_rate_used: rateUsed,
+        conversion_rate_id: rateId, conversion_rate_date: rateDate,
         status: "submitted", submitted_at: now, submitted_by: user?.email || "", is_awarded: false,
         supplier_notes: row.supplierNotes || null,
         reviewer_notes: `Imported from ${filename} on ${new Date().toLocaleDateString()}`,
@@ -139,7 +135,7 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
   };
 
   const readyCount = parsedRows.filter(r => r.status === ROW_STATUS.READY).length;
-  const skipCount  = parsedRows.filter(r => r.status === ROW_STATUS.SKIP).length;
+  const skipCount = parsedRows.filter(r => r.status === ROW_STATUS.SKIP).length;
   const invalidCount = parsedRows.filter(r => r.status === ROW_STATUS.INVALID).length;
 
   return (
@@ -181,7 +177,7 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
                       <tr key={row.rowIdx} className={`border-t border-border ${color}`}>
                         <td className="px-2 py-1.5"><Icon className="w-3.5 h-3.5" /></td>
                         <td className="px-2 py-1.5">{row.rowIdx}</td>
-                        <td className="px-2 py-1.5 font-mono text-[10px]">{row.lineId.slice(0,8)}…</td>
+                        <td className="px-2 py-1.5 font-mono text-[10px]">{row.lineId ? row.lineId.slice(0, 8) + "…" : ""}</td>
                         <td className="px-2 py-1.5">{row.supplierCcy}</td>
                         <td className="px-2 py-1.5">{row.totalCost}</td>
                         <td className="px-2 py-1.5 text-[10px]">{row.reason}</td>

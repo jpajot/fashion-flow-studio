@@ -59,7 +59,7 @@ export default function ExportTodoDialog({ sr, lines, productMap, colorMap, pcam
       const ws = XLSX.utils.json_to_sheet(data);
       ws["!cols"] = [
         { wch: 36 }, { wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 20 },
-        { wch: 18 }, { wch: 14 }, { wch: 8 },  { wch: 20 }, { wch: 12 },
+        { wch: 18 }, { wch: 14 }, { wch: 8 }, { wch: 20 }, { wch: 12 },
         { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 18 },
         { wch: 16 }, { wch: 20 },
       ];

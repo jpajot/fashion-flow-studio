@@ -23,35 +23,36 @@ import ResponsesPanel from "@/components/rfq/ResponsesPanel";
 import { toast } from "sonner";
 
 const SR_STATUS_COLORS: Record<string, string> = {
-  draft:         "bg-gray-100 text-gray-600 border-gray-200",
-  submitted:     "bg-blue-100 text-blue-700 border-blue-200",
+  draft: "bg-gray-100 text-gray-600 border-gray-200",
+  submitted: "bg-blue-100 text-blue-700 border-blue-200",
   in_collection: "bg-amber-100 text-amber-700 border-amber-200",
-  closed:        "bg-green-100 text-green-700 border-green-200",
-  archived:      "bg-gray-100 text-gray-400 border-gray-200",
+  closed: "bg-green-100 text-green-700 border-green-200",
+  archived: "bg-gray-100 text-gray-400 border-gray-200",
 };
 const LINE_STATUS_COLORS: Record<string, string> = {
-  pending:   "bg-gray-100 text-gray-600 border-gray-200",
-  answered:  "bg-blue-100 text-blue-700 border-blue-200",
-  awarded:   "bg-green-100 text-green-700 border-green-200",
-  declined:  "bg-red-100 text-red-700 border-red-200",
+  pending: "bg-gray-100 text-gray-600 border-gray-200",
+  answered: "bg-blue-100 text-blue-700 border-blue-200",
+  awarded: "bg-green-100 text-green-700 border-green-200",
+  declined: "bg-red-100 text-red-700 border-red-200",
   cancelled: "bg-gray-100 text-gray-400 border-gray-200",
 };
 const RESP_STATUS_COLORS: Record<string, string> = {
-  draft:        "bg-gray-100 text-gray-600 border-gray-200",
-  submitted:    "bg-blue-100 text-blue-700 border-blue-200",
+  draft: "bg-gray-100 text-gray-600 border-gray-200",
+  submitted: "bg-blue-100 text-blue-700 border-blue-200",
   under_review: "bg-amber-100 text-amber-700 border-amber-200",
-  awarded:      "bg-green-100 text-green-700 border-green-200",
-  rejected:     "bg-red-100 text-red-700 border-red-200",
-  superseded:   "bg-slate-100 text-slate-500 border-slate-200",
+  awarded: "bg-green-100 text-green-700 border-green-200",
+  rejected: "bg-red-100 text-red-700 border-red-200",
+  superseded: "bg-slate-100 text-slate-500 border-slate-200",
 };
 
+// ── Tracking Board ─────────────────────────────────────────────────────────────
 function TrackingBoard() {
   const navigate = useNavigate();
   const { setOptions } = usePageOptions();
 
   const [loading, setLoading] = useState(true);
-  const [srs, setSrs]         = useState<any[]>([]);
-  const [lines, setLines]     = useState<any[]>([]);
+  const [srs, setSrs] = useState<any[]>([]);
+  const [lines, setLines] = useState<any[]>([]);
   const [responses, setResponses] = useState<any[]>([]);
   const [refData, setRefData] = useState({
     products: [] as any[], colors: [] as any[], pcams: [] as any[],
@@ -60,19 +61,19 @@ function TrackingBoard() {
   });
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [search, setSearch]             = useState("");
+  const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterRound, setFilterRound]   = useState("all");
+  const [filterRound, setFilterRound] = useState("all");
   const [filterProject, setFilterProject] = useState("all");
-  const [showKpis, setShowKpis]         = useState(true);
+  const [showKpis, setShowKpis] = useState(true);
   const [activeViewId, setActiveViewId] = useState("default");
   const [showViewMenu, setShowViewMenu] = useState(false);
-  const [panelLine, setPanelLine]       = useState<any>(null);
+  const [panelLine, setPanelLine] = useState<any>(null);
 
   const [awardingResponse, setAwardingResponse] = useState<any>(null);
-  const [awardingLine, setAwardingLine]         = useState<any>(null);
-  const [priorCost, setPriorCost]               = useState<any>(null);
-  const [awarding, setAwarding]                 = useState(false);
+  const [awardingLine, setAwardingLine] = useState<any>(null);
+  const [priorCost, setPriorCost] = useState<any>(null);
+  const [awarding, setAwarding] = useState(false);
   const [showAwardConfirm, setShowAwardConfirm] = useState(false);
 
   const load = useCallback(async () => {
@@ -106,19 +107,19 @@ function TrackingBoard() {
 
   useEffect(() => { load(); }, [load]);
 
-  const productMap  = useMemo(() => Object.fromEntries(refData.products.map((p: any) => [p.id, p])), [refData.products]);
-  const colorMap    = useMemo(() => Object.fromEntries(refData.colors.map((c: any) => [c.id, c])), [refData.colors]);
-  const pcamMap     = useMemo(() => Object.fromEntries(refData.pcams.map((p: any) => [p.id, p])), [refData.pcams]);
-  const stepMap     = useMemo(() => Object.fromEntries(refData.steps.map((s: any) => [s.id, s])), [refData.steps]);
+  const productMap = useMemo(() => Object.fromEntries(refData.products.map((p: any) => [p.id, p])), [refData.products]);
+  const colorMap = useMemo(() => Object.fromEntries(refData.colors.map((c: any) => [c.id, c])), [refData.colors]);
+  const pcamMap = useMemo(() => Object.fromEntries(refData.pcams.map((p: any) => [p.id, p])), [refData.pcams]);
+  const stepMap = useMemo(() => Object.fromEntries(refData.steps.map((s: any) => [s.id, s])), [refData.steps]);
   const supplierMap = useMemo(() => Object.fromEntries(refData.suppliers.map((s: any) => [s.id, s])), [refData.suppliers]);
   const currencyMap = useMemo(() => Object.fromEntries(refData.currencies.map((c: any) => [c.id, c])), [refData.currencies]);
-  const projectMap  = useMemo(() => Object.fromEntries(refData.projects.map((p: any) => [p.id, p])), [refData.projects]);
+  const projectMap = useMemo(() => Object.fromEntries(refData.projects.map((p: any) => [p.id, p])), [refData.projects]);
 
   const kpis = useMemo(() => ({
-    open:        lines.filter((l: any) => ["pending","answered"].includes(l.status)).length,
-    awarded:     lines.filter((l: any) => l.status === "awarded").length,
+    open: lines.filter((l: any) => ["pending", "answered"].includes(l.status)).length,
+    awarded: lines.filter((l: any) => l.status === "awarded").length,
     noResponses: lines.filter((l: any) => l.status === "pending" && !responses.some((r: any) => r.rfq_line_id === l.id)).length,
-    avgResp:     lines.length > 0 ? (responses.length / lines.length).toFixed(1) : "0",
+    avgResp: lines.length > 0 ? (responses.length / lines.length).toFixed(1) : "0",
   }), [lines, responses]);
 
   const filteredLines = useMemo(() => {
@@ -131,14 +132,14 @@ function TrackingBoard() {
       list = list.filter((l: any) => {
         const p = productMap[l.product_id]; const s = supplierMap[l.recipient_supplier_id];
         const sr = srs.find((x: any) => x.id === l.supplier_request_id);
-        return `${p?.code||""} ${p?.name||""} ${s?.name||""} ${sr?.code||""}`.toLowerCase().includes(q);
+        return `${p?.code || ""} ${p?.name || ""} ${s?.name || ""} ${sr?.code || ""}`.toLowerCase().includes(q);
       });
     }
     return list;
   }, [lines, filterStatus, filterRound, filterProject, search, srs, productMap, supplierMap]);
 
   const getGranLabel = (l: any) => {
-    if (l.product_color_and_more_id) { const c = colorMap[l.product_color_id]; const pc = pcamMap[l.product_color_and_more_id]; return c && pc ? `${c.color_name} › ${pc.name||pc.sequence}` : "Variation"; }
+    if (l.product_color_and_more_id) { const c = colorMap[l.product_color_id]; const pc = pcamMap[l.product_color_and_more_id]; return c && pc ? `${c.color_name} › ${pc.name || pc.sequence}` : "Variation"; }
     if (l.product_color_id) { const c = colorMap[l.product_color_id]; return c ? c.color_name : "Color"; }
     return "Product";
   };
@@ -146,10 +147,10 @@ function TrackingBoard() {
   const getBestQuote = (lineId: string) => {
     const lr = responses.filter((r: any) => r.rfq_line_id === lineId && r.status === "submitted");
     if (!lr.length) return null;
-    const best = lr.reduce((min: any, r: any) => (!min || r.total_cost_target_ccy < min.total_cost_target_ccy) ? r : min, null);
+    const best = lr.reduce((min: any, r: any) => (!min || r.total_cost_target_ccy < min.total_cost_target_ccy) ? r : min, null as any);
     const sr = srs.find((s: any) => s.id === lines.find((l: any) => l.id === lineId)?.supplier_request_id);
     const ccy = currencyMap[sr?.target_currency_id];
-    return `${best.total_cost_target_ccy?.toFixed(ccy?.decimal_places??2)??""} ${ccy?.code||"?"}`;
+    return `${best.total_cost_target_ccy?.toFixed(ccy?.decimal_places ?? 2) ?? ""} ${ccy?.code || "?"}`;
   };
 
   const getAwardedCost = (line: any) => {
@@ -158,16 +159,16 @@ function TrackingBoard() {
     if (!r) return null;
     const sr = srs.find((s: any) => s.id === line.supplier_request_id);
     const ccy = currencyMap[sr?.target_currency_id];
-    return `${r.total_cost_target_ccy?.toFixed(ccy?.decimal_places??2)??""} ${ccy?.code||"?"}`;
+    return `${r.total_cost_target_ccy?.toFixed(ccy?.decimal_places ?? 2) ?? ""} ${ccy?.code || "?"}`;
   };
 
   const handleAwardClick = async (response: any, line: any) => {
     const sr = srs.find((s: any) => s.id === line.supplier_request_id);
     const { data: priors } = await supabase.from("product_costs")
       .select("id,total_cost_target_ccy,target_currency_id,awarded_at")
-      .eq("status","active").eq("project_id", sr?.project_id)
+      .eq("status", "active").eq("project_id", sr?.project_id)
       .eq("product_id", line.product_id).eq("routing_step_id", line.routing_step_id).eq("supplier_id", line.recipient_supplier_id);
-    setAwardingResponse(response); setAwardingLine(line); setPriorCost(priors?.[0]??null); setShowAwardConfirm(true);
+    setAwardingResponse(response); setAwardingLine(line); setPriorCost(priors?.[0] ?? null); setShowAwardConfirm(true);
   };
 
   const handleAwardConfirm = async () => {
@@ -214,8 +215,18 @@ function TrackingBoard() {
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
+  const COLS: [string, string, number][] = [
+    ["sr", "SR", 90], ["project", "Project", 140], ["product", "Product", 200],
+    ["scope", "Scope", 150], ["step", "Routing Step", 155], ["supplier", "Supplier", 155],
+    ["qty", "Fcst. Qty", 100], ["responses", "Resp.", 70],
+    ["best_quote", "Best Quote", 120], ["awarded_cost", "Awarded", 120],
+    ["line_status", "Line Status", 110], ["sr_status", "SR Status", 110],
+    ["actions", "", 44],
+  ];
+
   return (
     <div className="space-y-4">
+      {/* KPI cards */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <button type="button" onClick={() => setShowKpis(v => !v)} className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/40 transition-colors">
           <span className="text-sm font-semibold">Stats</span>
@@ -240,6 +251,7 @@ function TrackingBoard() {
         )}
       </div>
 
+      {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -249,7 +261,7 @@ function TrackingBoard() {
           <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            {["pending","answered","awarded","declined","cancelled"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {["pending", "answered", "awarded", "declined", "cancelled"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterRound} onValueChange={setFilterRound}>
@@ -291,14 +303,7 @@ function TrackingBoard() {
               <thead>
                 <tr>
                   <th className="sticky top-0 z-20 w-7 bg-muted/40 border-b border-border/60 px-1" />
-                  {([
-                    ["sr","SR",90],["project","Project",140],["product","Product",200],
-                    ["scope","Scope",150],["step","Routing Step",155],["supplier","Supplier",155],
-                    ["qty","Fcst. Qty",100],["responses","Resp.",70],
-                    ["best_quote","Best Quote",120],["awarded_cost","Awarded",120],
-                    ["line_status","Line Status",110],["sr_status","SR Status",110],
-                    ["actions","",44],
-                  ] as [string,string,number][]).map(([id, label, w]) => (
+                  {COLS.map(([id, label, w]) => (
                     <th key={id} style={{ width: w, minWidth: w }} className="sticky top-0 z-20 bg-muted/40 px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border/60">
                       {label}
                     </th>
@@ -323,7 +328,7 @@ function TrackingBoard() {
                     <tr key={line.id} className="hover:bg-muted/20 transition-colors border-b border-border/40">
                       <td className="px-1 py-2 text-center">
                         {lineResps.length > 0
-                          ? <button type="button" onClick={() => setExpandedIds(prev => { const n = new Set(prev); if (n.has(line.id)) n.delete(line.id); else n.add(line.id); return n; })} className="p-0.5 rounded text-muted-foreground hover:text-foreground">{isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}</button>
+                          ? <button type="button" onClick={() => setExpandedIds(prev => { const n = new Set(prev); n.has(line.id) ? n.delete(line.id) : n.add(line.id); return n; })} className="p-0.5 rounded text-muted-foreground hover:text-foreground">{isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}</button>
                           : <span className="text-muted-foreground/30"><ChevronRight className="w-3.5 h-3.5" /></span>}
                       </td>
                       <td className="px-3 py-2">{sr ? <button type="button" onClick={() => navigate(`/supplier-requests/${sr.id}`)} className="text-xs font-mono text-primary hover:underline">{sr.code}</button> : <span className="text-muted-foreground/40">—</span>}</td>
@@ -331,23 +336,23 @@ function TrackingBoard() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           {prod?.images?.[0] && <img src={prod.images[0]} className="w-6 h-6 object-contain rounded shrink-0" alt="" />}
-                          <div><p className="text-xs font-medium">{prod?.name||"—"}</p>{prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+                          <div><p className="text-xs font-medium">{prod?.name || "—"}</p>{prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
                         </div>
                       </td>
                       <td className="px-3 py-2"><span className="text-xs text-muted-foreground">{getGranLabel(line)}</span></td>
-                      <td className="px-3 py-2">{step ? <span className="text-xs text-muted-foreground">Step {step.sequence}: {(step.step_type||"").replace(/_/g," ")}</span> : <span className="text-muted-foreground/40">—</span>}</td>
+                      <td className="px-3 py-2">{step ? <span className="text-xs text-muted-foreground">Step {step.sequence}: {(step.step_type || "").replace(/_/g, " ")}</span> : <span className="text-muted-foreground/40">—</span>}</td>
                       <td className="px-3 py-2">{sup ? <span className="text-xs">{sup.name}</span> : <span className="text-muted-foreground/40">—</span>}</td>
-                      <td className="px-3 py-2"><span className="text-xs text-muted-foreground font-mono">{line.forecasted_qty != null ? `${line.forecasted_qty} ${line.forecasted_qty_uom||""}`.trim() : "—"}</span></td>
+                      <td className="px-3 py-2"><span className="text-xs text-muted-foreground font-mono">{line.forecasted_qty != null ? `${line.forecasted_qty} ${line.forecasted_qty_uom || ""}`.trim() : "—"}</span></td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => setPanelLine(panelLine?.id === line.id ? null : line)}
                           className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold border ${lineResps.length > 0 ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 cursor-pointer" : "bg-muted text-muted-foreground border-border"}`}>
                           {lineResps.length}
                         </button>
                       </td>
-                      <td className="px-3 py-2"><span className="text-xs font-mono">{bestQuote||"—"}</span></td>
-                      <td className="px-3 py-2"><span className="text-xs font-mono text-green-700">{awardedCost||"—"}</span></td>
-                      <td className="px-3 py-2"><span className={`text-[11px] px-1.5 py-0.5 rounded border font-medium capitalize ${LINE_STATUS_COLORS[line.status]??"bg-muted text-muted-foreground border-border"}`}>{(line.status||"pending").replace(/_/g," ")}</span></td>
-                      <td className="px-3 py-2">{sr && <span className={`text-[11px] px-1.5 py-0.5 rounded border font-medium capitalize ${SR_STATUS_COLORS[sr.status]??"bg-muted text-muted-foreground border-border"}`}>{(sr.status||"").replace(/_/g," ")}</span>}</td>
+                      <td className="px-3 py-2"><span className="text-xs font-mono">{bestQuote || "—"}</span></td>
+                      <td className="px-3 py-2"><span className="text-xs font-mono text-green-700">{awardedCost || "—"}</span></td>
+                      <td className="px-3 py-2"><span className={`text-[11px] px-1.5 py-0.5 rounded border font-medium capitalize ${LINE_STATUS_COLORS[line.status] ?? "bg-muted text-muted-foreground border-border"}`}>{(line.status || "pending").replace(/_/g, " ")}</span></td>
+                      <td className="px-3 py-2">{sr && <span className={`text-[11px] px-1.5 py-0.5 rounded border font-medium capitalize ${SR_STATUS_COLORS[sr.status] ?? "bg-muted text-muted-foreground border-border"}`}>{(sr.status || "").replace(/_/g, " ")}</span>}</td>
                       <td className="px-3 py-2">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -364,16 +369,14 @@ function TrackingBoard() {
                     </tr>,
                     ...(isExpanded ? lineResps.map((resp: any) => {
                       const respCcy = currencyMap[resp.supplier_currency_id];
-                      const canAward = !resp.is_awarded && ["submitted","under_review"].includes(resp.status);
+                      const canAward = !resp.is_awarded && ["submitted", "under_review"].includes(resp.status);
                       return (
-                        <tr key={resp.id} className="bg-muted/10 border-b border-border/30 border-l-2 border-l-slate-300">
-                          <td className="px-1 py-1.5" />
+                        <tr key={resp.id} className="bg-muted/10 border-b border-border/30">
+                          <td className="px-1 py-1.5 border-l-2 border-l-slate-300" />
                           <td className="px-3 py-1.5" /><td className="px-3 py-1.5" />
-                          <td className="px-3 py-1.5 pl-7">
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-1"><ChevronRight className="w-3 h-3 shrink-0" />Response</span>
-                          </td>
+                          <td className="px-3 py-1.5 pl-7"><span className="text-[10px] text-muted-foreground flex items-center gap-1"><ChevronRight className="w-3 h-3 shrink-0" />Response</span></td>
                           <td className="px-3 py-1.5" /><td className="px-3 py-1.5" />
-                          <td className="px-3 py-1.5"><span className="text-xs text-muted-foreground">{supplierMap[line.recipient_supplier_id]?.name||"—"}</span></td>
+                          <td className="px-3 py-1.5"><span className="text-xs text-muted-foreground">{supplierMap[line.recipient_supplier_id]?.name || "—"}</span></td>
                           <td className="px-3 py-1.5">
                             <div className="text-xs font-mono space-y-0.5 text-muted-foreground">
                               {resp.min_qty != null && <div>Min: {resp.min_qty}</div>}
@@ -384,12 +387,13 @@ function TrackingBoard() {
                           <td className="px-3 py-1.5" />
                           <td className="px-3 py-1.5">
                             <span className="text-xs font-mono">
-                              {resp.total_cost_supplier_ccy != null ? `${resp.total_cost_supplier_ccy?.toFixed(respCcy?.decimal_places??2)} ${respCcy?.code||"?"}` : "—"}
-                              {resp.total_cost_target_ccy != null && resp.supplier_currency_id !== sr?.target_currency_id && targetCcy ? ` = ${resp.total_cost_target_ccy?.toFixed(targetCcy.decimal_places??2)} ${targetCcy.code}` : ""}
+                              {resp.total_cost_supplier_ccy != null ? `${resp.total_cost_supplier_ccy?.toFixed(respCcy?.decimal_places ?? 2)} ${respCcy?.code || "?"}` : "—"}
+                              {resp.total_cost_target_ccy != null && resp.supplier_currency_id !== sr?.target_currency_id && targetCcy
+                                ? ` = ${resp.total_cost_target_ccy?.toFixed(targetCcy.decimal_places ?? 2)} ${targetCcy.code}` : ""}
                             </span>
                           </td>
-                          <td className="px-3 py-1.5">{resp.is_awarded && <span className="text-xs font-mono text-green-700">{resp.total_cost_target_ccy?.toFixed(targetCcy?.decimal_places??2)} {targetCcy?.code}</span>}</td>
-                          <td className="px-3 py-1.5"><span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${RESP_STATUS_COLORS[resp.status]??"bg-muted text-muted-foreground border-border"}`}>{(resp.status||"").replace(/_/g," ")}{resp.is_awarded?" ★":""}</span></td>
+                          <td className="px-3 py-1.5">{resp.is_awarded && targetCcy && <span className="text-xs font-mono text-green-700">{resp.total_cost_target_ccy?.toFixed(targetCcy.decimal_places ?? 2)} {targetCcy.code}</span>}</td>
+                          <td className="px-3 py-1.5"><span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium capitalize ${RESP_STATUS_COLORS[resp.status] ?? "bg-muted text-muted-foreground border-border"}`}>{(resp.status || "").replace(/_/g, " ")}{resp.is_awarded ? " ★" : ""}</span></td>
                           <td className="px-3 py-1.5" />
                           <td className="px-3 py-1.5">{canAward && <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-600 hover:text-amber-700 hover:bg-amber-50" onClick={e => { e.stopPropagation(); handleAwardClick(resp, line); }}><Trophy className="w-3.5 h-3.5" /></Button>}</td>
                         </tr>
@@ -456,23 +460,24 @@ function TrackingBoard() {
   );
 }
 
+// ── Supplier Requests list ────────────────────────────────────────────────────
 function SupplierRequestsList() {
   const navigate = useNavigate();
   const { setOptions } = usePageOptions();
 
-  const [requests, setRequests]   = useState<any[]>([]);
-  const [rounds, setRounds]       = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [rounds, setRounds] = useState<any[]>([]);
   const [currencies, setCurrencies] = useState<any[]>([]);
-  const [projects, setProjects]   = useState<any[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [search, setSearch]               = useState("");
-  const [filterStatus, setFilterStatus]   = useState("all");
-  const [filterRound, setFilterRound]     = useState("all");
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterRound, setFilterRound] = useState("all");
   const [filterProject, setFilterProject] = useState("all");
-  const [activeViewId, setActiveViewId]   = useState("default");
-  const [showViewMenu, setShowViewMenu]   = useState(false);
-  const [pinnedCols, setPinnedCols]       = useState<string[]>(["code","name"]);
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [pinnedCols, setPinnedCols] = useState<string[]>(["code", "name"]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -487,28 +492,28 @@ function SupplierRequestsList() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const roundMap    = useMemo(() => Object.fromEntries(rounds.map((r: any) => [r.id, r])), [rounds]);
+  const roundMap = useMemo(() => Object.fromEntries(rounds.map((r: any) => [r.id, r])), [rounds]);
   const currencyMap = useMemo(() => Object.fromEntries(currencies.map((c: any) => [c.id, c])), [currencies]);
-  const projectMap  = useMemo(() => Object.fromEntries(projects.map((p: any) => [p.id, p])), [projects]);
+  const projectMap = useMemo(() => Object.fromEntries(projects.map((p: any) => [p.id, p])), [projects]);
 
   const filtered = useMemo(() => requests.filter((r: any) => {
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
     if (filterRound !== "all" && r.round_id !== filterRound) return false;
     if (filterProject !== "all" && r.project_id !== filterProject) return false;
-    if (search.trim() && !`${r.code||""} ${r.name||""}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search.trim() && !`${r.code || ""} ${r.name || ""}`.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [requests, filterStatus, filterRound, filterProject, search]);
 
   const tableColumns = useMemo(() => [
-    { id: "code",    label: "Code",        width: 110, sortKey: (r: any) => r.code||"",    render: (r: any) => <span className="font-mono text-xs font-semibold">{r.code||"—"}</span> },
-    { id: "name",    label: "Name",        width: 240, sortKey: (r: any) => r.name||"",    render: (r: any) => <span className="font-medium text-sm">{r.name||"—"}</span> },
-    { id: "project", label: "Project",     width: 180, sortKey: (r: any) => projectMap[r.project_id]?.name||"", render: (r: any) => { const p = projectMap[r.project_id]; return p ? <button type="button" onClick={e => { e.stopPropagation(); navigate(`/projects/${r.project_id}`); }} className="text-xs text-primary hover:underline">{p.name}</button> : <span className="text-muted-foreground/40">—</span>; } },
-    { id: "round",   label: "Round",       width: 90,  sortKey: (r: any) => roundMap[r.round_id]?.label||"", render: (r: any) => { const rnd = roundMap[r.round_id]; return rnd ? <span className="text-xs font-mono font-semibold tracking-widest text-muted-foreground">{rnd.code}</span> : <span className="text-muted-foreground/40">—</span>; } },
-    { id: "status",  label: "Status",      width: 140, sortKey: (r: any) => r.status||"",  render: (r: any) => <span className={`text-[11px] px-2 py-0.5 rounded border font-medium capitalize ${SR_STATUS_COLORS[r.status]??"bg-muted text-muted-foreground border-border"}`}>{(r.status??"draft").replace(/_/g," ")}</span> },
-    { id: "due_date",label: "Due Date",    width: 120, sortKey: (r: any) => r.due_date||"", render: (r: any) => { if (!r.due_date) return <span className="text-muted-foreground/40">—</span>; const past = new Date(r.due_date) < new Date(); return <span className={`text-xs ${past && !["closed","archived"].includes(r.status) ? "text-red-600 font-medium" : "text-muted-foreground"}`}>{new Date(r.due_date).toLocaleDateString()}</span>; } },
-    { id: "target_currency", label: "Ccy", width: 80,  sortKey: (r: any) => currencyMap[r.target_currency_id]?.code||"", render: (r: any) => { const c = currencyMap[r.target_currency_id]; return c ? <span className="text-xs font-mono text-muted-foreground">{c.code}</span> : <span className="text-muted-foreground/40">—</span>; } },
-    { id: "created_at", label: "Created",  width: 110, sortKey: (r: any) => r.created_at||"", render: (r: any) => <span className="text-xs text-muted-foreground">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</span> },
-    { id: "created_by", label: "Created By", width: 160, sortKey: (r: any) => r.created_by||"", render: (r: any) => <span className="text-xs text-muted-foreground truncate">{r.created_by||"—"}</span> },
+    { id: "code", label: "Code", width: 110, sortKey: (r: any) => r.code || "", render: (r: any) => <span className="font-mono text-xs font-semibold">{r.code || "—"}</span> },
+    { id: "name", label: "Name", width: 240, sortKey: (r: any) => r.name || "", render: (r: any) => <span className="font-medium text-sm">{r.name || "—"}</span> },
+    { id: "project", label: "Project", width: 180, sortKey: (r: any) => projectMap[r.project_id]?.name || "", render: (r: any) => { const p = projectMap[r.project_id]; return p ? <button type="button" onClick={e => { e.stopPropagation(); navigate(`/projects/${r.project_id}`); }} className="text-xs text-primary hover:underline">{p.name}</button> : <span className="text-muted-foreground/40">—</span>; } },
+    { id: "round", label: "Round", width: 90, sortKey: (r: any) => roundMap[r.round_id]?.label || "", render: (r: any) => { const rnd = roundMap[r.round_id]; return rnd ? <span className="text-xs font-mono font-semibold tracking-widest text-muted-foreground">{rnd.code}</span> : <span className="text-muted-foreground/40">—</span>; } },
+    { id: "status", label: "Status", width: 140, sortKey: (r: any) => r.status || "", render: (r: any) => <span className={`text-[11px] px-2 py-0.5 rounded border font-medium capitalize ${SR_STATUS_COLORS[r.status] ?? "bg-muted text-muted-foreground border-border"}`}>{(r.status ?? "draft").replace(/_/g, " ")}</span> },
+    { id: "due_date", label: "Due Date", width: 120, sortKey: (r: any) => r.due_date || "", render: (r: any) => { if (!r.due_date) return <span className="text-muted-foreground/40">—</span>; const past = new Date(r.due_date) < new Date(); return <span className={`text-xs ${past && !["closed", "archived"].includes(r.status) ? "text-red-600 font-medium" : "text-muted-foreground"}`}>{new Date(r.due_date).toLocaleDateString()}</span>; } },
+    { id: "target_currency", label: "Ccy", width: 80, sortKey: (r: any) => currencyMap[r.target_currency_id]?.code || "", render: (r: any) => { const c = currencyMap[r.target_currency_id]; return c ? <span className="text-xs font-mono text-muted-foreground">{c.code}</span> : <span className="text-muted-foreground/40">—</span>; } },
+    { id: "created_at", label: "Created", width: 110, sortKey: (r: any) => r.created_at || "", render: (r: any) => <span className="text-xs text-muted-foreground">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</span> },
+    { id: "created_by", label: "Created By", width: 160, sortKey: (r: any) => r.created_by || "", render: (r: any) => <span className="text-xs text-muted-foreground truncate">{r.created_by || "—"}</span> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [roundMap, currencyMap, projectMap, navigate]);
 
@@ -537,7 +542,7 @@ function SupplierRequestsList() {
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All statuses" /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All statuses</SelectItem>{["draft","submitted","in_collection","closed","archived"].map(s => <SelectItem key={s} value={s}>{s.replace(/_/g," ")}</SelectItem>)}</SelectContent>
+          <SelectContent><SelectItem value="all">All statuses</SelectItem>{["draft", "submitted", "in_collection", "closed", "archived"].map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
         </Select>
         <Select value={filterRound} onValueChange={setFilterRound}>
           <SelectTrigger className="h-8 text-xs w-32"><SelectValue placeholder="All rounds" /></SelectTrigger>
@@ -564,6 +569,7 @@ function SupplierRequestsList() {
   );
 }
 
+// ── Page root ─────────────────────────────────────────────────────────────────
 export default function Rfqs() {
   const [activeTab, setActiveTab] = useState<"list" | "board">("list");
   return (
@@ -574,7 +580,7 @@ export default function Rfqs() {
       </div>
       <div className="border-b border-border mb-5">
         <div className="flex gap-0">
-          {([["list","Supplier Requests"],["board","Tracking Board"]] as const).map(([id,label]) => (
+          {([["list", "Supplier Requests"], ["board", "Tracking Board"]] as const).map(([id, label]) => (
             <button key={id} type="button" onClick={() => setActiveTab(id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"}`}>
               {label}
@@ -582,7 +588,7 @@ export default function Rfqs() {
           ))}
         </div>
       </div>
-      {activeTab === "list"  && <SupplierRequestsList />}
+      {activeTab === "list" && <SupplierRequestsList />}
       {activeTab === "board" && <TrackingBoard />}
     </div>
   );
