@@ -32,6 +32,9 @@ export default function Rfqs() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterRound, setFilterRound] = useState("all");
   const [filterProject, setFilterProject] = useState("all");
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [pinnedCols, setPinnedCols] = useState<string[]>(["code", "name"]);
 
   const load = useCallback(async () => {
     setLoading(true);
