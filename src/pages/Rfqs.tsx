@@ -5,8 +5,9 @@ import { PAGE_WRAPPER } from "@/lib/utils";
 import { usePageOptions } from "@/contexts/PageOptionsContext";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Search, X, FileSearch } from "lucide-react";
+import { Loader2, Search, X, FileSearch, Pencil } from "lucide-react";
 import DataTable from "@/components/shared/DataTable";
+import ViewDrawerContent from "@/components/ViewDrawerContent";
 
 const STATUS_COLORS: Record<string, string> = {
   draft:         "bg-gray-100 text-gray-600 border-gray-200",
