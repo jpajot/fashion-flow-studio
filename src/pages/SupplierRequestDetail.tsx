@@ -661,6 +661,9 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
   const [activeViewId, setActiveViewId] = useState("default");
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [pinnedCols, setPinnedCols] = useState<string[]>(["product", "status"]);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [panelLine, setPanelLine] = useState<any>(null);
+  const [responseTarget, setResponseTarget] = useState<any>(null);
 
   const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
   const colorMap = useMemo(() => Object.fromEntries(colors.map(c => [c.id, c])), [colors]);
