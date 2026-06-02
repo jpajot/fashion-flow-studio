@@ -913,7 +913,7 @@ export default function ProjectDetail() {
 
   useRegisterSubNav(subNavItems, activeTab, setActiveTab, project?.name ?? "Project");
 
-  useEffect(() => { setOptions({ items: [] }); return () => setOptions(null); }, [activeTab, setOptions]);
+  
 
   // Auto-save for details
   const updateField = (field: string, value: any) => {
