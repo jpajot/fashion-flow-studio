@@ -1961,10 +1961,21 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
     setOptions({
       items: [
         { label: "New Supplier Request", icon: Plus, onClick: () => setShowCreate(true), className: "text-primary hover:bg-primary/10" },
+        { divider: true },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
       ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="project_supplier_requests"
+          activeViewId={activeViewId}
+          onSelectView={id => { setActiveViewId(id); setShowViewMenu(false); }}
+          allFields={tableColumns.map(c => ({ id: c.id, label: c.label }))}
+          currentViewType={null}
+        />
+      ) : null,
     });
     return () => setOptions(null);
-  }, [setOptions]);
+  }, [setOptions, showViewMenu, activeViewId, tableColumns]);
 
   const roundMap = useMemo(() => Object.fromEntries(rounds.map(r => [r.id, r])), [rounds]);
   const currencyMap = useMemo(() => Object.fromEntries(currencies.map(c => [c.id, c])), [currencies]);
