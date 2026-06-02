@@ -505,19 +505,17 @@ export default function Rfqs() {
   const [activeTab, setActiveTab] = useState<"list"|"board">("list");
   return (
     <div className={PAGE_WRAPPER}>
-      <div className="mb-5">
+      <div className="mb-4">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Costing</p>
         <h1 className="font-display text-2xl font-semibold mt-0.5">RFQ &amp; Costing</h1>
       </div>
-      <div className="border-b border-border mb-5">
-        <div className="flex gap-0">
-          {([["list","Supplier Requests"],["board","Tracking Board"]] as const).map(([id,label]) => (
-            <button key={id} type="button" onClick={() => setActiveTab(id)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab===id?"border-primary text-primary":"border-transparent text-muted-foreground hover:text-foreground hover:border-border"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="flex gap-2 mb-5">
+        {([["list","Supplier Requests"],["board","Tracking Board"]] as const).map(([id,label]) => (
+          <button key={id} type="button" onClick={() => setActiveTab(id)}
+            className={`flex-1 py-2.5 px-3 text-sm font-medium rounded-lg border transition-colors ${activeTab===id?"bg-primary text-primary-foreground border-primary":"bg-background border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}>
+            {label}
+          </button>
+        ))}
       </div>
       {activeTab==="list" && <SupplierRequestsList/>}
       {activeTab==="board" && <TrackingBoard/>}

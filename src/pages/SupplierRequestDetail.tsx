@@ -19,9 +19,12 @@ import { toast } from "sonner";
 import {
   Loader2, ArrowLeft, FileSearch, MoreVertical, Pencil, Trash2,
   Plus, Search, X, AlertTriangle, FlaskConical, MessageSquarePlus,
+  Download, Upload,
 } from "lucide-react";
 import ResponsesPanel from "@/components/rfq/ResponsesPanel";
 import AddResponseDialog from "@/components/rfq/AddResponseDialog";
+import ExportTodoDialog from "@/components/rfq/ExportTodoDialog";
+import ImportResponsesDialog from "@/components/rfq/ImportResponsesDialog";
 
 // ── Status config ────────────────────────────────────────────────────────────
 const SR_STATUS_COLORS: Record<string, string> = {
@@ -967,6 +970,14 @@ export default function SupplierRequestDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [currencies, setCurrencies] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase.from("currencies").select("id,code,decimal_places").eq("is_active", true).order("code")
+      .then(({ data }) => setCurrencies(data ?? []));
+  }, []);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -1091,6 +1102,12 @@ export default function SupplierRequestDetail() {
                 <DropdownMenuItem onClick={() => setShowEditHeader(true)}>
                   <Pencil className="w-3.5 h-3.5 mr-2" />Edit Header
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowExport(true)}>
+                  <Download className="w-3.5 h-3.5 mr-2" />Export ToDo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowImport(true)}>
+                  <Upload className="w-3.5 h-3.5 mr-2" />Import Responses
+                </DropdownMenuItem>
                 {isDraft && (
                   <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-destructive focus:text-destructive">
                     <Trash2 className="w-3.5 h-3.5 mr-2" />Delete
@@ -1134,6 +1151,28 @@ export default function SupplierRequestDetail() {
       {/* Edit Header */}
       {showEditHeader && (
         <EditHeaderDialog sr={sr} onSaved={updated => { setSr(updated); setShowEditHeader(false); }} onClose={() => setShowEditHeader(false)} />
+      )}
+
+      {showExport && sr && (
+        <ExportTodoDialog
+          sr={sr}
+          lines={lines}
+          productMap={Object.fromEntries(refData.products.map(p => [p.id, p]))}
+          colorMap={Object.fromEntries(refData.colors.map(c => [c.id, c]))}
+          pcamMap={Object.fromEntries(refData.pcams.map(p => [p.id, p]))}
+          stepMap={Object.fromEntries(refData.steps.map(s => [s.id, s]))}
+          supplierMap={Object.fromEntries(refData.suppliers.map(s => [s.id, s]))}
+          onClose={() => setShowExport(false)}
+        />
+      )}
+      {showImport && sr && (
+        <ImportResponsesDialog
+          sr={sr}
+          rfqLines={lines}
+          currencies={currencies}
+          onClose={() => setShowImport(false)}
+          onImportSuccess={load}
+        />
       )}
 
       {/* Submit confirm */}
