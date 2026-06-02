@@ -995,9 +995,9 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {activeTab === "styles"    && <StylesSection    projectId={id!} linkedStyles={linkedStyles}       onRefresh={loadAll}/>}
-        {activeTab === "colorways" && <ColorwaysSection projectId={id!} linkedColorways={linkedColorways} onRefresh={loadAll}/>}
-        {activeTab === "variations"&& <VariationsSection projectId={id!} linkedVariations={linkedVariations} onRefresh={loadAll}/>}
+        {activeTab === "styles"    && <StylesSection    projectId={id!} linkedStyles={linkedStyles}       onRefresh={loadAll} setOptions={setOptions}/>}
+        {activeTab === "colorways" && <ColorwaysSection projectId={id!} linkedColorways={linkedColorways} onRefresh={loadAll} setOptions={setOptions}/>}
+        {activeTab === "variations"&& <VariationsSection projectId={id!} linkedVariations={linkedVariations} onRefresh={loadAll} setOptions={setOptions}/>}
         {activeTab === "bom_status"&& <BOMStatusSection linkedStyles={linkedStyles}/>}
         {activeTab === "sourcing"  && <SourcingSection  linkedStyles={linkedStyles}/>}
         {activeTab === "documents" && <DocumentsSection projectId={id!}/>}
