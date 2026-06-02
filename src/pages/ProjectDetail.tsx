@@ -1989,7 +1989,7 @@ export default function ProjectDetail() {
     { id:"sourcing",   label:"Sourcing",        icon:Building2 },
     { id:"documents",  label:"Documents",       count:docCount,               icon:FileText },
     { id:"boards",     label:"Boards",          icon:LayoutTemplate },
-    { id:"rfqs",       label:"RFQ Requests",    icon:FileSearch },
+    { id:"rfqs",       label:"Supplier Requests", icon:FileSearch },
     { id:"samples",    label:"Samples",         count:sampleCount,            icon:FlaskConical },
   ], [linkedStyles.length, linkedColorways.length, linkedVariations.length, paletteCount, docCount, sampleCount]);
 
