@@ -2088,6 +2088,9 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
           {...({ activeViewId } as any)}
         />
       )}
+      </>}
+
+
 
       {showCreate && (
         <CreateSupplierRequestDialog
