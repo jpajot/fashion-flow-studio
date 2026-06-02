@@ -1923,6 +1923,289 @@ function DocumentsSection({ projectId }: { projectId:string }) {
   );
 }
 
+
+// ── SUPPLIER REQUESTS TAB ─────────────────────────────────────────────────
+function SupplierRequestsSection({ projectId, setOptions }: { projectId: string; setOptions: any }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [requests, setRequests] = useState<any[]>([]);
+  const [rounds, setRounds] = useState<any[]>([]);
+  const [currencies, setCurrencies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterRound, setFilterRound] = useState("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [srRes, rndRes, curRes] = await Promise.all([
+      supabase.from("supplier_requests").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
+      supabase.from("rfq_rounds").select("id,code,label,sequence,is_active").order("sequence"),
+      supabase.from("currencies").select("id,code,name").eq("is_active", true).order("code"),
+    ]);
+    setRequests(srRes.data ?? []);
+    setRounds(rndRes.data ?? []);
+    setCurrencies(curRes.data ?? []);
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    setOptions({
+      items: [
+        { label: "New Supplier Request", icon: Plus, onClick: () => setShowCreate(true), className: "text-primary hover:bg-primary/10" },
+      ],
+    });
+    return () => setOptions(null);
+  }, [setOptions]);
+
+  const roundMap = useMemo(() => Object.fromEntries(rounds.map(r => [r.id, r])), [rounds]);
+  const currencyMap = useMemo(() => Object.fromEntries(currencies.map(c => [c.id, c])), [currencies]);
+
+  const STATUS_COLORS: Record<string, string> = {
+    draft:         "bg-gray-100 text-gray-600 border-gray-200",
+    submitted:     "bg-blue-100 text-blue-700 border-blue-200",
+    in_collection: "bg-amber-100 text-amber-700 border-amber-200",
+    closed:        "bg-green-100 text-green-700 border-green-200",
+    archived:      "bg-gray-100 text-gray-400 border-gray-200",
+  };
+  const STATUS_OPTIONS = ["draft", "submitted", "in_collection", "closed", "archived"];
+
+  const filtered = useMemo(() => requests.filter(r => {
+    if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterRound !== "all" && r.round_id !== filterRound) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!`${r.code || ""} ${r.name || ""}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [requests, filterStatus, filterRound, search]);
+
+  const tableColumns = useMemo(() => [
+    { id: "code", label: "Code", width: 110, sortKey: (r: any) => r.code || "", render: (r: any) => <span className="font-mono text-xs font-semibold">{r.code || "—"}</span> },
+    { id: "name", label: "Name", width: 220, sortKey: (r: any) => r.name || "", render: (r: any) => <span className="font-medium text-sm">{r.name || "—"}</span> },
+    { id: "round", label: "Round", width: 100, sortKey: (r: any) => roundMap[r.round_id]?.label || "", render: (r: any) => { const rnd = roundMap[r.round_id]; return rnd ? <span className="text-xs font-mono font-semibold tracking-widest text-muted-foreground">{rnd.code}</span> : <span className="text-muted-foreground/40">—</span>; } },
+    { id: "status", label: "Status", width: 140, sortKey: (r: any) => r.status || "", render: (r: any) => (<span className={`text-[11px] px-2 py-0.5 rounded border font-medium capitalize ${STATUS_COLORS[r.status] ?? "bg-muted text-muted-foreground border-border"}`}>{(r.status ?? "draft").replace(/_/g, " ")}</span>) },
+    { id: "due_date", label: "Due Date", width: 120, sortKey: (r: any) => r.due_date || "", render: (r: any) => { if (!r.due_date) return <span className="text-muted-foreground/40">—</span>; const isPast = new Date(r.due_date) < new Date(); return <span className={`text-xs ${isPast && r.status !== "closed" && r.status !== "archived" ? "text-red-600 font-medium" : "text-muted-foreground"}`}>{new Date(r.due_date).toLocaleDateString()}</span>; } },
+    { id: "target_currency", label: "Target Ccy", width: 100, sortKey: (r: any) => currencyMap[r.target_currency_id]?.code || "", render: (r: any) => { const ccy = currencyMap[r.target_currency_id]; return ccy ? <span className="text-xs font-mono text-muted-foreground">{ccy.code}</span> : <span className="text-muted-foreground/40">—</span>; } },
+    { id: "created_at", label: "Created", width: 130, sortKey: (r: any) => r.created_at || "", render: (r: any) => <span className="text-xs text-muted-foreground">{r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}</span> },
+    { id: "created_by", label: "Created By", width: 160, sortKey: (r: any) => r.created_by || "", render: (r: any) => <span className="text-xs text-muted-foreground truncate">{r.created_by || "—"}</span> },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [roundMap, currencyMap]);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search requests…" className="pl-8 h-8 text-xs" />
+        </div>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterRound} onValueChange={setFilterRound}>
+          <SelectTrigger className="h-8 text-xs w-32"><SelectValue placeholder="All rounds" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All rounds</SelectItem>
+            {rounds.map(r => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {(filterStatus !== "all" || filterRound !== "all") && (
+        <div className="flex flex-wrap gap-1.5">
+          {filterStatus !== "all" && (
+            <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              Status: {filterStatus.replace(/_/g, " ")}
+              <button type="button" onClick={() => setFilterStatus("all")} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {filterRound !== "all" && (
+            <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              Round: {roundMap[filterRound]?.label}
+              <button type="button" onClick={() => setFilterRound("all")} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
+          <FileSearch className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm font-medium text-muted-foreground">{requests.length === 0 ? "No Supplier Requests yet" : "No matches"}</p>
+          {requests.length === 0 && <p className="text-xs text-muted-foreground mt-1">Create a Supplier Request to start collecting costs from suppliers.</p>}
+        </div>
+      ) : (
+        <DataTable columns={tableColumns} rows={filtered} onRowClick={r => navigate(`/supplier-requests/${r.id}`)} fixedColumns={["code", "name"]} />
+      )}
+
+      {showCreate && (
+        <CreateSupplierRequestDialog
+          projectId={projectId}
+          rounds={rounds}
+          currencies={currencies}
+          userEmail={user?.email ?? ""}
+          onCreated={() => { setShowCreate(false); load(); toast.success("Supplier Request created"); }}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CreateSupplierRequestDialog({
+  projectId, rounds, currencies, userEmail, onCreated, onClose,
+}: {
+  projectId: string;
+  rounds: any[];
+  currencies: any[];
+  userEmail: string;
+  onCreated: () => void;
+  onClose: () => void;
+}) {
+  function addDays(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split("T")[0];
+  }
+
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [form, setForm] = useState({
+    name: "",
+    round_id: "",
+    due_date: "",
+    target_currency_id: "",
+    description: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    supabase.from("app_configs").select("key,value").in("key", ["rfq_default_due_days", "target_currency_id"]).then(({ data }) => {
+      const cfg: Record<string, string> = {};
+      (data ?? []).forEach((r: any) => { cfg[r.key] = r.value; });
+      const dueDays = parseInt(cfg.rfq_default_due_days ?? "14", 10) || 14;
+      setForm(f => ({ ...f, due_date: addDays(dueDays), target_currency_id: cfg.target_currency_id ?? "" }));
+    });
+  }, []);
+
+  const set = (field: string, value: string) => {
+    setForm(f => ({ ...f, [field]: value }));
+    if (errors[field]) setErrors(e => { const n = { ...e }; delete n[field]; return n; });
+  };
+
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!form.name.trim())        errs.name               = "Name is required.";
+    if (!form.round_id)           errs.round_id           = "Round is required.";
+    if (!form.target_currency_id) errs.target_currency_id = "Target currency is required.";
+    return errs;
+  };
+
+  const handleCreate = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setSaving(true);
+    let code = "";
+    try {
+      const { data } = await supabase.rpc("generate_code", { p_entity_name: "SupplierRequest", p_entity_type: "SupplierRequest" } as any);
+      code = (data as string) ?? "";
+    } catch (_) { /* fallback */ }
+
+    const { error } = await supabase.from("supplier_requests").insert({
+      code,
+      name: form.name.trim(),
+      round_id: form.round_id,
+      due_date: form.due_date || null,
+      target_currency_id: form.target_currency_id,
+      description: form.description.trim() || null,
+      notes: form.notes.trim() || null,
+      project_id: projectId,
+      status: "draft",
+      sample_requests: [],
+      shared_product_specs: [],
+      created_by: userEmail,
+    });
+
+    setSaving(false);
+    if (error) { toast.error("Create failed: " + error.message); return; }
+    onCreated();
+  };
+
+  const activeRounds = rounds.filter(r => r.is_active);
+
+  return (
+    <Dialog open onOpenChange={o => !o && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Create Supplier Request</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Code</Label>
+            <Input disabled placeholder="Auto-generated on save (SR00001…)" className="text-muted-foreground text-xs" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Name <span className="text-destructive">*</span></Label>
+            <Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. SS26 R1 Costing" className={errors.name ? "border-destructive" : ""} autoFocus />
+            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Round <span className="text-destructive">*</span></Label>
+            <Select value={form.round_id || "__none"} onValueChange={v => set("round_id", v === "__none" ? "" : v)}>
+              <SelectTrigger className={errors.round_id ? "border-destructive" : ""}><SelectValue placeholder="Select round…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none" disabled>Select round…</SelectItem>
+                {activeRounds.map(r => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {errors.round_id && <p className="text-xs text-destructive">{errors.round_id}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Due Date</Label>
+            <Input type="date" value={form.due_date} onChange={e => set("due_date", e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Target Currency <span className="text-destructive">*</span></Label>
+            <Select value={form.target_currency_id || "__none"} onValueChange={v => set("target_currency_id", v === "__none" ? "" : v)}>
+              <SelectTrigger className={errors.target_currency_id ? "border-destructive" : ""}><SelectValue placeholder="Select currency…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none" disabled>Select currency…</SelectItem>
+                {currencies.map(c => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {errors.target_currency_id && <p className="text-xs text-destructive">{errors.target_currency_id}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Description</Label>
+            <Textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="Purpose of this request — visible to suppliers." rows={3} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notes</Label>
+            <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Internal notes — not shared with suppliers." rows={2} />
+            <p className="text-[10px] text-muted-foreground">Internal — suppliers will not see this.</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={saving} className="gap-2">
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create Supplier Request
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── STUB SECTION ─────────────────────────────────────────────────────────────
 function StubSection({ icon: Icon, label, note }: { icon:any; label:string; note:string }) {
   return(
