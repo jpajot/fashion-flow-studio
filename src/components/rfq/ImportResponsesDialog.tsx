@@ -17,25 +17,16 @@ const STATUS_CONFIG: Record<RowStatus, { icon: any; color: string }> = {
 };
 
 interface ParsedRow {
-  rowIdx: number;
-  lineId: string;
+  rowIdx: number; lineId: string;
   validFrom: string; validUntil: string;
-  minQty: number | null; maxQty: number | null;
-  leadTimeDays: number | null;
-  supplierCcy: string;
-  totalCost: number | null;
-  supplierNotes: string;
-  status: RowStatus;
-  reason: string;
-  currencyId: string;
+  minQty: number | null; maxQty: number | null; leadTimeDays: number | null;
+  supplierCcy: string; totalCost: number | null; supplierNotes: string;
+  status: RowStatus; reason: string; currencyId: string;
 }
 
 interface Props {
-  sr: any;
-  rfqLines: any[];
-  currencies: any[];
-  onClose: () => void;
-  onImportSuccess: () => void;
+  sr: any; rfqLines: any[]; currencies: any[];
+  onClose: () => void; onImportSuccess: () => void;
 }
 
 export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClose, onImportSuccess }: Props) {
@@ -49,24 +40,19 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
   const lineMap = Object.fromEntries(rfqLines.map(l => [l.id, l]));
 
   const handleFilePicked = async (file: File) => {
-    if (!file.name.endsWith(".xlsx")) {
-      toast.error("Only .xlsx files are supported.");
-      return;
-    }
+    if (!file.name.endsWith(".xlsx")) { toast.error("Only .xlsx files are supported."); return; }
     try {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer);
       const ws = wb.Sheets["Lines"];
       if (!ws) { toast.error("No 'Lines' sheet found."); return; }
-
       const data: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      if (data.length < 2) { toast.error("File must have header and at least one data row."); return; }
+      if (data.length < 2) { toast.error("File needs a header and at least one data row."); return; }
 
       const rows: ParsedRow[] = data.slice(1).map((row, idx) => {
         const lineId = row[0] ? String(row[0]).trim() : "";
         const supplierCcy = row[14] ? String(row[14]).trim().toUpperCase() : "";
         const totalCost = row[15] != null && row[15] !== "" ? Number(row[15]) : null;
-
         let status: RowStatus = ROW_STATUS.READY;
         let reason = "";
         let currencyId = "";
@@ -79,18 +65,14 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
         if (status === ROW_STATUS.READY && (supplierCcy || totalCost != null)) {
           if (!supplierCcy || totalCost == null) { status = ROW_STATUS.INVALID; reason = "Both currency & cost required."; }
         }
-
         if (status === ROW_STATUS.READY && supplierCcy) {
-          const curr = currencies.find(c => c.code.toUpperCase() === supplierCcy && c.is_active !== false);
+          const curr = currencies.find(c => c.code.toUpperCase() === supplierCcy);
           if (!curr) { status = ROW_STATUS.INVALID; reason = `Unknown currency: ${supplierCcy}`; }
           else currencyId = curr.id;
         }
-
         return {
-          rowIdx: idx + 2,
-          lineId,
-          validFrom: row[9] ? String(row[9]) : "",
-          validUntil: row[10] ? String(row[10]) : "",
+          rowIdx: idx + 2, lineId,
+          validFrom: row[9] ? String(row[9]) : "", validUntil: row[10] ? String(row[10]) : "",
           minQty: row[11] != null ? Number(row[11]) : null,
           maxQty: row[12] != null ? Number(row[12]) : null,
           leadTimeDays: row[13] != null ? Number(row[13]) : null,
@@ -98,29 +80,26 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
           status, reason, currencyId,
         };
       });
-
       setFilename(file.name);
       setParsedRows(rows);
       setStep("preview");
-    } catch (err: any) {
-      toast.error("Parse error: " + err.message);
-    }
+    } catch (err: any) { toast.error("Parse error: " + err.message); }
   };
 
   const handleImport = async () => {
     setImporting(true);
     const readyRows = parsedRows.filter(r => r.status === ROW_STATUS.READY);
-    let importedCount = 0;
     const now = new Date().toISOString();
     const today = now.split("T")[0];
+    let imported = 0;
 
     for (const row of readyRows) {
       const line = lineMap[row.lineId];
       const supCurr = currencies.find(c => c.id === row.currencyId);
       let totalCostTarget = row.totalCost!;
-      let conversionRateUsed: number = 1;
-      let conversionRateId: string | null = null;
-      let conversionRateDate: string | null = null;
+      let rateUsed = 1;
+      let rateId: string | null = null;
+      let rateDate: string | null = null;
 
       if (supCurr && supCurr.id !== sr.target_currency_id) {
         const { data: rates } = await supabase
@@ -131,61 +110,44 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
           .lte("effective_date", today)
           .order("effective_date", { ascending: false })
           .limit(1);
-
-        if (!rates?.length) {
-          toast.error(`No rate for ${supCurr.code} → target currency. Skipping row ${row.rowIdx}.`);
-          continue;
-        }
-        conversionRateUsed = rates[0].rate;
-        conversionRateId = rates[0].id;
-        conversionRateDate = rates[0].effective_date;
+        if (!rates?.length) { toast.error(`No rate for ${supCurr.code}. Skipping row ${row.rowIdx}.`); continue; }
+        rateUsed = rates[0].rate; rateId = rates[0].id; rateDate = rates[0].effective_date;
         totalCostTarget = row.totalCost! * rates[0].rate;
       }
 
       await supabase.from("rfq_responses").insert({
         rfq_line_id: row.lineId,
-        valid_from: row.validFrom || null,
-        valid_until: row.validUntil || null,
-        min_qty: row.minQty,
-        max_qty: row.maxQty,
-        leadtime_days: row.leadTimeDays,
+        valid_from: row.validFrom || null, valid_until: row.validUntil || null,
+        min_qty: row.minQty, max_qty: row.maxQty, leadtime_days: row.leadTimeDays,
         supplier_currency_id: row.currencyId,
         total_cost_supplier_ccy: row.totalCost,
         total_cost_target_ccy: totalCostTarget,
-        conversion_rate_used: conversionRateUsed,
-        conversion_rate_id: conversionRateId,
-        conversion_rate_date: conversionRateDate,
-        status: "submitted",
-        submitted_at: now,
-        submitted_by: user?.email || "",
-        is_awarded: false,
+        conversion_rate_used: rateUsed, conversion_rate_id: rateId, conversion_rate_date: rateDate,
+        status: "submitted", submitted_at: now, submitted_by: user?.email || "", is_awarded: false,
         supplier_notes: row.supplierNotes || null,
         reviewer_notes: `Imported from ${filename} on ${new Date().toLocaleDateString()}`,
       });
-
       if (line.status === "pending") {
         await supabase.from("rfq_lines").update({ status: "answered" }).eq("id", row.lineId);
       }
-      importedCount++;
+      imported++;
     }
-
     setImporting(false);
-    toast.success(`Imported ${importedCount} response${importedCount !== 1 ? "s" : ""}`);
+    toast.success(`Imported ${imported} response${imported !== 1 ? "s" : ""}`);
     onImportSuccess();
     onClose();
   };
 
-  const readyCount   = parsedRows.filter(r => r.status === ROW_STATUS.READY).length;
-  const skipCount    = parsedRows.filter(r => r.status === ROW_STATUS.SKIP).length;
+  const readyCount = parsedRows.filter(r => r.status === ROW_STATUS.READY).length;
+  const skipCount  = parsedRows.filter(r => r.status === ROW_STATUS.SKIP).length;
   const invalidCount = parsedRows.filter(r => r.status === ROW_STATUS.INVALID).length;
 
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Import Responses</DialogTitle></DialogHeader>
-
         {step === "picker" && (
-          <div className="space-y-4 py-4">
+          <div className="py-4">
             <div
               className="border-2 border-dashed border-border rounded-lg p-10 text-center cursor-pointer hover:bg-muted/50 transition-colors"
               onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFilePicked(f); }}
@@ -193,12 +155,11 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
               onClick={() => fileInputRef.current?.click()}
             >
               <input ref={fileInputRef} type="file" accept=".xlsx" onChange={e => { const f = e.target.files?.[0]; if (f) handleFilePicked(f); }} className="hidden" />
-              <p className="text-sm font-medium">Drop your filled .xlsx file here</p>
-              <p className="text-xs text-muted-foreground mt-1">or click to browse — use the Export ToDo file as template</p>
+              <p className="text-sm font-medium">Drop your filled .xlsx here</p>
+              <p className="text-xs text-muted-foreground mt-1">or click to browse — use Export ToDo as template</p>
             </div>
           </div>
         )}
-
         {step === "preview" && (
           <div className="space-y-4 py-2">
             <div className="bg-muted/50 p-3 rounded text-xs">
@@ -208,12 +169,9 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
               <table className="w-full text-xs">
                 <thead className="bg-muted/40 sticky top-0">
                   <tr>
-                    <th className="px-2 py-2 w-6" />
-                    <th className="px-2 py-2 text-left">Row</th>
-                    <th className="px-2 py-2 text-left">Line ID</th>
-                    <th className="px-2 py-2 text-left">Currency</th>
-                    <th className="px-2 py-2 text-left">Total Cost</th>
-                    <th className="px-2 py-2 text-left">Note</th>
+                    <th className="px-2 py-2 w-6" /><th className="px-2 py-2 text-left">Row</th>
+                    <th className="px-2 py-2 text-left">Line ID</th><th className="px-2 py-2 text-left">Currency</th>
+                    <th className="px-2 py-2 text-left">Total Cost</th><th className="px-2 py-2 text-left">Note</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -223,7 +181,7 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
                       <tr key={row.rowIdx} className={`border-t border-border ${color}`}>
                         <td className="px-2 py-1.5"><Icon className="w-3.5 h-3.5" /></td>
                         <td className="px-2 py-1.5">{row.rowIdx}</td>
-                        <td className="px-2 py-1.5 font-mono text-[10px] truncate max-w-[120px]">{row.lineId}</td>
+                        <td className="px-2 py-1.5 font-mono text-[10px]">{row.lineId.slice(0,8)}…</td>
                         <td className="px-2 py-1.5">{row.supplierCcy}</td>
                         <td className="px-2 py-1.5">{row.totalCost}</td>
                         <td className="px-2 py-1.5 text-[10px]">{row.reason}</td>
@@ -235,8 +193,7 @@ export default function ImportResponsesDialog({ sr, rfqLines, currencies, onClos
             </div>
             {invalidCount > 0 && (
               <div className="bg-destructive/10 border border-destructive/20 rounded p-2 flex gap-2 text-xs text-destructive">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>Fix invalid rows and re-upload to proceed.</p>
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><p>Fix invalid rows and re-upload to proceed.</p>
               </div>
             )}
             <DialogFooter>
