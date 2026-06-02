@@ -1102,6 +1102,12 @@ export default function SupplierRequestDetail() {
                 <DropdownMenuItem onClick={() => setShowEditHeader(true)}>
                   <Pencil className="w-3.5 h-3.5 mr-2" />Edit Header
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowExport(true)}>
+                  <Download className="w-3.5 h-3.5 mr-2" />Export ToDo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowImport(true)}>
+                  <Upload className="w-3.5 h-3.5 mr-2" />Import Responses
+                </DropdownMenuItem>
                 {isDraft && (
                   <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-destructive focus:text-destructive">
                     <Trash2 className="w-3.5 h-3.5 mr-2" />Delete
