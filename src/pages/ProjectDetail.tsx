@@ -2022,7 +2022,7 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
     try {
       const sr = srs.find((s: any) => s.id === awardingLine.supplier_request_id);
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/award-rfq-response`, {
+      const res = await fetch(`https://qpddwbrundmfkbfcltkl.supabase.co/functions/v1/award-rfq-response`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
         body: JSON.stringify({ rfq_line_id: awardingLine.id, response_id: awardingResponse.id, rfq_id: sr?.id }),
