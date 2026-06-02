@@ -99,11 +99,94 @@ const CW_STATUS: Record<string, string> = {
   rejected: "bg-red-100 text-red-700", obsolete: "bg-gray-100 text-gray-500",
 };
 
+// ── Link field constants ──────────────────────────────────────────────────────
+const LINK_STATUS_OPTIONS = ["Development", "Confirmed", "Dropped", "On Hold"];
+const DIST_CHANNEL_OPTIONS = ["Wholesale", "Direct To Customer"];
+
+// Inline editable cell — number, text, select, or tag-multiselect
+function LinkCell({ value, type = "text", options, onSave }: {
+  value: any;
+  type?: "text" | "number" | "select" | "multiselect";
+  options?: string[];
+  onSave: (v: any) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState<any>(value ?? (type === "multiselect" ? [] : ""));
+  const ref = useRef<HTMLInputElement | HTMLSelectElement>(null);
+
+  useEffect(() => { setVal(value ?? (type === "multiselect" ? [] : "")); }, [JSON.stringify(value)]);
+  useEffect(() => { if (editing && ref.current) (ref.current as HTMLElement).focus(); }, [editing]);
+
+  const commit = (v: any) => { setEditing(false); onSave(v); };
+
+  if (type === "multiselect") {
+    const tags: string[] = Array.isArray(val) ? val : [];
+    return (
+      <div className="min-w-[120px]">
+        <div className="flex flex-wrap gap-0.5 items-center min-h-[24px] cursor-pointer group" onClick={() => setEditing(v => !v)}>
+          {tags.length === 0 ? <span className="text-[10px] text-muted-foreground/50 group-hover:text-primary/50">—</span>
+            : tags.map(t => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{t}</span>)}
+        </div>
+        {editing && options && (
+          <div className="mt-1 border border-border rounded-lg shadow-lg bg-popover z-50 overflow-hidden" style={{position:"relative"}}>
+            {options.map(opt => {
+              const selected = tags.includes(opt);
+              return (
+                <button key={opt} type="button"
+                  onClick={() => { const next = selected ? tags.filter(x=>x!==opt) : [...tags, opt]; setVal(next); onSave(next); }}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${selected?"bg-primary/10 text-primary":"hover:bg-muted"}`}>
+                  <div className={`w-3 h-3 rounded border flex-shrink-0 ${selected?"bg-primary border-primary":"border-border"}`}/>
+                  {opt}
+                </button>
+              );
+            })}
+            <button type="button" onClick={() => setEditing(false)} className="w-full text-center text-[10px] text-muted-foreground py-1 hover:bg-muted border-t border-border">Done</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (type === "select" && options) {
+    return (
+      <select
+        value={val || ""}
+        onChange={e => commit(e.target.value || null)}
+        className="text-xs bg-transparent border-0 outline-none cursor-pointer hover:bg-muted rounded px-1 py-0.5 w-full"
+      >
+        <option value="">—</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <button type="button" onClick={() => setEditing(true)}
+        className="text-xs text-left w-full px-1 py-0.5 rounded hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground min-w-[60px]">
+        {val !== null && val !== "" && val !== undefined ? String(val) : "—"}
+      </button>
+    );
+  }
+  return (
+    <input
+      ref={ref as any}
+      type={type === "number" ? "number" : "text"}
+      value={val ?? ""}
+      onChange={e => setVal(e.target.value)}
+      onBlur={() => commit(type === "number" ? (val === "" ? null : Number(val)) : (val || null))}
+      onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setVal(value ?? ""); setEditing(false); } }}
+      className="text-xs border-0 ring-1 ring-primary rounded px-1 py-0.5 bg-background w-full outline-none"
+    />
+  );
+}
+
 // ── STYLES TAB ───────────────────────────────────────────────────────────────
 function StylesSection({ projectId, linkedStyles, onRefresh, setOptions }: { projectId:string; linkedStyles:any[]; onRefresh:()=>void; setOptions:any }) {
   const navigate = useNavigate();
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+  const [linkMap, setLinkMap] = useState<Record<string,any>>({});
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
@@ -116,8 +199,30 @@ function StylesSection({ projectId, linkedStyles, onRefresh, setOptions }: { pro
     supabase.from("projects").select("id,name").order("name").then(({data})=>setProjects(data??[]));
   }, []);
 
-  useEffect(() => { localStorage.setItem("proj_styles_view", view); }, [view]);
+  useEffect(() => {
+    if (!projectId) return;
+    supabase.from("product_project_links").select("*").eq("project_id", projectId).then(({data}) => {
+      const m: Record<string,any> = {};
+      (data ?? []).forEach((l: any) => { m[l.product_id] = l; });
+      setLinkMap(m);
+    });
+  }, [projectId, linkedStyles.length]);
 
+  const saveLinkField = async (productId: string, field: string, rawValue: any) => {
+    const value = rawValue;
+    const existing = linkMap[productId];
+    let updated: any;
+    if (existing) {
+      const { data } = await supabase.from("product_project_links").update({ [field]: value }).eq("id", existing.id).select().single();
+      updated = data;
+    } else {
+      const { data } = await supabase.from("product_project_links").insert({ product_id: productId, project_id: projectId, [field]: value }).select().single();
+      updated = data;
+    }
+    if (updated) setLinkMap(prev => ({ ...prev, [productId]: updated }));
+  };
+
+  useEffect(() => { localStorage.setItem("proj_styles_view", view); }, [view]);
   const filtered = search.trim() ? linkedStyles.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(search.toLowerCase())) : linkedStyles;
 
   const handleLink = async (ids: string[]) => {
@@ -142,79 +247,83 @@ function StylesSection({ projectId, linkedStyles, onRefresh, setOptions }: { pro
   };
 
   const galleryFields = useMemo(() => [
-    { id: "code",    label: "Code",     getValue: (p:any) => p.code,     render: (p:any) => <span className="font-mono text-xs text-muted-foreground">{p.code||"—"}</span> },
-    { id: "name",    label: "Name",     getValue: (p:any) => p.name,     render: (p:any) => <span className="font-medium text-xs">{p.name}</span> },
-    { id: "type",    label: "Type",     getValue: (p:any) => p.type,     render: (p:any) => <span className="text-xs text-muted-foreground">{p.type||"—"}</span> },
-    { id: "sub_type",label: "Sub-type", getValue: (p:any) => p.sub_type, render: (p:any) => <span className="text-xs text-muted-foreground">{p.sub_type||"—"}</span> },
-    { id: "category",label: "Category", getValue: (p:any) => p.category, render: (p:any) => <span className="text-xs text-muted-foreground">{p.category||"—"}</span> },
-    { id: "creation_project", label: "Creation Project",
-      getValue: (p:any) => projects.find((pr:any) => pr.id === p.creation_project_id)?.name || "",
-      render: (p:any) => { const pr = projects.find((x:any) => x.id === p.creation_project_id); return <span className="text-xs text-muted-foreground">{pr?.name||"—"}</span>; } },
-    { id: "linked_projects", label: "Linked Projects",
-      getValue: (p:any) => ((p.project_ids||[]) as string[]).map((id:string) => projects.find((pr:any) => pr.id === id)?.name).filter(Boolean).join(", "),
-      render: (p:any) => { const names = ((p.project_ids||[]) as string[]).map((id:string) => projects.find((pr:any) => pr.id === id)?.name).filter(Boolean); return <span className="text-xs text-muted-foreground">{names.length ? names.join(", ") : "—"}</span>; } },
-  ], [projects]);
+    { id:"code", label:"Code", getValue:(p:any)=>p.code, render:(p:any)=><span className="font-mono text-xs text-muted-foreground">{p.code||"—"}</span> },
+    { id:"name", label:"Name", getValue:(p:any)=>p.name, render:(p:any)=><span className="font-medium text-xs">{p.name}</span> },
+    { id:"type", label:"Type", getValue:(p:any)=>p.type, render:(p:any)=><span className="text-xs text-muted-foreground">{p.type||"—"}</span> },
+    { id:"sub_type", label:"Sub-type", getValue:(p:any)=>p.sub_type, render:(p:any)=><span className="text-xs text-muted-foreground">{p.sub_type||"—"}</span> },
+    { id:"category", label:"Category", getValue:(p:any)=>p.category, render:(p:any)=><span className="text-xs text-muted-foreground">{p.category||"—"}</span> },
+    { id:"creation_project", label:"Creation Project",
+      getValue:(p:any)=>projects.find((pr:any)=>pr.id===p.creation_project_id)?.name||"",
+      render:(p:any)=>{ const pr=projects.find((x:any)=>x.id===p.creation_project_id); return <span className="text-xs text-muted-foreground">{pr?.name||"—"}</span>; } },
+    { id:"linked_projects", label:"Linked Projects",
+      getValue:(p:any)=>((p.project_ids||[]) as string[]).map((id:string)=>projects.find((pr:any)=>pr.id===id)?.name).filter(Boolean).join(", "),
+      render:(p:any)=>{ const names=((p.project_ids||[]) as string[]).map((id:string)=>projects.find((pr:any)=>pr.id===id)?.name).filter(Boolean); return <span className="text-xs text-muted-foreground">{names.length?names.join(", "):"—"}</span>; } },
+    { id:"link_status", label:"Project Status",
+      getValue:(p:any)=>linkMap[p.id]?.status||"",
+      render:(p:any)=><LinkCell value={linkMap[p.id]?.status} type="select" options={LINK_STATUS_OPTIONS} onSave={v=>saveLinkField(p.id,"status",v)}/> },
+    { id:"link_notes", label:"Project Notes",
+      getValue:(p:any)=>linkMap[p.id]?.notes||"",
+      render:(p:any)=><LinkCell value={linkMap[p.id]?.notes} onSave={v=>saveLinkField(p.id,"notes",v)}/> },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [projects, linkMap]);
 
   const tableColumns = useMemo(() => [
-    { id:"code",    label:"Code",     width:110, sortKey:(p:any)=>p.code||"",     render:(p:any)=><span className="font-mono text-xs text-muted-foreground">{p.code||"—"}</span> },
-    { id:"name",    label:"Name",     width:200, sortKey:(p:any)=>p.name||"",     render:(p:any)=><span className="font-medium text-sm">{p.name}</span> },
-    { id:"type",    label:"Type",     width:140, sortKey:(p:any)=>p.type||"",     render:(p:any)=><span className="text-xs text-muted-foreground">{p.type||"—"}</span> },
-    { id:"sub_type",label:"Sub-type", width:130, sortKey:(p:any)=>p.sub_type||"", render:(p:any)=><span className="text-xs text-muted-foreground">{p.sub_type||"—"}</span> },
-    { id:"category",label:"Category", width:130, sortKey:(p:any)=>p.category||"", render:(p:any)=><span className="text-xs text-muted-foreground">{p.category||"—"}</span> },
+    { id:"code", label:"Code", width:110, sortKey:(p:any)=>p.code||"", render:(p:any)=><span className="font-mono text-xs text-muted-foreground">{p.code||"—"}</span> },
+    { id:"name", label:"Name", width:200, sortKey:(p:any)=>p.name||"", render:(p:any)=><span className="font-medium text-sm">{p.name}</span> },
+    { id:"type", label:"Type", width:140, sortKey:(p:any)=>p.type||"", render:(p:any)=><span className="text-xs text-muted-foreground">{p.type||"—"}</span> },
+    { id:"sub_type", label:"Sub-type", width:130, sortKey:(p:any)=>p.sub_type||"", render:(p:any)=><span className="text-xs text-muted-foreground">{p.sub_type||"—"}</span> },
+    { id:"category", label:"Category", width:130, sortKey:(p:any)=>p.category||"", render:(p:any)=><span className="text-xs text-muted-foreground">{p.category||"—"}</span> },
     { id:"creation_project", label:"Creation Project", width:160,
       sortKey:(p:any)=>projects.find((pr:any)=>pr.id===p.creation_project_id)?.name||"",
       render:(p:any)=>{ const pr=projects.find((x:any)=>x.id===p.creation_project_id); return <span className="text-xs text-muted-foreground">{pr?.name||"—"}</span>; } },
     { id:"linked_projects", label:"Linked Projects", width:200,
       render:(p:any)=>{ const names=((p.project_ids||[]) as string[]).map((id:string)=>projects.find((pr:any)=>pr.id===id)?.name).filter(Boolean); return <span className="text-xs text-muted-foreground">{names.length?names.join(", "):"—"}</span>; } },
+    { id:"link_status", label:"Project Status", width:140,
+      sortKey:(p:any)=>linkMap[p.id]?.status||"",
+      render:(p:any)=><LinkCell value={linkMap[p.id]?.status} type="select" options={LINK_STATUS_OPTIONS} onSave={v=>saveLinkField(p.id,"status",v)}/> },
+    { id:"link_notes", label:"Project Notes", width:200,
+      render:(p:any)=><LinkCell value={linkMap[p.id]?.notes} onSave={v=>saveLinkField(p.id,"notes",v)}/> },
     { id:"unlink", label:"", width:44,
       render:(p:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(p.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
-  ], [projects]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [projects, linkMap]);
 
   useEffect(() => {
     setOptions({
       items: [
-        { label: "Link Style", icon: Plus, onClick: () => setShowLink(true), className: "text-primary hover:bg-primary/10" },
-        { divider: true },
-        { label: view === "grid" ? "View: List" : "View: Grid", icon: view === "grid" ? ListIcon : LayoutGrid,
-          onClick: () => setView(v => v === "grid" ? "list" : "grid") },
-        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
+        { label:"Link Style", icon:Plus, onClick:()=>setShowLink(true), className:"text-primary hover:bg-primary/10" },
+        { divider:true },
+        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid") },
+        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v) },
       ],
       customContent: showViewMenu ? (
-        <ViewDrawerContent
-          pageKey="project_styles"
-          activeViewId={activeViewId}
-          onSelectView={id => { setActiveViewId(id); setShowViewMenu(false); }}
-          allFields={view === "grid" ? galleryFields : tableColumns}
-          currentViewType={view === "grid" ? "grid" : null}
-        />
+        <ViewDrawerContent pageKey="project_styles" activeViewId={activeViewId}
+          onSelectView={id=>{setActiveViewId(id);setShowViewMenu(false);}}
+          allFields={view==="grid"?galleryFields:tableColumns}
+          currentViewType={view==="grid"?"grid":null}/>
       ) : null,
     });
-    return () => setOptions(null);
+    return ()=>setOptions(null);
   }, [view, showViewMenu, activeViewId, galleryFields, tableColumns, setOptions]);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search styles…" className="pl-8 h-8 text-xs" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
+          <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search styles…" className="pl-8 h-8 text-xs"/>
         </div>
       </div>
-
-      {filtered.length === 0 ? (
+      {filtered.length===0 ? (
         <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
           <Package className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
-          <p className="text-sm text-muted-foreground">{linkedStyles.length === 0 ? "No styles linked yet" : "No matches"}</p>
+          <p className="text-sm text-muted-foreground">{linkedStyles.length===0?"No styles linked yet":"No matches"}</p>
         </div>
-      ) : view === "grid" ? (
-        <GalleryView
-          pageKey="project_styles"
-          allFields={galleryFields}
-          rows={filtered}
-          renderThumbnail={(p) => (
+      ) : view==="grid" ? (
+        <GalleryView pageKey="project_styles" allFields={galleryFields} rows={filtered}
+          renderThumbnail={(p)=>(
             <div className="w-full h-full bg-muted flex items-center justify-center overflow-hidden group">
-              {p.images?.[0]
-                ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"/>
+              {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"/>
                 : <Package className="w-8 h-8 text-muted-foreground/30"/>}
               <button type="button" onClick={e=>{e.stopPropagation();handleUnlink(p.id);}}
                 className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 p-1 rounded-full text-muted-foreground hover:text-destructive">
@@ -222,31 +331,24 @@ function StylesSection({ projectId, linkedStyles, onRefresh, setOptions }: { pro
               </button>
             </div>
           )}
-          onClickItem={(p) => navigate(`/products/${p.id}`)}
-          activeViewId={activeViewId}
-          onSelectView={setActiveViewId}
-        />
+          onClickItem={(p)=>navigate(`/products/${p.id}`)}
+          activeViewId={activeViewId} onSelectView={setActiveViewId}/>
       ) : (
-        <DataTable
-          columns={tableColumns}
-          rows={filtered}
-          onRowClick={(p) => navigate(`/products/${p.id}`)}
+        <DataTable columns={tableColumns} rows={filtered}
+          onRowClick={(p)=>navigate(`/products/${p.id}`)}
           fixedColumns={["code","name"]}
-          {...({ activeViewId } as any)}
-        />
+          {...({activeViewId} as any)}/>
       )}
-
       <LinkModal open={showLink} onClose={()=>setShowLink(false)} title="Link Styles"
         items={allProducts} alreadyLinkedIds={linkedStyles.map(s=>s.id)}
         onConfirm={handleLink} confirming={linking}
         renderItem={item=>(
           <div className="flex-1 min-w-0">
             <span className="font-medium">{item.name}</span>
-            {item.code && <span className="ml-1.5 text-muted-foreground font-mono">{item.code}</span>}
-            {item.type && <span className="ml-1.5 text-muted-foreground">· {item.type}</span>}
+            {item.code&&<span className="ml-1.5 text-muted-foreground font-mono">{item.code}</span>}
+            {item.type&&<span className="ml-1.5 text-muted-foreground">· {item.type}</span>}
           </div>
-        )}
-      />
+        )}/>
     </div>
   );
 }
@@ -258,6 +360,7 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }:
   const [techColors, setTechColors] = useState<any[]>([]);
   const [commColors, setCommColors] = useState<any[]>([]);
   const [productMap, setProductMap] = useState<Map<string,any>>(new Map());
+  const [linkMap, setLinkMap] = useState<Record<string,any>>({});
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
@@ -278,12 +381,35 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }:
     supabase.from("products").select("id,images").in("id",pIds).then(({data})=>{ if(data) setProductMap(new Map(data.map(p=>[p.id,p]))); });
   }, [linkedColorways]);
 
+  useEffect(() => {
+    if (!projectId) return;
+    supabase.from("product_color_project_links").select("*").eq("project_id", projectId).then(({data}) => {
+      const m: Record<string,any> = {};
+      (data ?? []).forEach((l: any) => { m[l.product_color_id] = l; });
+      setLinkMap(m);
+    });
+  }, [projectId, linkedColorways.length]);
+
+  const saveLinkField = async (colorwayId: string, field: string, rawValue: any) => {
+    const value = field === "forecasted_quantity" ? (rawValue === "" || rawValue === null ? null : Number(rawValue)) : rawValue;
+    const existing = linkMap[colorwayId];
+    let updated: any;
+    if (existing) {
+      const { data } = await supabase.from("product_color_project_links").update({ [field]: value }).eq("id", existing.id).select().single();
+      updated = data;
+    } else {
+      const { data } = await supabase.from("product_color_project_links").insert({ product_color_id: colorwayId, project_id: projectId, [field]: value }).select().single();
+      updated = data;
+    }
+    if (updated) setLinkMap(prev => ({ ...prev, [colorwayId]: updated }));
+  };
+
   useEffect(() => { localStorage.setItem("proj_colorways_view", view); }, [view]);
 
   const getLinkedHexes = (c: any) => {
-    const cc = commColors.find(x => x.id === c.linked_color_id);
+    const cc = commColors.find(x=>x.id===c.linked_color_id);
     if (!cc || cc.sub_type !== "Combined") return null;
-    const hexes = (cc.linked_technical_color_ids||[]).map((id:string) => techColors.find(t=>t.id===id)?.hex).filter(Boolean) as string[];
+    const hexes = (cc.linked_technical_color_ids||[]).map((id:string)=>techColors.find(t=>t.id===id)?.hex).filter(Boolean) as string[];
     return hexes.length > 1 ? hexes : null;
   };
 
@@ -350,14 +476,26 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }:
   };
 
   const galleryFields = useMemo(() => [
-    { id:"color_name", label:"Color Name",  getValue:(c:any)=>c.color_name, render:(c:any)=><span className="font-medium text-xs">{c.color_name||"—"}</span> },
-    { id:"colorway_code", label:"Code",     getValue:(c:any)=>c.colorway_code, render:(c:any)=><span className="font-mono text-[10px] text-muted-foreground">{c.colorway_code||"—"}</span> },
+    { id:"color_name", label:"Color Name", getValue:(c:any)=>c.color_name, render:(c:any)=><span className="font-medium text-xs">{c.color_name||"—"}</span> },
+    { id:"colorway_code", label:"Code", getValue:(c:any)=>c.colorway_code, render:(c:any)=><span className="font-mono text-[10px] text-muted-foreground">{c.colorway_code||"—"}</span> },
     { id:"colorway_status", label:"Status", getValue:(c:any)=>c.colorway_status,
       render:(c:any)=>c.colorway_status ? <span className={`text-[10px] px-1 py-0.5 rounded ${CW_STATUS[c.colorway_status]||"bg-gray-100 text-gray-600"}`}>{c.colorway_status.replace(/_/g," ")}</span> : <span className="text-muted-foreground/40">—</span> },
-    { id:"product_name", label:"Style",
-      getValue:(c:any)=>(c as any).products?.name||"",
+    { id:"product_name", label:"Style", getValue:(c:any)=>(c as any).products?.name||"",
       render:(c:any)=><span className="text-[10px] text-muted-foreground">{(c as any).products?.name||"—"}</span> },
-  ], []);
+    { id:"link_forecasted_qty", label:"Fcst. Qty",
+      getValue:(c:any)=>linkMap[c.id]?.forecasted_quantity??null,
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.forecasted_quantity} type="number" onSave={v=>saveLinkField(c.id,"forecasted_quantity",v)}/> },
+    { id:"link_channels", label:"Channels of Trade",
+      getValue:(c:any)=>(linkMap[c.id]?.channels_of_trade||[]).join(", "),
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.channels_of_trade||[]} type="multiselect" options={["Wholesale","Direct To Customer","E-Commerce","Retail"]} onSave={v=>saveLinkField(c.id,"channels_of_trade",v)}/> },
+    { id:"link_status", label:"Project Status",
+      getValue:(c:any)=>linkMap[c.id]?.status||"",
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.status} type="select" options={LINK_STATUS_OPTIONS} onSave={v=>saveLinkField(c.id,"status",v)}/> },
+    { id:"link_notes", label:"Project Notes",
+      getValue:(c:any)=>linkMap[c.id]?.notes||"",
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.notes} onSave={v=>saveLinkField(c.id,"notes",v)}/> },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [linkMap]);
 
   const tableColumns = useMemo(() => [
     { id:"swatch", label:"Color", width:48, render:(c:any)=><ListSwatch c={c}/> },
@@ -367,31 +505,37 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }:
       render:(c:any)=>c.colorway_status ? <span className={`text-[10px] px-1.5 py-0.5 rounded border ${CW_STATUS[c.colorway_status]||"bg-gray-100 text-gray-600"}`}>{c.colorway_status.replace(/_/g," ")}</span> : <span className="text-muted-foreground/40">—</span> },
     { id:"product_name", label:"Style", width:180, sortKey:(c:any)=>(c as any).products?.name||"",
       render:(c:any)=><span className="text-xs text-muted-foreground">{(c as any).products?.name||"—"}</span> },
+    { id:"link_forecasted_qty", label:"Fcst. Qty", width:90,
+      sortKey:(c:any)=>linkMap[c.id]?.forecasted_quantity??-1,
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.forecasted_quantity} type="number" onSave={v=>saveLinkField(c.id,"forecasted_quantity",v)}/> },
+    { id:"link_channels", label:"Channels of Trade", width:200,
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.channels_of_trade||[]} type="multiselect" options={["Wholesale","Direct To Customer","E-Commerce","Retail"]} onSave={v=>saveLinkField(c.id,"channels_of_trade",v)}/> },
+    { id:"link_status", label:"Project Status", width:140,
+      sortKey:(c:any)=>linkMap[c.id]?.status||"",
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.status} type="select" options={LINK_STATUS_OPTIONS} onSave={v=>saveLinkField(c.id,"status",v)}/> },
+    { id:"link_notes", label:"Project Notes", width:200,
+      render:(c:any)=><LinkCell value={linkMap[c.id]?.notes} onSave={v=>saveLinkField(c.id,"notes",v)}/> },
     { id:"unlink", label:"", width:44,
       render:(c:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(c.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [commColors, techColors, productMap]);
+  ], [commColors, techColors, productMap, linkMap]);
 
   useEffect(() => {
     setOptions({
       items: [
-        { label: "Link Colorway", icon: Plus, onClick: ()=>setShowLink(true), className: "text-primary hover:bg-primary/10" },
-        { divider: true },
-        { label: view === "grid" ? "View: List" : "View: Grid", icon: view === "grid" ? ListIcon : LayoutGrid,
-          onClick: () => setView(v => v === "grid" ? "list" : "grid") },
-        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v=>!v) },
+        { label:"Link Colorway", icon:Plus, onClick:()=>setShowLink(true), className:"text-primary hover:bg-primary/10" },
+        { divider:true },
+        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid") },
+        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v) },
       ],
       customContent: showViewMenu ? (
-        <ViewDrawerContent
-          pageKey="project_colorways"
-          activeViewId={activeViewId}
-          onSelectView={id=>{ setActiveViewId(id); setShowViewMenu(false); }}
-          allFields={view === "grid" ? galleryFields : tableColumns}
-          currentViewType={view === "grid" ? "grid" : null}
-        />
+        <ViewDrawerContent pageKey="project_colorways" activeViewId={activeViewId}
+          onSelectView={id=>{setActiveViewId(id);setShowViewMenu(false);}}
+          allFields={view==="grid"?galleryFields:tableColumns}
+          currentViewType={view==="grid"?"grid":null}/>
       ) : null,
     });
-    return () => setOptions(null);
+    return ()=>setOptions(null);
   }, [view, showViewMenu, activeViewId, galleryFields, tableColumns, setOptions]);
 
   return (
@@ -402,32 +546,22 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }:
           <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search colorways…" className="pl-8 h-8 text-xs"/>
         </div>
       </div>
-
-      {filtered.length === 0 ? (
+      {filtered.length===0 ? (
         <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
           <Palette className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
           <p className="text-sm text-muted-foreground">{linkedColorways.length===0?"No colorways linked yet":"No matches"}</p>
         </div>
-      ) : view === "grid" ? (
-        <GalleryView
-          pageKey="project_colorways"
-          allFields={galleryFields}
-          rows={filtered}
+      ) : view==="grid" ? (
+        <GalleryView pageKey="project_colorways" allFields={galleryFields} rows={filtered}
           renderThumbnail={renderThumb}
           onClickItem={(c)=>c.product_id&&navigate(`/products/${c.product_id}`)}
-          activeViewId={activeViewId}
-          onSelectView={setActiveViewId}
-        />
+          activeViewId={activeViewId} onSelectView={setActiveViewId}/>
       ) : (
-        <DataTable
-          columns={tableColumns}
-          rows={filtered}
+        <DataTable columns={tableColumns} rows={filtered}
           onRowClick={(c)=>c.product_id&&navigate(`/products/${c.product_id}`)}
           fixedColumns={["swatch","color_name"]}
-          {...({ activeViewId } as any)}
-        />
+          {...({activeViewId} as any)}/>
       )}
-
       <LinkModal open={showLink} onClose={()=>setShowLink(false)} title="Link Colorways"
         items={allColorways} alreadyLinkedIds={linkedColorways.map(c=>c.id)}
         onConfirm={handleLink} confirming={linking}
@@ -440,8 +574,7 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }:
               {(item as any).products?.name&&<span className="ml-1 text-muted-foreground">· {(item as any).products.name}</span>}
             </div>
           </>
-        )}
-      />
+        )}/>
     </div>
   );
 }
@@ -451,6 +584,8 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   const navigate = useNavigate();
   const [allVariations, setAllVariations] = useState<any[]>([]);
   const [sizes, setSizes] = useState<any[]>([]);
+  const [linkMap, setLinkMap] = useState<Record<string,any>>({});
+  const [channelOptions, setChannelOptions] = useState<string[]>([]);
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
@@ -461,12 +596,41 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   useEffect(() => {
     supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,image_url,product_color_id,size_ids,product_colors(color_name,colorway_code,color_hex,products(name,images))").order("created_at",{ascending:false}).then(({data})=>setAllVariations(data??[]));
     supabase.from("sizes").select("id,name,size_code").then(({data})=>setSizes(data??[]));
+    supabase.from("type_of_lov").select("id,code").eq("code","ChannelOfTrade").single().then(({data:lov})=>{
+      if (!lov) return;
+      supabase.from("list_of_values").select("name").eq("type_of_lov_id",lov.id).order("name").then(({data:vals})=>{
+        if (vals) setChannelOptions(vals.map((v:any)=>v.name));
+      });
+    });
   }, []);
 
+  useEffect(() => {
+    if (!projectId) return;
+    supabase.from("product_color_and_more_project_links").select("*").eq("project_id", projectId).then(({data}) => {
+      const m: Record<string,any> = {};
+      (data ?? []).forEach((l: any) => { m[l.product_color_and_more_id] = l; });
+      setLinkMap(m);
+    });
+  }, [projectId, linkedVariations.length]);
+
+  const saveLinkField = async (variationId: string, field: string, rawValue: any) => {
+    const value = (field === "channels_of_trade" || field === "distribution_channels") ? rawValue
+      : field === "forecasted_quantity" ? (rawValue === "" || rawValue === null ? null : Number(rawValue))
+      : rawValue;
+    const existing = linkMap[variationId];
+    let updated: any;
+    if (existing) {
+      const { data } = await supabase.from("product_color_and_more_project_links").update({ [field]: value }).eq("id", existing.id).select().single();
+      updated = data;
+    } else {
+      const { data } = await supabase.from("product_color_and_more_project_links").insert({ product_color_and_more_id: variationId, project_id: projectId, [field]: value }).select().single();
+      updated = data;
+    }
+    if (updated) setLinkMap(prev => ({ ...prev, [variationId]: updated }));
+  };
+
   useEffect(() => { localStorage.setItem("proj_variations_view", view); }, [view]);
-
   const getSizes = (v: any) => ((v.size_ids||[]) as string[]).map((sid:string)=>sizes.find(s=>s.id===sid)).filter(Boolean);
-
   const filtered = search.trim() ? linkedVariations.filter(v=>`${v.name||""} ${v.sequence||""} ${v.pack_code||""} ${v.variant||""}`.toLowerCase().includes(search.toLowerCase())) : linkedVariations;
 
   const handleLink = async (ids: string[]) => {
@@ -502,53 +666,76 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   };
 
   const galleryFields = useMemo(() => [
-    { id:"sequence",  label:"Seq.",     getValue:(v:any)=>v.sequence,  render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.sequence||"—"}</span> },
-    { id:"name",      label:"Name",     getValue:(v:any)=>v.name,      render:(v:any)=><span className="font-medium text-xs">{v.name||"—"}</span> },
-    { id:"pack_code", label:"Pack Code",getValue:(v:any)=>v.pack_code, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.pack_code||"—"}</span> },
-    { id:"variant",   label:"Variant",  getValue:(v:any)=>v.variant,   render:(v:any)=><span className="text-[10px] text-muted-foreground">{v.variant||"—"}</span> },
-    { id:"colorway",  label:"Colorway", getValue:(v:any)=>(v as any).product_colors?.color_name||"",
+    { id:"sequence", label:"Seq.", getValue:(v:any)=>v.sequence, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.sequence||"—"}</span> },
+    { id:"name", label:"Name", getValue:(v:any)=>v.name, render:(v:any)=><span className="font-medium text-xs">{v.name||"—"}</span> },
+    { id:"pack_code", label:"Pack Code", getValue:(v:any)=>v.pack_code, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.pack_code||"—"}</span> },
+    { id:"variant", label:"Variant", getValue:(v:any)=>v.variant, render:(v:any)=><span className="text-[10px] text-muted-foreground">{v.variant||"—"}</span> },
+    { id:"colorway", label:"Colorway", getValue:(v:any)=>(v as any).product_colors?.color_name||"",
       render:(v:any)=><div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full border border-border shrink-0" style={{backgroundColor:(v as any).product_colors?.color_hex||"#e5e7eb"}}/><span className="text-[10px] text-muted-foreground truncate">{(v as any).product_colors?.color_name||"—"}</span></div> },
-    { id:"sizes",     label:"Sizes",    getValue:(v:any)=>getSizes(v).map((s:any)=>s.name||s.size_code).join(","),
+    { id:"sizes", label:"Sizes", getValue:(v:any)=>getSizes(v).map((s:any)=>s.name||s.size_code).join(","),
       render:(v:any)=>{ const sz=getSizes(v); return sz.length ? <div className="flex flex-wrap gap-0.5">{sz.slice(0,5).map((s:any)=><span key={s.id} className="text-[9px] px-1 bg-secondary text-secondary-foreground rounded">{s.name||s.size_code}</span>)}{sz.length>5&&<span className="text-[9px] text-muted-foreground">+{sz.length-5}</span>}</div> : <span className="text-muted-foreground/40">—</span>; } },
+    { id:"link_forecasted_qty", label:"Fcst. Qty",
+      getValue:(v:any)=>linkMap[v.id]?.forecasted_quantity??null,
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.forecasted_quantity} type="number" onSave={val=>saveLinkField(v.id,"forecasted_quantity",val)}/> },
+    { id:"link_channels", label:"Channels of Trade",
+      getValue:(v:any)=>(linkMap[v.id]?.channels_of_trade||[]).join(", "),
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.channels_of_trade||[]} type="multiselect" options={channelOptions.length?channelOptions:["Wholesale","Direct To Customer","E-Commerce","Retail"]} onSave={val=>saveLinkField(v.id,"channels_of_trade",val)}/> },
+    { id:"link_dist_channels", label:"Distribution Channels",
+      getValue:(v:any)=>(linkMap[v.id]?.distribution_channels||[]).join(", "),
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.distribution_channels||[]} type="multiselect" options={DIST_CHANNEL_OPTIONS} onSave={val=>saveLinkField(v.id,"distribution_channels",val)}/> },
+    { id:"link_status", label:"Project Status",
+      getValue:(v:any)=>linkMap[v.id]?.status||"",
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.status} type="select" options={LINK_STATUS_OPTIONS} onSave={val=>saveLinkField(v.id,"status",val)}/> },
+    { id:"link_notes", label:"Project Notes",
+      getValue:(v:any)=>linkMap[v.id]?.notes||"",
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.notes} onSave={val=>saveLinkField(v.id,"notes",val)}/> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sizes]);
+  ], [sizes, linkMap, channelOptions]);
 
   const tableColumns = useMemo(() => [
     { id:"swatch", label:"", width:36,
       render:(v:any)=>{ const hex=v.color_hex||(v as any).product_colors?.color_hex; return <div className="w-5 h-5 rounded border border-border shrink-0" style={{backgroundColor:hex||"#e5e7eb"}}/>; } },
-    { id:"sequence",  label:"Seq.",     width:80,  sortKey:(v:any)=>v.sequence||"",  render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.sequence||"—"}</span> },
-    { id:"name",      label:"Name",     width:180, sortKey:(v:any)=>v.name||"",      render:(v:any)=><span className="font-medium text-sm">{v.name||"—"}</span> },
-    { id:"pack_code", label:"Pack Code",width:110, sortKey:(v:any)=>v.pack_code||"", render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.pack_code||"—"}</span> },
-    { id:"variant",   label:"Variant",  width:110, sortKey:(v:any)=>v.variant||"",   render:(v:any)=><span className="text-xs text-muted-foreground">{v.variant||"—"}</span> },
-    { id:"colorway",  label:"Colorway", width:160, sortKey:(v:any)=>(v as any).product_colors?.color_name||"",
+    { id:"sequence", label:"Seq.", width:80, sortKey:(v:any)=>v.sequence||"", render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.sequence||"—"}</span> },
+    { id:"name", label:"Name", width:180, sortKey:(v:any)=>v.name||"", render:(v:any)=><span className="font-medium text-sm">{v.name||"—"}</span> },
+    { id:"pack_code", label:"Pack Code", width:110, sortKey:(v:any)=>v.pack_code||"", render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.pack_code||"—"}</span> },
+    { id:"variant", label:"Variant", width:110, sortKey:(v:any)=>v.variant||"", render:(v:any)=><span className="text-xs text-muted-foreground">{v.variant||"—"}</span> },
+    { id:"colorway", label:"Colorway", width:160, sortKey:(v:any)=>(v as any).product_colors?.color_name||"",
       render:(v:any)=><div className="flex items-center gap-1.5"><div className="w-3.5 h-3.5 rounded-full border border-border shrink-0" style={{backgroundColor:(v as any).product_colors?.color_hex||"#e5e7eb"}}/><span className="text-xs text-muted-foreground">{(v as any).product_colors?.color_name||"—"}</span></div> },
-    { id:"sizes",     label:"Sizes",    width:200,
+    { id:"sizes", label:"Sizes", width:180,
       render:(v:any)=>{ const sz=getSizes(v); return sz.length ? <div className="flex flex-wrap gap-0.5">{sz.slice(0,6).map((s:any)=><span key={s.id} className="text-[10px] px-1 bg-secondary text-secondary-foreground rounded">{s.name||s.size_code}</span>)}{sz.length>6&&<span className="text-[10px] text-muted-foreground">+{sz.length-6}</span>}</div> : <span className="text-muted-foreground/40">—</span>; } },
+    { id:"link_forecasted_qty", label:"Fcst. Qty", width:90,
+      sortKey:(v:any)=>linkMap[v.id]?.forecasted_quantity??-1,
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.forecasted_quantity} type="number" onSave={val=>saveLinkField(v.id,"forecasted_quantity",val)}/> },
+    { id:"link_channels", label:"Channels of Trade", width:200,
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.channels_of_trade||[]} type="multiselect" options={channelOptions.length?channelOptions:["Wholesale","Direct To Customer","E-Commerce","Retail"]} onSave={val=>saveLinkField(v.id,"channels_of_trade",val)}/> },
+    { id:"link_dist_channels", label:"Distribution Channels", width:180,
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.distribution_channels||[]} type="multiselect" options={DIST_CHANNEL_OPTIONS} onSave={val=>saveLinkField(v.id,"distribution_channels",val)}/> },
+    { id:"link_status", label:"Project Status", width:140,
+      sortKey:(v:any)=>linkMap[v.id]?.status||"",
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.status} type="select" options={LINK_STATUS_OPTIONS} onSave={val=>saveLinkField(v.id,"status",val)}/> },
+    { id:"link_notes", label:"Project Notes", width:200,
+      render:(v:any)=><LinkCell value={linkMap[v.id]?.notes} onSave={val=>saveLinkField(v.id,"notes",val)}/> },
     { id:"unlink", label:"", width:44,
       render:(v:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(v.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sizes]);
+  ], [sizes, linkMap, channelOptions]);
 
   useEffect(() => {
     setOptions({
       items: [
-        { label: "Link Variation", icon: Plus, onClick: ()=>setShowLink(true), className: "text-primary hover:bg-primary/10" },
-        { divider: true },
-        { label: view === "grid" ? "View: List" : "View: Grid", icon: view === "grid" ? ListIcon : LayoutGrid,
-          onClick: () => setView(v => v === "grid" ? "list" : "grid") },
-        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v=>!v) },
+        { label:"Link Variation", icon:Plus, onClick:()=>setShowLink(true), className:"text-primary hover:bg-primary/10" },
+        { divider:true },
+        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid") },
+        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v) },
       ],
       customContent: showViewMenu ? (
-        <ViewDrawerContent
-          pageKey="project_variations"
-          activeViewId={activeViewId}
-          onSelectView={id=>{ setActiveViewId(id); setShowViewMenu(false); }}
-          allFields={view === "grid" ? galleryFields : tableColumns}
-          currentViewType={view === "grid" ? "grid" : null}
-        />
+        <ViewDrawerContent pageKey="project_variations" activeViewId={activeViewId}
+          onSelectView={id=>{setActiveViewId(id);setShowViewMenu(false);}}
+          allFields={view==="grid"?galleryFields:tableColumns}
+          currentViewType={view==="grid"?"grid":null}/>
       ) : null,
     });
-    return () => setOptions(null);
+    return ()=>setOptions(null);
   }, [view, showViewMenu, activeViewId, galleryFields, tableColumns, setOptions]);
 
   return (
@@ -559,28 +746,20 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
           <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search variations…" className="pl-8 h-8 text-xs"/>
         </div>
       </div>
-      {filtered.length === 0 ? (
+      {filtered.length===0 ? (
         <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
           <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
           <p className="text-sm text-muted-foreground">{linkedVariations.length===0?"No variations linked yet":"No matches"}</p>
         </div>
-      ) : view === "grid" ? (
-        <GalleryView
-          pageKey="project_variations"
-          allFields={galleryFields}
-          rows={filtered}
+      ) : view==="grid" ? (
+        <GalleryView pageKey="project_variations" allFields={galleryFields} rows={filtered}
           renderThumbnail={renderThumb}
           onClickItem={undefined}
-          activeViewId={activeViewId}
-          onSelectView={setActiveViewId}
-        />
+          activeViewId={activeViewId} onSelectView={setActiveViewId}/>
       ) : (
-        <DataTable
-          columns={tableColumns}
-          rows={filtered}
+        <DataTable columns={tableColumns} rows={filtered}
           fixedColumns={["swatch","sequence","name"]}
-          {...({ activeViewId } as any)}
-        />
+          {...({activeViewId} as any)}/>
       )}
       <LinkModal open={showLink} onClose={()=>setShowLink(false)} title="Link Variations"
         items={allVariations} alreadyLinkedIds={linkedVariations.map(v=>v.id)}
@@ -603,11 +782,11 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
               )}
             </div>
           </>
-        )}
-      />
+        )}/>
     </div>
   );
 }
+
 
 // ── PALETTES TAB ─────────────────────────────────────────────────────────────
 function PalettesSection({ projectId, setOptions }: { projectId: string; setOptions: any }) {
