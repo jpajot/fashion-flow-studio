@@ -53,7 +53,7 @@ export default function Rfqs() {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => { setOptions(null); return () => setOptions(null); }, [setOptions]);
+  
 
   const roundMap = useMemo(() => Object.fromEntries(rounds.map(r => [r.id, r])), [rounds]);
   const currencyMap = useMemo(() => Object.fromEntries(currencies.map(c => [c.id, c])), [currencies]);
