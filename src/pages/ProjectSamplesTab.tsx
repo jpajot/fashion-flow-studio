@@ -2,16 +2,28 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, FlaskConical, List, LayoutGrid } from 'lucide-react';
+import { usePageOptions } from '@/contexts/PageOptionsContext';
+import { Plus, FlaskConical, List, LayoutGrid, Filter, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import SamplesDataTable, { Sample } from '@/components/samples/SamplesDataTable';
+import SamplesDataTable, { Sample, SampleFilters, DEFAULT_SAMPLE_FILTERS } from '@/components/samples/SamplesDataTable';
 import SamplesTrackingBoard from '@/components/samples/SamplesTrackingBoard';
 import SampleCreateDialog from '@/components/samples/SampleCreateDialog';
+import SampleFiltersPanel from '@/components/samples/SampleFiltersPanel';
+import ViewDrawerContent from '@/components/ViewDrawerContent';
 import { SAMPLE_TYPE_LABELS } from '@/lib/sampleUtils';
 import WorkflowStatusBadge from '@/components/samples/WorkflowStatusBadge';
 
+const ALL_FIELDS = [
+  { id: 'code', label: 'Code' }, { id: 'product', label: 'Product' },
+  { id: 'type', label: 'Type' }, { id: 'phase', label: 'Phase' },
+  { id: 'color', label: 'Color' }, { id: 'size', label: 'Size' },
+  { id: 'qty', label: 'Req. Qty' }, { id: 'conformity', label: 'Conformity' },
+  { id: 'workflow', label: 'Workflow' },
+];
+
 export default function ProjectSamplesTab({ projectId }: { projectId: string }) {
   const { user } = useAuth();
+  const { setOptions } = usePageOptions();
   const navigate = useNavigate();
   const storageKey = `project-samples-view-${projectId}`;
   const [view, setView] = useState<'list' | 'gallery'>(() => (localStorage.getItem(storageKey) as 'list' | 'gallery') ?? 'gallery');
@@ -21,6 +33,10 @@ export default function ProjectSamplesTab({ projectId }: { projectId: string }) 
   const [colorsMap, setColorsMap] = useState<Record<string, any>>({});
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
+  const [filters, setFilters] = useState<SampleFilters>(DEFAULT_SAMPLE_FILTERS);
+  const [showQF, setShowQF] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [activeViewId, setActiveViewId] = useState('default');
 
   useEffect(() => { localStorage.setItem(storageKey, view); }, [view, storageKey]);
 
@@ -46,6 +62,33 @@ export default function ProjectSamplesTab({ projectId }: { projectId: string }) 
     })();
   }, []);
 
+  const handleSelectView = useCallback((id: string) => setActiveViewId(id), []);
+
+  useEffect(() => {
+    const items: any[] = [
+      { label: 'Add Sample', icon: Plus, onClick: () => setOpenCreate(true), className: 'text-primary hover:bg-primary/10' },
+      { divider: true },
+    ];
+    if (subTab === 'samples') {
+      items.push({
+        label: view === 'gallery' ? 'View: List' : 'View: Gallery',
+        icon: view === 'gallery' ? List : LayoutGrid,
+        onClick: () => setView(view === 'gallery' ? 'list' : 'gallery'),
+      });
+      items.push({ divider: true });
+      items.push({ label: 'Quick Filters', icon: Filter, onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); } });
+      items.push({ label: 'Manage Views', icon: Pencil, onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); } });
+    }
+    const customContent = subTab === 'samples' && showQF ? (
+      <SampleFiltersPanel filters={filters} onFiltersChange={setFilters} suppliersArray={suppliers} />
+    ) : subTab === 'samples' && showViewMenu ? (
+      <ViewDrawerContent pageKey="samples_list" activeViewId={activeViewId}
+        onSelectView={handleSelectView} allFields={ALL_FIELDS} />
+    ) : null;
+    setOptions({ items, customContent });
+    return () => setOptions(null);
+  }, [setOptions, subTab, view, showQF, showViewMenu, filters, suppliers, activeViewId, handleSelectView]);
+
   const handleRowUpdate = async (id: string, updates: Partial<Sample>) => {
     await supabase.from('samples').update(updates).eq('id', id);
     load();
@@ -56,24 +99,13 @@ export default function ProjectSamplesTab({ projectId }: { projectId: string }) 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex gap-1">
-          {(['samples', 'tracking'] as const).map((id) => (
-            <button key={id} onClick={() => setSubTab(id)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md border ${subTab === id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground hover:text-foreground'}`}>
-              {id === 'samples' ? 'Samples' : 'Samples Tracking'}
-            </button>
-          ))}
-        </div>
-        {subTab === 'samples' && (
-          <div className="flex gap-2 items-center">
-            <div className="flex border border-border rounded-md overflow-hidden">
-              <button onClick={() => setView('list')} className={`p-1.5 ${view === 'list' ? 'bg-muted' : ''}`} title="List"><List className="w-3.5 h-3.5" /></button>
-              <button onClick={() => setView('gallery')} className={`p-1.5 ${view === 'gallery' ? 'bg-muted' : ''}`} title="Gallery"><LayoutGrid className="w-3.5 h-3.5" /></button>
-            </div>
-            <Button size="sm" onClick={() => setOpenCreate(true)}><Plus className="w-4 h-4 mr-1" />Add Sample</Button>
-          </div>
-        )}
+      <div className="flex items-center gap-2 flex-wrap">
+        {(['samples', 'tracking'] as const).map((id) => (
+          <button key={id} onClick={() => setSubTab(id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md border ${subTab === id ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-muted-foreground hover:text-foreground'}`}>
+            {id === 'samples' ? 'Samples' : 'Samples Tracking'}
+          </button>
+        ))}
       </div>
 
       {subTab === 'samples' && view === 'list' && (
@@ -87,6 +119,9 @@ export default function ProjectSamplesTab({ projectId }: { projectId: string }) 
           currentUser={user}
           productsMap={productsMap}
           colorsMap={colorsMap}
+          filters={filters}
+          onFiltersChange={setFilters}
+          activeViewId={activeViewId}
           emptyState={{ icon: FlaskConical, title: 'No samples yet', ctaLabel: 'Add Sample', ctaOnClick: () => setOpenCreate(true) }}
         />
       )}
