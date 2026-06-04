@@ -342,7 +342,7 @@ export default function DocumentStaging() {
           pageKey="document_staging"
           activeViewId={activeViewId}
           onSelectView={handleSelectView}
-          currentViewType="list"
+          currentViewType={null}
           allFields={[
             { id: 'slide', label: 'Slide' },
             { id: 'style_code', label: 'Style Code' },
