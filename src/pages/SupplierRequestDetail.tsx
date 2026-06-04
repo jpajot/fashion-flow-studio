@@ -1038,6 +1038,29 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, c
           onClose={() => setResponseTarget(null)}
         />
       )}
+
+      {showExportDialog && (
+        <ExportTodoDialog
+          sr={sr}
+          lines={selectedLineIds.size > 0 ? lines.filter((l: any) => selectedLineIds.has(l.id)) : lines}
+          productMap={productMap}
+          colorMap={colorMap}
+          pcamMap={pcamMap}
+          stepMap={stepMap}
+          supplierMap={supplierMap}
+          onClose={() => setShowExportDialog(false)}
+        />
+      )}
+
+      {showImportDialog && (
+        <ImportResponsesDialog
+          sr={sr}
+          rfqLines={lines}
+          currencies={currencies}
+          onClose={() => setShowImportDialog(false)}
+          onImportSuccess={onLinesRefresh}
+        />
+      )}
     </div>
   );
 }
