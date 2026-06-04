@@ -1947,13 +1947,21 @@ function DocumentsSection({ projectId }: { projectId: string }) {
       toast.success('Document uploaded — parsing started…');
 
       supabase.functions.invoke('parse-document', { body: { document_id: doc.id } })
-        .then(() => load())
-        .catch(async (err: any) => {
-          await supabase.from('uploaded_documents').update({
+        .then(({ error: fnError }) => {
+          if (fnError) {
+            supabase.from('uploaded_documents').update({
+              status: 'error',
+              error_message: fnError.message ?? 'Edge function invocation failed',
+            }).eq('id', doc.id).then(() => load());
+          } else {
+            pollStatus(doc.id);
+          }
+        })
+        .catch((err: any) => {
+          supabase.from('uploaded_documents').update({
             status: 'error',
-            error_message: err?.message ?? 'Parsing failed',
-          }).eq('id', doc.id);
-          load();
+            error_message: err?.message ?? 'Invocation failed',
+          }).eq('id', doc.id).then(() => load());
         });
     } catch (err: any) {
       toast.error(err?.message ?? 'Upload failed');
