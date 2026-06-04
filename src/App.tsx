@@ -33,6 +33,8 @@ import AppConfiguration from "@/pages/AppConfiguration";
 import RFQRounds from "@/pages/RFQRounds";
 import SupplierRequestDetail from "@/pages/SupplierRequestDetail";
 import SampleDetail from "@/pages/SampleDetail";
+import DocumentParsingSchemes from "@/pages/DocumentParsingSchemes";
+import DocumentStaging from "@/pages/DocumentStaging";
 
 import NotFound from "./pages/NotFound.tsx";
 
@@ -61,6 +63,8 @@ const App = () => (
 
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
+                  <Route path="/projects/:id/documents-to-parse/:docId" element={<DocumentStaging />} />
+                  <Route path="/document-parsing-schemes" element={<DocumentParsingSchemes />} />
 
                   <Route path="/materials" element={<MaterialsListView />} />
 

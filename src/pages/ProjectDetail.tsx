@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, AlertCircle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
 import GalleryView from "@/components/GalleryView";
 import DataTable from "@/components/shared/DataTable";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
@@ -1868,58 +1868,201 @@ function SourcingSection({ linkedStyles }: { linkedStyles:any[] }) {
 }
 
 // ── DOCUMENTS TAB ────────────────────────────────────────────────────────────
-function DocumentsSection({ projectId }: { projectId:string }) {
+function DocumentsSection({ projectId }: { projectId: string }) {
+  const navigate = useNavigate();
   const [docs, setDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
+  const [docTypes, setDocTypes] = useState<string[]>([]);
 
-  const load=useCallback(async()=>{
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [selectedType, setSelectedType] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+
+  const load = useCallback(async () => {
     setLoading(true);
-    const {data}=await supabase.from("uploaded_documents").select("*").eq("project_id",projectId).order("created_at",{ascending:false});
-    setDocs(data??[]);setLoading(false);
-  },[projectId]);
+    const { data } = await supabase
+      .from('uploaded_documents')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    setDocs(data ?? []);
+    setLoading(false);
+  }, [projectId]);
 
-  useEffect(()=>{load();},[load]);
+  useEffect(() => { load(); }, [load]);
 
-  const filtered=search.trim()?docs.filter(d=>`${d.original_filename||""} ${d.document_type||""} ${d.collection_name||""}`.toLowerCase().includes(search.toLowerCase())):docs;
+  useEffect(() => {
+    supabase
+      .from('list_of_values')
+      .select('name')
+      .eq('type_of_lov_id', '89a3e3dc-9094-49ac-b254-96a1753a84a3')
+      .order('name')
+      .then(({ data }) => setDocTypes((data ?? []).map((v: any) => v.name)));
+  }, []);
 
-  const STATUS_BADGE: Record<string,string>={processed:"bg-green-100 text-green-700",error:"bg-red-100 text-red-700",processing:"bg-blue-100 text-blue-700",staged:"bg-amber-100 text-amber-700",uploaded:"bg-muted text-muted-foreground"};
+  const handleUpload = async () => {
+    if (!file || !selectedType) return;
+    setUploading(true);
+    try {
+      const path = `${projectId}/${Date.now()}_${file.name}`;
+      const { error: storageError } = await supabase.storage.from('app-uploads').upload(path, file);
+      if (storageError) throw storageError;
+      const { data: { publicUrl } } = supabase.storage.from('app-uploads').getPublicUrl(path);
 
-  if(loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>;
+      const { data: doc, error: insertError } = await supabase
+        .from('uploaded_documents')
+        .insert({
+          project_id: projectId,
+          document_type: selectedType,
+          file_url: publicUrl,
+          original_filename: file.name,
+          upload_date: new Date().toISOString(),
+          status: 'uploaded',
+        })
+        .select()
+        .single();
+      if (insertError) throw insertError;
 
-  return(
+      setDocs(prev => [doc, ...prev]);
+      setFile(null);
+      setSelectedType('');
+      setShowUpload(false);
+      toast.success('Document uploaded — parsing started…');
+
+      supabase.functions.invoke('parse-document', { body: { document_id: doc.id } })
+        .then(() => load())
+        .catch(async (err: any) => {
+          await supabase.from('uploaded_documents').update({
+            status: 'error',
+            error_message: err?.message ?? 'Parsing failed',
+          }).eq('id', doc.id);
+          load();
+        });
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (docId: string) => {
+    await supabase.from('uploaded_documents').delete().eq('id', docId);
+    setDocs(prev => prev.filter(d => d.id !== docId));
+    toast.success('Document deleted');
+  };
+
+  const filtered = search.trim()
+    ? docs.filter(d => `${d.original_filename ?? ''} ${d.document_type ?? ''} ${d.collection_name ?? ''}`.toLowerCase().includes(search.toLowerCase()))
+    : docs;
+
+  const STATUS_BADGE: Record<string, string> = {
+    processed: 'bg-green-100 text-green-700',
+    error: 'bg-red-100 text-red-700',
+    processing: 'bg-blue-100 text-blue-700',
+    staged: 'bg-amber-100 text-amber-700',
+    uploaded: 'bg-muted text-muted-foreground',
+  };
+  const STATUS_LABEL: Record<string, string> = {
+    processed: 'Processed', error: 'Error', processing: 'Processing…',
+    staged: 'Ready to Review', uploaded: 'Uploaded',
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 justify-between flex-wrap">
         <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
-          <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search documents…" className="pl-8 h-8 text-xs"/>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search documents…" className="pl-8 h-8 text-xs" />
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-1.5">
-          <Upload className="w-3.5 h-3.5"/><span>Document upload & AI parsing — Domain 9</span>
-        </div>
+        <Button size="sm" className="gap-1.5 h-8" onClick={() => setShowUpload(true)}>
+          <Upload className="w-3.5 h-3.5" /> Upload & Parse
+        </Button>
       </div>
-      {filtered.length===0?(
+
+      {filtered.length === 0 ? (
         <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
-          <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
-          <p className="text-sm text-muted-foreground">{docs.length===0?"No documents yet":"No matches"}</p>
+          <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">{docs.length === 0 ? 'No documents yet. Upload one to parse.' : 'No matches'}</p>
         </div>
-      ):(
+      ) : (
         <div className="space-y-2">
-          {filtered.map(doc=>(
+          {filtered.map(doc => (
             <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
-              <FileText className="w-4 h-4 text-muted-foreground shrink-0"/>
+              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{doc.original_filename||"Document"}</p>
-                <p className="text-xs text-muted-foreground">{doc.document_type} · {doc.upload_date?new Date(doc.upload_date).toLocaleDateString():"—"}</p>
-                {doc.collection_name&&<p className="text-xs text-primary mt-0.5">{doc.collection_name}</p>}
+                <p className="text-sm font-medium truncate">{doc.original_filename ?? 'Document'}</p>
+                <p className="text-xs text-muted-foreground">{doc.document_type} · {doc.upload_date ? new Date(doc.upload_date).toLocaleDateString() : '—'}</p>
+                {doc.collection_name && <p className="text-xs text-primary mt-0.5">{doc.collection_name}</p>}
+                {doc.status === 'error' && doc.error_message && (
+                  <p className="text-xs text-destructive mt-0.5 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />{doc.error_message}
+                  </p>
+                )}
               </div>
-              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[doc.status]||STATUS_BADGE.uploaded}`}>
-                {doc.status==="processed"?"Processed":doc.status==="error"?"Error":doc.status==="processing"?"Parsing…":doc.status==="staged"?"Staged":"Uploaded"}
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[doc.status] ?? STATUS_BADGE.uploaded}`}>
+                {STATUS_LABEL[doc.status] ?? doc.status}
               </span>
+              {(doc.status === 'staged' || doc.status === 'processed') && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/projects/${projectId}/documents-to-parse/${doc.id}`)}
+                  className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  title="Review staging"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleDelete(doc.id)}
+                className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
+                title="Delete"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           ))}
         </div>
       )}
+
+      <Dialog open={showUpload} onOpenChange={o => { if (!o) { setFile(null); setSelectedType(''); } setShowUpload(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Upload & Parse Document</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Document Type</Label>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger><SelectValue placeholder="Select type…" /></SelectTrigger>
+                <SelectContent>
+                  {docTypes.length === 0
+                    ? <SelectItem value="__none" disabled>No types configured</SelectItem>
+                    : docTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">File (PDF or PPTX)</Label>
+              <label className={`flex items-center gap-2 px-3 py-2 h-9 rounded-md border border-dashed border-border text-sm text-muted-foreground hover:border-primary hover:text-primary cursor-pointer transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <Upload className="w-4 h-4 shrink-0" />
+                <span className="truncate">{file ? file.name : 'Choose .pdf or .pptx…'}</span>
+                <input type="file" accept=".pdf,.pptx,.ppt" className="hidden" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+              </label>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button onClick={handleUpload} disabled={!file || !selectedType || uploading} className="gap-2 flex-1">
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {uploading ? 'Uploading & Parsing…' : 'Upload & Parse'}
+              </Button>
+              <Button variant="outline" onClick={() => setShowUpload(false)} disabled={uploading}>Cancel</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

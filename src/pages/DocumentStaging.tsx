@@ -1,0 +1,638 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Search, ArrowLeft, Loader2, Check, AlertCircle, RefreshCw, X, Pencil } from 'lucide-react';
+import DataTable from '@/components/shared/DataTable';
+import ViewDrawerContent from '@/components/ViewDrawerContent';
+import { usePageOptions } from '@/contexts/PageOptionsContext';
+import { PAGE_WRAPPER } from '@/lib/utils';
+import { toast } from 'sonner';
+
+function TcxBadge({ code, techColors }: { code: string; techColors: any[] }) {
+  const tc = techColors.find(t => t.code?.toLowerCase().trim() === code?.toLowerCase().trim());
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="w-4 h-4 rounded-sm border border-border shrink-0" style={{ backgroundColor: tc?.hex ?? '#eee' }} />
+      <span className={`text-xs font-mono ${tc ? 'text-foreground' : 'text-amber-600'}`}>{code}</span>
+      {tc
+        ? <span className="text-xs text-muted-foreground">{tc.name}</span>
+        : <span className="text-xs text-amber-600 flex items-center gap-0.5"><AlertCircle className="w-3 h-3" /> Not in library</span>
+      }
+    </div>
+  );
+}
+
+function UpdateDiffModal({ open, onClose, onConfirm, existingProduct, parsedRow, saving }: {
+  open: boolean; onClose: () => void; onConfirm: () => void;
+  existingProduct: any; parsedRow: any; saving: boolean;
+}) {
+  if (!open || !existingProduct) return null;
+  const incomingImage = parsedRow?.image_url ?? '';
+  const incomingName = parsedRow?.['Style Description'] ?? '';
+  const currentImage = existingProduct.images?.[0] ?? '';
+  const currentName = existingProduct.name ?? '';
+  const imageDiffers = incomingImage && incomingImage !== currentImage;
+  const nameDiffers = incomingName && incomingName !== currentName;
+  const hasDiffs = imageDiffers || nameDiffers;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Style already exists</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Style code <span className="font-mono font-semibold">{existingProduct.code}</span> is already in the database as <span className="font-semibold">{existingProduct.name}</span>.
+        </p>
+        {hasDiffs ? (
+          <div className="space-y-3 mt-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fields that will be updated</p>
+            {nameDiffers && (
+              <div className="grid grid-cols-3 gap-2 items-start">
+                <span className="text-xs font-medium pt-1">Name</span>
+                <div className="bg-muted rounded p-2 text-xs text-muted-foreground line-through">{currentName || '—'}</div>
+                <div className="bg-green-50 border border-green-200 rounded p-2 text-xs font-medium text-green-800">{incomingName}</div>
+              </div>
+            )}
+            {imageDiffers && (
+              <div className="grid grid-cols-3 gap-2 items-start">
+                <span className="text-xs font-medium pt-1">Image</span>
+                <div className="bg-muted rounded p-2">
+                  {currentImage ? <img src={currentImage} className="w-16 h-16 object-contain" alt="current" /> : <span className="text-xs text-muted-foreground">No image</span>}
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded p-2">
+                  <img src={incomingImage} className="w-16 h-16 object-contain" alt="incoming" />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-green-700 flex items-center gap-1.5 mt-2">
+            <Check className="w-4 h-4" /> Name and image are identical — only new colorways will be added.
+          </p>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={onConfirm} disabled={saving} className="gap-2">
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {hasDiffs ? 'Update & continue' : 'Continue'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function DocumentStaging() {
+  const { id, docId } = useParams<{ id: string; docId: string }>();
+  const navigate = useNavigate();
+
+  const [doc, setDoc] = useState<any>(null);
+  const [techColors, setTechColors] = useState<any[]>([]);
+  const [existingProducts, setExistingProducts] = useState<any[]>([]);
+  const [existingColorways, setExistingColorways] = useState<any[]>([]);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [reparsing, setReparsing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [visibleColumns, setVisibleColumns] = useState<string[] | null>(null);
+  const [editingRow, setEditingRow] = useState<string | null>(null);
+  const [createdRowIds, setCreatedRowIds] = useState<Set<string>>(new Set());
+  const [diffModal, setDiffModal] = useState<{ row: any; existingProduct: any } | null>(null);
+  const [diffSaving, setDiffSaving] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [activeViewId, setActiveViewId] = useState('default');
+  const [pinnedCols, setPinnedCols] = useState<string[]>([]);
+
+  const { setOptions } = usePageOptions();
+
+  const loadData = useCallback(async () => {
+    if (!docId) return;
+    setLoading(true);
+    const [docRes, tcRes, prodsRes, colorsRes] = await Promise.all([
+      supabase.from('uploaded_documents').select('*').eq('id', docId).single(),
+      supabase.from('technical_colors').select('*').order('code').limit(3000),
+      supabase.from('products').select('*').not('code', 'is', null).order('created_at', { ascending: false }).limit(2000),
+      supabase.from('product_colors').select('*').order('created_at', { ascending: false }).limit(5000),
+    ]);
+    setDoc(docRes.data);
+    setTechColors(tcRes.data ?? []);
+    setExistingProducts((prodsRes.data ?? []).filter((p: any) => p.code));
+    setExistingColorways(colorsRes.data ?? []);
+    if (docRes.data?.staged_data) setData(JSON.parse(JSON.stringify(docRes.data.staged_data)));
+    setLoading(false);
+  }, [docId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleSelectView = useCallback((viewId: string) => {
+    setActiveViewId(viewId);
+    if (!viewId || viewId === 'default') { setVisibleColumns(null); setPinnedCols([]); return; }
+    supabase.from('list_view_configs').select('*').eq('id', viewId).single().then(({ data: cfg }) => {
+      if (cfg) {
+        setVisibleColumns(cfg.column_ids?.length > 0 ? cfg.column_ids : null);
+        setPinnedCols(cfg.fixed_column_ids ?? []);
+      }
+    });
+  }, []);
+
+  const findExistingProduct = useCallback((styleCode: string) => {
+    if (!styleCode) return null;
+    return existingProducts.find(p => p.code?.toLowerCase().trim() === styleCode.toLowerCase().trim()) ?? null;
+  }, [existingProducts]);
+
+  const tcxAlreadyOnProduct = useCallback((productId: string, tcxCode: string) => {
+    return existingColorways.some(cw =>
+      cw.product_id === productId &&
+      (cw.colorway_code?.toLowerCase().trim() === tcxCode.toLowerCase().trim() ||
+        techColors.find(t => t.id === cw.linked_tech_color_id)?.code?.toLowerCase().trim() === tcxCode.toLowerCase().trim())
+    );
+  }, [existingColorways, techColors]);
+
+  const handleRowChange = (slideIdx: number, rowIdx: number, updated: any) => {
+    setData((prev: any) => {
+      const slides = prev.slides.map((slide: any, si: number) =>
+        si !== slideIdx ? slide : {
+          ...slide,
+          table: { ...slide.table, rows: slide.table.rows.map((row: any, ri: number) => ri === rowIdx ? updated : row) }
+        }
+      );
+      return { ...prev, slides };
+    });
+  };
+
+  const handleReparse = async () => {
+    if (!docId) return;
+    setReparsing(true);
+    try {
+      await supabase.functions.invoke('parse-document', { body: { document_id: docId } });
+      await loadData();
+      toast.success('Re-parsed successfully');
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to re-parse');
+    }
+    setReparsing(false);
+  };
+
+  const allRows = useMemo(() => {
+    const rows: any[] = [];
+    (data?.slides ?? []).forEach((slide: any, slideIdx: number) => {
+      (slide.table?.rows ?? []).forEach((row: any, rowIdx: number) => {
+        rows.push({ id: `${slideIdx}-${rowIdx}`, slideNumber: slide.slideNumber, slideIdx, rowIdx, ...row });
+      });
+    });
+    return rows;
+  }, [data]);
+
+  const filteredRows = useMemo(() => {
+    if (!search.trim()) return allRows;
+    const q = search.toLowerCase();
+    return allRows.filter(row =>
+      row['Style Code']?.toLowerCase().includes(q) ||
+      row['Style Description']?.toLowerCase().includes(q) ||
+      (row['Style Technical Color Codes'] ?? []).some((code: string) => code.toLowerCase().includes(q))
+    );
+  }, [allRows, search]);
+
+  const applyRowToDatabase = async (row: any, existingProduct: any) => {
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+    const styleName = row['Style Description'];
+    const styleCode = row['Style Code'] ?? '';
+
+    let product: any;
+    if (existingProduct) {
+      const updates: any = {};
+      const incomingImage = row.image_url ?? '';
+      if (incomingImage && incomingImage !== (existingProduct.images?.[0] ?? '')) updates.images = [incomingImage];
+      if (styleName && styleName !== existingProduct.name) updates.name = styleName;
+      const projectIds = existingProduct.project_ids ?? [];
+      if (!projectIds.includes(id)) updates.project_ids = [...projectIds, id];
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('products').update(updates).eq('id', existingProduct.id);
+      }
+      product = { ...existingProduct, ...updates };
+    } else {
+      const { data: created } = await supabase.from('products').insert({
+        type: 'Product',
+        name: styleName,
+        code: styleCode,
+        category: '',
+        sub_category: '',
+        customer_need: '',
+        description: '',
+        images: row.image_url ? [row.image_url] : [],
+        creation_project_id: id,
+        project_ids: [id],
+      }).select().single();
+      product = created;
+    }
+
+    const { data: allCommColors } = await supabase.from('commercial_colors').select('*').order('code').limit(2000);
+    for (const colorCode of (row['Style Technical Color Codes'] ?? [])) {
+      if (tcxAlreadyOnProduct(product.id, colorCode)) continue;
+      const tc = techColors.find(t => t.code?.toLowerCase().trim() === colorCode.toLowerCase().trim());
+      const linkedComm = tc ? (allCommColors ?? []).find((c: any) => c.main_technical_color_id === tc.id) : null;
+      const { data: createdColor } = await supabase.from('product_colors').insert({
+        product_id: product.id,
+        color_name: tc?.name ?? colorCode,
+        colorway_code: linkedComm?.code ?? colorCode,
+        color_hex: tc?.hex ?? '',
+        linked_tech_color_id: tc?.id ?? null,
+        linked_color_type: linkedComm ? 'commercial' : null,
+        linked_color_id: linkedComm?.id ?? null,
+        creation_project_id: id,
+        project_ids: [id],
+      }).select().single();
+
+      if (tc?.id && createdColor) {
+        const { data: existingVars } = await supabase
+          .from('product_color_and_more')
+          .select('sequence')
+          .order('sequence', { ascending: false })
+          .limit(1);
+        const lastSeq = existingVars?.[0]?.sequence ? parseInt(existingVars[0].sequence, 10) : 0;
+        const nextSeq = String(lastSeq + 1).padStart(4, '0');
+        await supabase.from('product_color_and_more').insert({
+          product_color_id: createdColor.id,
+          name: tc.name ?? 'Default',
+          sequence: nextSeq,
+          size_ids: [],
+          creation_project_id: id,
+          project_ids: [id],
+        });
+      }
+      await sleep(100);
+    }
+    return product;
+  };
+
+  const createStyleFromRow = async (row: any) => {
+    const styleName = row['Style Description'];
+    if (!styleName) { toast.error('No style name in this row'); return; }
+    const codes = row['Style Technical Color Codes'] ?? [];
+    const unmatched = codes.filter((code: string) => !techColors.find(t => t.code?.toLowerCase().trim() === code.toLowerCase().trim()));
+    if (unmatched.length > 0) {
+      toast.error(`Unmatched TCX code(s): ${unmatched.join(', ')}`);
+      return;
+    }
+    const existing = findExistingProduct(row['Style Code']);
+    if (existing) { setDiffModal({ row, existingProduct: existing }); return; }
+    const product = await applyRowToDatabase(row, null);
+    if (product) {
+      setExistingProducts(prev => [...prev, product]);
+      setCreatedRowIds(prev => new Set([...prev, row.id]));
+      toast.success('Style created');
+    }
+  };
+
+  const confirmDiffUpdate = async () => {
+    if (!diffModal) return;
+    setDiffSaving(true);
+    const product = await applyRowToDatabase(diffModal.row, diffModal.existingProduct);
+    setExistingProducts(prev => prev.map(p => p.id === product.id ? product : p));
+    const { data: freshColorways } = await supabase.from('product_colors').select('*').order('created_at', { ascending: false }).limit(5000);
+    setExistingColorways(freshColorways ?? []);
+    setCreatedRowIds(prev => new Set([...prev, diffModal.row.id]));
+    toast.success('Style updated');
+    setDiffSaving(false);
+    setDiffModal(null);
+  };
+
+  const handleProcess = async () => {
+    if (!docId) return;
+    setProcessing(true);
+    try {
+      await supabase.from('uploaded_documents').update({ staged_data: data }).eq('id', docId);
+      const processedIds: string[] = [];
+      for (const slide of (data?.slides ?? [])) {
+        for (const row of (slide.table?.rows ?? [])) {
+          if (!row['Style Description']) continue;
+          const existing = findExistingProduct(row['Style Code']);
+          const product = await applyRowToDatabase(row, existing ?? null);
+          if (product) processedIds.push(product.id);
+        }
+      }
+      await supabase.from('uploaded_documents').update({
+        status: 'processed',
+        processed_product_ids: processedIds,
+      }).eq('id', docId);
+      setDoc((prev: any) => ({ ...prev, status: 'processed' }));
+      toast.success(`${processedIds.length} styles processed`);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Processing failed');
+    }
+    setProcessing(false);
+  };
+
+  useEffect(() => {
+    const isProcessed = doc?.status === 'processed';
+    setOptions({
+      items: [
+        { label: reparsing ? 'Re-parsing…' : 'Re-parse', icon: RefreshCw, onClick: () => handleReparse() },
+        { label: processing ? 'Processing…' : isProcessed ? 'Already Processed' : 'Create All Styles', icon: Check, onClick: () => { if (!isProcessed) handleProcess(); } },
+        { divider: true },
+        { label: 'Manage Views', icon: Pencil, onClick: () => setShowViewMenu(v => !v), keepOpen: true },
+      ],
+      customContent: showViewMenu ? (
+        <ViewDrawerContent
+          pageKey="document_staging"
+          activeViewId={activeViewId}
+          onSelectView={handleSelectView}
+          currentViewType={null}
+          allFields={[
+            { id: 'slide', label: 'Slide' },
+            { id: 'style_code', label: 'Style Code' },
+            { id: 'style_name', label: 'Style Name' },
+            { id: 'image', label: 'Image' },
+            { id: 'colors', label: 'Technical Colors' },
+            { id: 'edit', label: 'Edit' },
+            { id: 'create', label: 'Create/Update' },
+          ]}
+        />
+      ) : null,
+    });
+    return () => setOptions(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc?.status, reparsing, processing, showViewMenu, activeViewId]);
+
+  const columns = useMemo(() => [
+    {
+      id: 'slide',
+      label: 'Slide',
+      width: 60,
+      sortKey: (r: any) => r.slideNumber ?? 0,
+      render: (r: any) => <span className="font-mono text-xs text-muted-foreground">{r.slideNumber}</span>,
+    },
+    {
+      id: 'style_code',
+      label: 'Style Code',
+      width: 130,
+      sortKey: (r: any) => r['Style Code'] ?? '',
+      render: (r: any) => {
+        const existing = findExistingProduct(r['Style Code']);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-xs font-semibold">{r['Style Code'] || '—'}</span>
+            {existing && <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-300">exists</Badge>}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'style_name',
+      label: 'Style Name',
+      width: 200,
+      sortKey: (r: any) => r['Style Description'] ?? '',
+      render: (r: any) => {
+        const existing = findExistingProduct(r['Style Code']);
+        const nameDiffers = existing && existing.name && existing.name !== r['Style Description'];
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium text-sm">{r['Style Description'] || '—'}</span>
+            {nameDiffers && <span className="text-[10px] text-amber-600">current: {existing.name}</span>}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'image',
+      label: 'Image',
+      width: 70,
+      render: (r: any) => r.image_url
+        ? <div className="w-10 h-10 rounded-md overflow-hidden border border-border"><img src={r.image_url} alt={r['Style Description']} className="w-full h-full object-contain" /></div>
+        : <div className="w-10 h-10 rounded-md border border-border bg-muted" />,
+    },
+    {
+      id: 'colors',
+      label: 'Technical Colors',
+      width: 300,
+      render: (r: any) => {
+        const codes = r['Style Technical Color Codes'] ?? [];
+        const existing = findExistingProduct(r['Style Code']);
+        return (
+          <div className="flex flex-wrap gap-1">
+            {codes.map((code: string, i: number) => {
+              const tc = techColors.find(t => t.code?.toLowerCase().trim() === code.toLowerCase().trim());
+              const alreadyLinked = existing && tcxAlreadyOnProduct(existing.id, code);
+              return (
+                <div key={i} className="flex items-center gap-1">
+                  {alreadyLinked
+                    ? <Check className="w-3 h-3 text-green-600" />
+                    : <div className="w-3 h-3 rounded-sm border border-border" style={{ backgroundColor: tc?.hex ?? '#eee' }} />
+                  }
+                  <span className={`text-xs font-mono ${alreadyLinked ? 'text-green-700' : tc ? 'text-foreground' : 'text-amber-600'}`}>{code}</span>
+                  {!tc && !alreadyLinked && <AlertCircle className="w-3 h-3 text-amber-600" />}
+                </div>
+              );
+            })}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'edit',
+      label: '',
+      width: 40,
+      render: (r: any) => (
+        <button type="button" onClick={() => setEditingRow(editingRow === r.id ? null : r.id)} className="text-sm text-muted-foreground hover:text-foreground">
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+      ),
+    },
+    {
+      id: 'create',
+      label: '',
+      width: 90,
+      render: (r: any) => {
+        const done = createdRowIds.has(r.id);
+        const existing = findExistingProduct(r['Style Code']);
+        if (done) return (
+          <div className="flex items-center gap-1 text-green-600">
+            <Check className="w-4 h-4" />
+            <span className="text-xs font-medium">{existing ? 'Updated' : 'Created'}</span>
+          </div>
+        );
+        return (
+          <button type="button" onClick={() => createStyleFromRow(r)} className="text-xs text-primary hover:underline font-medium">
+            {existing ? 'Update' : 'Create'}
+          </button>
+        );
+      },
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [techColors, existingProducts, existingColorways, editingRow, createdRowIds]);
+
+  const renderEditPanel = () => {
+    if (!editingRow) return null;
+    const row = allRows.find(r => r.id === editingRow);
+    if (!row) return null;
+    const codes = row['Style Technical Color Codes'] ?? [];
+    return (
+      <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm">Editing: {row['Style Description']}</h3>
+          <button type="button" onClick={() => setEditingRow(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        {row.image_url && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Style Image</Label>
+            <div className="w-32 h-32 rounded-lg overflow-hidden border border-border bg-muted">
+              <img src={row.image_url} alt={row['Style Description']} className="w-full h-full object-contain" />
+            </div>
+          </div>
+        )}
+        <div className="space-y-1.5">
+          <Label className="text-xs">Style Code</Label>
+          <Input value={row['Style Code'] ?? ''} onChange={e => handleRowChange(row.slideIdx, row.rowIdx, { ...row, 'Style Code': e.target.value })} className="h-8 text-xs font-mono max-w-xs" placeholder="e.g. STY00001" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Style Name</Label>
+          <Input value={row['Style Description'] ?? ''} onChange={e => handleRowChange(row.slideIdx, row.rowIdx, { ...row, 'Style Description': e.target.value })} className="h-8 text-sm" />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs">Pantone TCX Codes</Label>
+          <div className="space-y-2">
+            {codes.map((code: string, i: number) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={code}
+                  onChange={e => { const updated = codes.map((c: string, ci: number) => ci === i ? e.target.value : c); handleRowChange(row.slideIdx, row.rowIdx, { ...row, 'Style Technical Color Codes': updated }); }}
+                  className="h-7 text-xs font-mono flex-1"
+                  placeholder="e.g. 19-1862 TCX"
+                />
+                <TcxBadge code={code} techColors={techColors} />
+                <button type="button" onClick={() => { const updated = codes.filter((_: string, ci: number) => ci !== i); handleRowChange(row.slideIdx, row.rowIdx, { ...row, 'Style Technical Color Codes': updated }); }} className="text-muted-foreground hover:text-destructive"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            ))}
+            <button type="button" className="text-xs text-primary hover:underline" onClick={() => handleRowChange(row.slideIdx, row.rowIdx, { ...row, 'Style Technical Color Codes': [...codes, ''] })}>
+              + Add color code
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const existingCount = useMemo(
+    () => allRows.filter(r => r['Style Code'] && findExistingProduct(r['Style Code'])).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRows, existingProducts]
+  );
+  const allCodes = useMemo(
+    () => (data?.slides ?? []).flatMap((s: any) => s.table?.rows ?? []).flatMap((r: any) => r['Style Technical Color Codes'] ?? []),
+    [data]
+  );
+  const unmatchedCount = useMemo(() => {
+    const unique = new Set(
+      allCodes.filter((code: string) => !techColors.find(t => t.code?.toLowerCase().trim() === code.toLowerCase().trim())).map((c: string) => c.toLowerCase().trim())
+    );
+    return unique.size;
+  }, [allCodes, techColors]);
+  const totalStyles = useMemo(
+    () => (data?.slides ?? []).reduce((sum: number, s: any) => sum + (s.table?.rows?.length ?? 0), 0),
+    [data]
+  );
+  const alreadyExistingColorwaysCount = useMemo(() => allRows.reduce((sum, row) => {
+    const existing = findExistingProduct(row['Style Code']);
+    if (!existing) return sum;
+    return sum + (row['Style Technical Color Codes'] ?? []).filter((code: string) => tcxAlreadyOnProduct(existing.id, code)).length;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, 0), [allRows, existingProducts, existingColorways]);
+
+  if (loading) return <div className="flex items-center justify-center py-32"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (!doc) return <div className="text-center py-32 text-muted-foreground">Document not found.</div>;
+
+  const isProcessed = doc.status === 'processed';
+
+  return (
+    <div className={`${PAGE_WRAPPER} space-y-6`}>
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => navigate(`/projects/${id}`)}>
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-muted-foreground">{doc.document_type} · {doc.upload_date ? new Date(doc.upload_date).toLocaleDateString() : ''}</p>
+          <h1 className="font-display text-2xl font-semibold tracking-tight truncate">{doc.original_filename ?? 'Document'}</h1>
+        </div>
+      </div>
+
+      {data && (
+        <div className="flex items-center gap-4 bg-card border border-border rounded-xl p-4 flex-wrap">
+          <div className="text-center"><p className="text-2xl font-semibold">{data.slides?.length ?? 0}</p><p className="text-xs text-muted-foreground">Slides</p></div>
+          <div className="w-px h-8 bg-border" />
+          <div className="text-center">
+            <p className="text-2xl font-semibold">{totalStyles}</p>
+            <p className="text-xs text-muted-foreground">Styles{existingCount > 0 && <span className="text-amber-600 ml-1">/ {existingCount} exist</span>}</p>
+          </div>
+          <div className="w-px h-8 bg-border" />
+          <div className="text-center">
+            <p className="text-2xl font-semibold">{allCodes.length}</p>
+            <p className="text-xs text-muted-foreground">Colorways{alreadyExistingColorwaysCount > 0 && <span className="text-amber-600 ml-1">/ {alreadyExistingColorwaysCount} exist</span>}</p>
+          </div>
+          {unmatchedCount > 0 && (
+            <><div className="w-px h-8 bg-border" />
+            <div className="text-center"><p className="text-2xl font-semibold text-amber-600">{unmatchedCount}</p><p className="text-xs text-amber-600">Unmatched TCX</p></div></>
+          )}
+          <div className="flex-1" />
+          {data.collection && <Badge variant="outline" className="font-mono text-xs">{data.collection}</Badge>}
+          <Badge variant={isProcessed ? 'default' : 'secondary'} className="text-xs">{isProcessed ? 'Processed' : 'Staged'}</Badge>
+        </div>
+      )}
+
+      {data && (
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search code, name, color…" className="pl-8 h-9 text-xs" />
+          </div>
+        </div>
+      )}
+
+      {!data && (
+        <div className="text-center py-12 bg-muted/30 rounded-xl border border-dashed border-border">
+          <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">
+            {doc.status === 'processing' ? 'Parsing in progress…' : doc.status === 'error' ? (doc.error_message ?? 'Parsing error') : 'No data extracted yet.'}
+          </p>
+          {(doc.status === 'uploaded' || doc.status === 'error') && (
+            <Button variant="outline" size="sm" onClick={handleReparse} className="mt-3 gap-1.5">
+              <RefreshCw className="w-3.5 h-3.5" /> Parse Now
+            </Button>
+          )}
+        </div>
+      )}
+
+      {data && (
+        <>
+          {renderEditPanel()}
+          {filteredRows.length === 0 ? (
+            <div className="text-center py-12 bg-muted/30 rounded-xl border border-dashed border-border">
+              <p className="text-sm text-muted-foreground">{allRows.length === 0 ? 'No styles found.' : 'No results match your search.'}</p>
+            </div>
+          ) : (
+            <DataTable
+              columns={visibleColumns ? visibleColumns.map(cid => columns.find(c => c.id === cid)).filter(Boolean) as any[] : columns}
+              rows={filteredRows}
+              fixedColumns={pinnedCols}
+              onPinColumn={(cid: string) => setPinnedCols(prev => prev.includes(cid) ? prev.filter(x => x !== cid) : [...prev, cid])}
+              {...({ activeViewId } as any)}
+            />
+          )}
+        </>
+      )}
+
+      <UpdateDiffModal
+        open={!!diffModal}
+        onClose={() => setDiffModal(null)}
+        onConfirm={confirmDiffUpdate}
+        existingProduct={diffModal?.existingProduct}
+        parsedRow={diffModal?.row}
+        saving={diffSaving}
+      />
+    </div>
+  );
+}
