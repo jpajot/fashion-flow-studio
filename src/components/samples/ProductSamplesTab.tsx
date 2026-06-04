@@ -24,6 +24,9 @@ const ALL_FIELDS = [
 export default function ProductSamplesTab({ product }: { product: Product }) {
   const { user } = useAuth();
   const { setOptions } = usePageOptions();
+  const navigate = useNavigate();
+  const storageKey = `product-samples-view-${product.id}`;
+  const [view, setView] = useState<'list' | 'gallery'>(() => (localStorage.getItem(storageKey) as 'list' | 'gallery') ?? 'list');
   const [samples, setSamples] = useState<Sample[]>([]);
   const [colorsMap, setColorsMap] = useState<Record<string, any>>({});
   const [sizesMap, setSizesMap] = useState<Record<string, any>>({});
@@ -34,6 +37,8 @@ export default function ProductSamplesTab({ product }: { product: Product }) {
   const [showQF, setShowQF] = useState(false);
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [activeViewId, setActiveViewId] = useState('default');
+
+  useEffect(() => { localStorage.setItem(storageKey, view); }, [view, storageKey]);
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('samples').select('*').eq('product_id', product.id).order('created_at', { ascending: false });
