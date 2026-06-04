@@ -277,7 +277,8 @@ export default function SampleStepsPanel({ sample, suppliersArray, stepsCache, o
       />
 
       <div className="border border-border rounded-lg overflow-hidden border-l-2 border-l-muted-foreground/20">
-        <table className="w-full text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-xs">
           <thead className="bg-muted/40">
             <tr>
               <th className="w-8 px-2 py-1.5 text-left">
@@ -348,6 +349,7 @@ export default function SampleStepsPanel({ sample, suppliersArray, stepsCache, o
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
