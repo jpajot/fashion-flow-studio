@@ -816,7 +816,7 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
     setOptions({
       items: [
         ...(!locked ? [{ label: "Add Lines", icon: Plus, onClick: () => setShowBuilder(true), className: "text-primary hover:bg-primary/10" }, { divider: true }] : []),
-        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v), keepOpen: true },
       ],
       customContent: showViewMenu ? (
         <ViewDrawerContent

@@ -435,12 +435,14 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
       icon: Filter,
       onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); },
       badge: activeQF.length > 0 ? activeQF.length : undefined,
+      keepOpen: true,
     });
 
     items.push({
       label: "Manage Views",
       icon: Pencil,
       onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); },
+      keepOpen: true,
     });
 
     if (activeSection !== "variations") {
@@ -448,6 +450,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
         label: view === "grid" ? "View: List" : "View: Grid",
         icon: view === "grid" ? ListIcon : LayoutGrid,
         onClick: toggleView,
+        keepOpen: true,
       });
     }
 

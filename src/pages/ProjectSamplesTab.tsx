@@ -74,10 +74,11 @@ export default function ProjectSamplesTab({ projectId }: { projectId: string }) 
         label: view === 'gallery' ? 'View: List' : 'View: Gallery',
         icon: view === 'gallery' ? List : LayoutGrid,
         onClick: () => setView(view === 'gallery' ? 'list' : 'gallery'),
+        keepOpen: true,
       });
       items.push({ divider: true });
-      items.push({ label: 'Quick Filters', icon: Filter, onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); } });
-      items.push({ label: 'Manage Views', icon: Pencil, onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); } });
+      items.push({ label: 'Quick Filters', icon: Filter, onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); }, keepOpen: true });
+      items.push({ label: 'Manage Views', icon: Pencil, onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); }, keepOpen: true });
     }
     const customContent = subTab === 'samples' && showQF ? (
       <SampleFiltersPanel filters={filters} onFiltersChange={setFilters} suppliersArray={suppliers} />

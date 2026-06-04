@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, ChevronDown, MoreVertical, Wand2, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, MoreVertical, Wand2, X, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -208,6 +208,35 @@ export default function SamplesDataTable({
           )}
         </div>
       ) : (
+        <>
+        {(() => {
+          const expandableIds = filtered.filter((r) => !!r.linked_routing_id).map((r) => r.id);
+          const allExpanded = expandableIds.length > 0 && expandableIds.every((id) => expandedIds.has(id));
+          const toggleExpandAll = () => {
+            if (allExpanded) {
+              setExpandedIds(new Set());
+            } else {
+              const next = new Set(expandedIds);
+              expandableIds.forEach((id) => {
+                next.add(id);
+                if (!stepsCache[id]) fetchSteps(id);
+              });
+              setExpandedIds(next);
+            }
+          };
+          if (expandableIds.length === 0) return null;
+          return (
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] text-muted-foreground">{filtered.length} sample{filtered.length !== 1 ? 's' : ''}</span>
+              <button type="button" onClick={toggleExpandAll}
+                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+                {allExpanded
+                  ? <><ChevronsUp className="w-3 h-3" />Collapse all</>
+                  : <><ChevronsDown className="w-3 h-3" />Expand all</>}
+              </button>
+            </div>
+          );
+        })()}
         <div className="border border-border rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-xs">
@@ -314,6 +343,7 @@ export default function SamplesDataTable({
             </table>
           </div>
         </div>
+        </>
       )}
 
       {routingDialog && (

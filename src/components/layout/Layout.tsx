@@ -479,7 +479,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 )}
                 onClick={() => {
                   it.onClick?.();
-                  optsPop.setOpen(false);
+                  if (!it.keepOpen) optsPop.setOpen(false);
                 }}
               >
                 {Icon && <Icon className="h-4 w-4" />}
