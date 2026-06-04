@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Settings as SettingsIcon,
   RefreshCw,
+  FileJson,
 } from "lucide-react";
 
 const SECTIONS = [
