@@ -1949,10 +1949,8 @@ function DocumentsSection({ projectId }: { projectId: string }) {
       supabase.functions.invoke('parse-document', { body: { document_id: doc.id } })
         .then(({ error: fnError }) => {
           if (fnError) {
-            supabase.from('uploaded_documents').update({
-              status: 'error',
-              error_message: fnError.message ?? 'Edge function invocation failed',
-            }).eq('id', doc.id).then(() => load());
+            // Function already wrote its specific error to the DB — just reload to surface it
+            load();
           } else {
             pollStatus(doc.id);
           }
