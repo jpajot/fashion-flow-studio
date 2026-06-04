@@ -1,270 +1,445 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { RowActions } from "@/components/ui/RowActions";
-import { StatusBadge } from "@/lib/badges";
-import { Plus } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Loader2, FlaskConical, Filter, Pencil, Download, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { PAGE_WRAPPER } from "@/lib/utils";
+import { usePageOptions } from "@/contexts/PageOptionsContext";
+import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
+import DataTable, { DataTableColumn } from "@/components/shared/DataTable";
+import ViewDrawerContent from "@/components/ViewDrawerContent";
+import SampleFiltersPanel from "@/components/samples/SampleFiltersPanel";
+import WorkflowStatusBadge from "@/components/samples/WorkflowStatusBadge";
+import { StatusBadge } from "@/lib/badges";
+import {
+  Sample,
+  SampleFilters,
+  DEFAULT_SAMPLE_FILTERS,
+} from "@/components/samples/SamplesDataTable";
+import {
+  CONFORMITY_STYLE_MAP,
+  CONFORMITY_LABEL_MAP,
+  SAMPLE_TYPE_LABELS,
+} from "@/lib/sampleUtils";
 
-type Sample = Record<string, any> & { id: string };
+interface Product { id: string; name: string; code?: string | null; images?: string[] | null; }
+interface ProductColor { id: string; product_id?: string | null; color_name: string; colorway_code?: string | null; color_hex?: string | null; }
+interface Project { id: string; name: string; }
+interface Supplier { id: string; name: string; code?: string | null; }
+interface SampleStep {
+  id: string;
+  sample_id: string;
+  sequence: number;
+  supplier_id?: string | null;
+  due_date?: string | null;
+  workflow_status?: string | null;
+}
 
-const SAMPLE_TYPES = ["volume", "proto", "sample", "sms", "test_au_porter", "gold_seal", "pps"];
-const PHASES = ["development", "production"];
-const CONFORMITY = ["not_assessed", "pass", "fail_minor", "fail_major", "pending_review"];
+type Phase = "all" | "development" | "production";
 
-const empty = {
-  code: "", project_id: "", product_id: "", product_color_id: "",
-  sample_type: "", phase: "", requested_quantity: "", conformity_status: "not_assessed", notes: "",
-};
+const ALL_FIELDS = [
+  { id: "code", label: "Code" },
+  { id: "product", label: "Product" },
+  { id: "colorway", label: "Colorway" },
+  { id: "type", label: "Type" },
+  { id: "phase", label: "Phase" },
+  { id: "supplier", label: "Supplier" },
+  { id: "due_date", label: "Due Date" },
+  { id: "conformity", label: "Conformity" },
+  { id: "workflow", label: "Status" },
+  { id: "project", label: "Project" },
+];
+
+const CONFORMITY_PILLS: Array<{ key: string; label: string; cls: string }> = [
+  { key: "not_assessed", label: "Not Assessed", cls: "bg-slate-100 text-slate-700 border-slate-200" },
+  { key: "pass", label: "Pass", cls: "bg-green-100 text-green-700 border-green-200" },
+  { key: "fail_minor", label: "Fail Minor", cls: "bg-amber-100 text-amber-700 border-amber-200" },
+  { key: "fail_major", label: "Fail Major", cls: "bg-red-100 text-red-700 border-red-200" },
+  { key: "pending_review", label: "Pending Review", cls: "bg-blue-100 text-blue-700 border-blue-200" },
+];
 
 export default function Samples() {
-  const [items, setItems] = useState<Sample[]>([]);
-  const [sampleType, setSampleType] = useState("all");
-  const [phase, setPhase] = useState("all");
-  const [conformity, setConformity] = useState("all");
-  const [selected, setSelected] = useState<Sample | null>(null);
-  const [steps, setSteps] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState<any>(empty);
-  const [delId, setDelId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [refresh, setRefresh] = useState(0);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [colors, setColors] = useState<any[]>([]);
+  const navigate = useNavigate();
+  const { setOptions } = usePageOptions();
 
-  useEffect(() => {
-    (async () => {
-      let q = supabase.from("samples").select("*, project:project_id(name), product:product_id(name)").order("created_at", { ascending: false }).limit(500);
-      if (sampleType !== "all") q = q.eq("sample_type", sampleType);
-      if (phase !== "all") q = q.eq("phase", phase);
-      if (conformity !== "all") q = q.eq("conformity_status", conformity);
-      const { data } = await q;
-      setItems((data as any) ?? []);
-    })();
-  }, [sampleType, phase, conformity, refresh]);
+  const [loading, setLoading] = useState(true);
+  const [samples, setSamples] = useState<Sample[]>([]);
+  const [productsMap, setProductsMap] = useState<Record<string, Product>>({});
+  const [colorsMap, setColorsMap] = useState<Record<string, ProductColor>>({});
+  const [projectsMap, setProjectsMap] = useState<Record<string, Project>>({});
+  const [supplierMap, setSupplierMap] = useState<Record<string, Supplier>>({});
+  const [suppliersArray, setSuppliersArray] = useState<Supplier[]>([]);
+  const [stepsMap, setStepsMap] = useState<Record<string, SampleStep[]>>({});
 
-  useEffect(() => {
-    if (!selected) return;
-    supabase.from("sample_steps").select("*").eq("sample_id", selected.id).order("sequence").then(({ data }) => setSteps(data ?? []));
-  }, [selected]);
+  const [activePhase, setActivePhase] = useState<Phase>("all");
+  const [filters, setFilters] = useState<SampleFilters>(DEFAULT_SAMPLE_FILTERS);
+  const [showQF, setShowQF] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [activeViewId, setActiveViewId] = useState("default");
+  const [pinned, setPinned] = useState<string[]>(["code", "product"]);
+  const [statsOpen, setStatsOpen] = useState(true);
 
-  useEffect(() => {
-    if (!open) return;
-    supabase.from("projects").select("id,name").then(({ data }) => setProjects(data ?? []));
-    supabase.from("products").select("id,name,code,style_code").eq("type", "Style").then(({ data }) => setProducts(data ?? []));
-  }, [open]);
+  // Sub-nav
+  useRegisterSubNav(
+    [
+      { id: "all", label: "All" },
+      { id: "development", label: "Development" },
+      { id: "production", label: "Production" },
+    ],
+    activePhase,
+    (id) => setActivePhase(id as Phase),
+    "Samples",
+  );
 
-  useEffect(() => {
-    if (!form.product_id) { setColors([]); return; }
-    supabase.from("product_colors").select("id,color_name,colorway_code").eq("product_id", form.product_id).then(({ data }) => setColors(data ?? []));
-  }, [form.product_id]);
+  // Load all data
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [samplesRes, productsRes, colorsRes, projectsRes, suppliersRes] = await Promise.all([
+      supabase.from("samples").select("*").order("created_at", { ascending: false }),
+      supabase.from("products").select("id, name, code, images"),
+      supabase.from("product_colors").select("id, product_id, color_name, colorway_code, color_hex"),
+      supabase.from("projects").select("id, name"),
+      supabase.from("suppliers").select("id, name, code"),
+    ]);
+    const samplesData = (samplesRes.data ?? []) as Sample[];
+    setSamples(samplesData);
 
-  const openNew = () => { setEditId(null); setForm(empty); setOpen(true); };
-  const openEdit = (s: Sample) => {
-    setEditId(s.id);
-    setForm({
-      code: s.code ?? "", project_id: s.project_id ?? "", product_id: s.product_id ?? "", product_color_id: s.product_color_id ?? "",
-      sample_type: s.sample_type ?? "", phase: s.phase ?? "", requested_quantity: s.requested_quantity ?? "",
-      conformity_status: s.conformity_status ?? "not_assessed", notes: s.notes ?? "",
+    const pMap: Record<string, Product> = {};
+    (productsRes.data ?? []).forEach((p: any) => { pMap[p.id] = p; });
+    setProductsMap(pMap);
+
+    const cMap: Record<string, ProductColor> = {};
+    (colorsRes.data ?? []).forEach((c: any) => { cMap[c.id] = c; });
+    setColorsMap(cMap);
+
+    const prjMap: Record<string, Project> = {};
+    (projectsRes.data ?? []).forEach((p: any) => { prjMap[p.id] = p; });
+    setProjectsMap(prjMap);
+
+    const sArr = (suppliersRes.data ?? []) as Supplier[];
+    setSuppliersArray(sArr);
+    const sMap: Record<string, Supplier> = {};
+    sArr.forEach((s) => { sMap[s.id] = s; });
+    setSupplierMap(sMap);
+
+    // Steps
+    const ids = samplesData.map((s) => s.id);
+    if (ids.length > 0) {
+      const { data: stepsData } = await supabase
+        .from("sample_steps")
+        .select("*")
+        .in("sample_id", ids)
+        .order("sequence");
+      const sm: Record<string, SampleStep[]> = {};
+      ((stepsData ?? []) as SampleStep[]).forEach((st) => {
+        if (!sm[st.sample_id]) sm[st.sample_id] = [];
+        sm[st.sample_id].push(st);
+      });
+      setStepsMap(sm);
+    } else {
+      setStepsMap({});
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Derived helpers
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const phaseFiltered = useMemo(() => {
+    if (activePhase === "all") return samples;
+    return samples.filter((s) => (s.phase ?? "") === activePhase);
+  }, [samples, activePhase]);
+
+  const isInDueWindow = useCallback((steps: SampleStep[], window: SampleFilters["dueWindow"]) => {
+    if (window === "all") return true;
+    const datePlus = (days: number) => {
+      const d = new Date(); d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+    return steps.some((st) => {
+      if (!st.due_date) return false;
+      const dd = st.due_date.slice(0, 10);
+      if (window === "overdue") {
+        const ws = st.workflow_status ?? "";
+        if (ws === "received" || ws === "partially_received") return false;
+        return dd < today;
+      }
+      if (window === "due_today") return dd === today;
+      if (window === "due_2d") return dd >= today && dd <= datePlus(2);
+      if (window === "due_7d") return dd >= today && dd <= datePlus(7);
+      return false;
     });
-    setOpen(true);
+  }, [today]);
+
+  const filtered = useMemo(() => {
+    return phaseFiltered.filter((s) => {
+      if (filters.sampleTypes.length && !filters.sampleTypes.includes(s.sample_type ?? "")) return false;
+      if (filters.phases.length && !filters.phases.includes(s.phase ?? "")) return false;
+      if (filters.conformities.length && !filters.conformities.includes(s.conformity_status ?? "")) return false;
+      if (filters.routing === "with" && !s.linked_routing_id) return false;
+      if (filters.routing === "without" && s.linked_routing_id) return false;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        if (!s.code.toLowerCase().includes(q) && !(s.notes ?? "").toLowerCase().includes(q)) return false;
+      }
+      const steps = stepsMap[s.id] ?? [];
+      if (filters.suppliers.length) {
+        if (!steps.some((st) => st.supplier_id && filters.suppliers.includes(st.supplier_id))) return false;
+      }
+      if (filters.dueWindow !== "all") {
+        if (!isInDueWindow(steps, filters.dueWindow)) return false;
+      }
+      return true;
+    });
+  }, [phaseFiltered, filters, stepsMap, isInDueWindow]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const acc: Record<string, number> = {};
+    filtered.forEach((s) => {
+      const k = s.conformity_status ?? "not_assessed";
+      acc[k] = (acc[k] ?? 0) + 1;
+    });
+    return acc;
+  }, [filtered]);
+
+  // Per-sample derived helpers
+  const getFirstStep = (s: Sample): SampleStep | undefined => (stepsMap[s.id] ?? [])[0];
+  const getEarliestPendingDue = (s: Sample): string | null => {
+    const steps = stepsMap[s.id] ?? [];
+    const pending = steps.filter((st) => st.due_date && !["received", "partially_received"].includes(st.workflow_status ?? ""));
+    if (pending.length === 0) return null;
+    return pending.map((st) => st.due_date!).sort()[0];
+  };
+  const getLatestActiveStatus = (s: Sample): string | null => {
+    const steps = stepsMap[s.id] ?? [];
+    if (steps.length === 0) return null;
+    const last = steps[steps.length - 1];
+    return last.workflow_status ?? null;
   };
 
-  const submit = async () => {
-    if (!form.code) return toast.error("Code is required");
-    setSaving(true);
-    const payload: any = { ...form };
-    if (payload.requested_quantity === "") payload.requested_quantity = null;
-    else payload.requested_quantity = Number(payload.requested_quantity);
-    Object.keys(payload).forEach((k) => payload[k] === "" && (payload[k] = null));
-    const res = editId
-      ? await supabase.from("samples").update(payload).eq("id", editId)
-      : await supabase.from("samples").insert(payload);
-    setSaving(false);
-    if (res.error) return toast.error(res.error.message);
-    toast.success(editId ? "Sample updated" : "Sample created");
-    setOpen(false);
-    setRefresh((r) => r + 1);
-  };
+  // Columns
+  const tableColumns: DataTableColumn<Sample>[] = useMemo(() => ([
+    {
+      id: "code", label: "Code", width: 110,
+      render: (r) => (
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-xs text-primary">{r.code}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(r.code);
+              toast.success("Copied");
+            }}
+            className="opacity-50 hover:opacity-100"
+            title="Copy code"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+        </div>
+      ),
+    },
+    {
+      id: "product", label: "Product", width: 200,
+      render: (r) => {
+        const p = r.product_id ? productsMap[r.product_id] : null;
+        if (!p) return <span className="text-muted-foreground">—</span>;
+        return (
+          <div className="min-w-0">
+            <div className="text-xs font-medium truncate">{p.name}</div>
+            {p.code && <div className="text-[10px] text-muted-foreground font-mono">{p.code}</div>}
+          </div>
+        );
+      },
+    },
+    {
+      id: "colorway", label: "Colorway", width: 150,
+      render: (r) => {
+        const c = r.product_color_id ? colorsMap[r.product_color_id] : null;
+        if (!c) return <span className="text-muted-foreground">—</span>;
+        return (
+          <div className="flex items-center gap-1.5 min-w-0">
+            {c.color_hex && <span className="w-2.5 h-2.5 rounded-full border border-border shrink-0" style={{ backgroundColor: c.color_hex }} />}
+            <span className="text-xs truncate">{c.color_name}</span>
+          </div>
+        );
+      },
+    },
+    { id: "type", label: "Type", width: 100, render: (r) => <StatusBadge value={r.sample_type ?? undefined} /> },
+    { id: "phase", label: "Phase", width: 110, render: (r) => <StatusBadge value={r.phase ?? undefined} /> },
+    {
+      id: "supplier", label: "Supplier", width: 160,
+      render: (r) => {
+        const fs = getFirstStep(r);
+        const sup = fs?.supplier_id ? supplierMap[fs.supplier_id] : null;
+        return <span className="text-xs">{sup?.name ?? "—"}</span>;
+      },
+    },
+    {
+      id: "due_date", label: "Due Date", width: 120,
+      render: (r) => {
+        const d = getEarliestPendingDue(r);
+        if (!d) return <span className="text-muted-foreground">—</span>;
+        const overdue = d.slice(0, 10) < today;
+        return <span className={`text-xs ${overdue ? "text-red-600 font-medium" : ""}`}>{new Date(d).toLocaleDateString()}</span>;
+      },
+    },
+    {
+      id: "conformity", label: "Conformity", width: 140,
+      render: (r) => {
+        const conf = r.conformity_status ?? "not_assessed";
+        return (
+          <span className={`inline-flex text-[10px] px-1.5 py-0.5 rounded border ${CONFORMITY_STYLE_MAP[conf] ?? ""}`}>
+            {CONFORMITY_LABEL_MAP[conf] ?? conf}
+          </span>
+        );
+      },
+    },
+    {
+      id: "workflow", label: "Status", width: 130,
+      render: (r) => <WorkflowStatusBadge status={getLatestActiveStatus(r)} />,
+    },
+    {
+      id: "project", label: "Project", width: 160,
+      render: (r) => {
+        const p = r.project_id ? projectsMap[r.project_id] : null;
+        return <span className="text-xs truncate">{p?.name ?? "—"}</span>;
+      },
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]), [productsMap, colorsMap, supplierMap, projectsMap, stepsMap, today]);
 
-  const doDelete = async () => {
-    if (!delId) return;
-    const { error } = await supabase.from("samples").delete().eq("id", delId);
-    if (error) return toast.error(error.message);
-    toast.success("Sample deleted");
-    setDelId(null);
-    setRefresh((r) => r + 1);
-  };
+  // Export CSV
+  const exportCSV = useCallback(() => {
+    const headers = ["Code", "Product", "Product Code", "Colorway", "Type", "Phase", "Supplier", "Due Date", "Conformity", "Status", "Project"];
+    const rows = filtered.map((r) => {
+      const p = r.product_id ? productsMap[r.product_id] : null;
+      const c = r.product_color_id ? colorsMap[r.product_color_id] : null;
+      const fs = getFirstStep(r);
+      const sup = fs?.supplier_id ? supplierMap[fs.supplier_id] : null;
+      const due = getEarliestPendingDue(r);
+      const prj = r.project_id ? projectsMap[r.project_id] : null;
+      return [
+        r.code,
+        p?.name ?? "",
+        p?.code ?? "",
+        c?.color_name ?? "",
+        r.sample_type ? SAMPLE_TYPE_LABELS[r.sample_type] ?? r.sample_type : "",
+        r.phase ?? "",
+        sup?.name ?? "",
+        due ? new Date(due).toLocaleDateString() : "",
+        CONFORMITY_LABEL_MAP[r.conformity_status ?? "not_assessed"] ?? "",
+        getLatestActiveStatus(r) ?? "",
+        prj?.name ?? "",
+      ];
+    });
+    const esc = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((row) => row.map((v) => esc(String(v))).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `samples_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Exported CSV");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, productsMap, colorsMap, supplierMap, projectsMap, stepsMap]);
+
+  // Options menu
+  const handleSelectView = useCallback((id: string) => setActiveViewId(id), []);
+
+  useEffect(() => {
+    const items: any[] = [
+      { label: "Quick Filters", icon: Filter, onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); }, keepOpen: true },
+      { label: "Manage Views", icon: Pencil, onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); }, keepOpen: true },
+      { divider: true },
+      { label: "Export CSV", icon: Download, onClick: exportCSV },
+    ];
+    const customContent = showQF ? (
+      <SampleFiltersPanel filters={filters} onFiltersChange={setFilters} suppliersArray={suppliersArray} />
+    ) : showViewMenu ? (
+      <ViewDrawerContent
+        pageKey="global_samples"
+        activeViewId={activeViewId}
+        onSelectView={handleSelectView}
+        allFields={tableColumns.map((c) => ({ id: c.id, label: c.label }))}
+        currentViewType={null}
+      />
+    ) : null;
+    setOptions({ items, customContent });
+    return () => setOptions(null);
+  }, [setOptions, showQF, showViewMenu, filters, suppliersArray, activeViewId, handleSelectView, exportCSV, tableColumns]);
+
+  if (loading) {
+    return (
+      <div className={PAGE_WRAPPER}>
+        <div className="flex justify-center items-center py-24">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  const total = filtered.length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sampling</h1>
-          <p className="text-muted-foreground">Track sample requests and conformity</p>
-        </div>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> New Sample</Button>
-      </div>
-
-      <div className="flex gap-3 flex-wrap">
-        <Select value={sampleType} onValueChange={setSampleType}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent>{["all", ...SAMPLE_TYPES].map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All types" : s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={phase} onValueChange={setPhase}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Phase" /></SelectTrigger>
-          <SelectContent>{["all", ...PHASES].map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All phases" : s}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={conformity} onValueChange={setConformity}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Conformity" /></SelectTrigger>
-          <SelectContent>{["all", ...CONFORMITY].map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All conformity" : s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-        </Select>
-      </div>
-
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead><TableHead>Product</TableHead><TableHead>Project</TableHead><TableHead>Type</TableHead><TableHead>Phase</TableHead><TableHead>Conformity</TableHead><TableHead>Qty</TableHead><TableHead>Date</TableHead><TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((s) => (
-              <TableRow key={s.id} className="cursor-pointer" onClick={() => setSelected(s)}>
-                <TableCell className="font-mono text-xs">{s.code}</TableCell>
-                <TableCell className="font-medium">{s.product?.name ?? "—"}</TableCell>
-                <TableCell>{s.project?.name ?? "—"}</TableCell>
-                <TableCell><StatusBadge value={s.sample_type} /></TableCell>
-                <TableCell><StatusBadge value={s.phase} /></TableCell>
-                <TableCell><StatusBadge value={s.conformity_status} /></TableCell>
-                <TableCell>{s.requested_quantity ?? "—"}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"}</TableCell>
-                <TableCell><RowActions onEdit={() => openEdit(s)} onDelete={() => setDelId(s.id)} /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          <SheetHeader><SheetTitle>{selected?.code}</SheetTitle></SheetHeader>
-          {selected && (
-            <div className="mt-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div><div className="text-xs text-muted-foreground">Product</div><div>{selected.product?.name ?? "—"}</div></div>
-                <div><div className="text-xs text-muted-foreground">Project</div><div>{selected.project?.name ?? "—"}</div></div>
-                <div><div className="text-xs text-muted-foreground">Type</div><StatusBadge value={selected.sample_type} /></div>
-                <div><div className="text-xs text-muted-foreground">Phase</div><StatusBadge value={selected.phase} /></div>
-                <div><div className="text-xs text-muted-foreground">Conformity</div><StatusBadge value={selected.conformity_status} /></div>
-                <div><div className="text-xs text-muted-foreground">Quantity</div><div>{selected.requested_quantity ?? "—"}</div></div>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Sample Steps</h3>
-                {steps.length === 0 ? <p className="text-sm text-muted-foreground">No steps recorded</p> : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow><TableHead>#</TableHead><TableHead>Step</TableHead><TableHead>Status</TableHead><TableHead>Due</TableHead><TableHead>Conformity</TableHead></TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {steps.map((st) => (
-                        <TableRow key={st.id}>
-                          <TableCell>{st.sequence}</TableCell>
-                          <TableCell className="capitalize">{st.step_type?.replace(/_/g, " ")}</TableCell>
-                          <TableCell><StatusBadge value={st.workflow_status} /></TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{st.due_date ? new Date(st.due_date).toLocaleDateString() : "—"}</TableCell>
-                          <TableCell><StatusBadge value={st.conformity_status} /></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editId ? "Edit Sample" : "New Sample"}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-2">
-            <div><Label>Code *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></div>
-            <div>
-              <Label>Project</Label>
-              <Select value={form.project_id} onValueChange={(v) => setForm({ ...form, project_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Product</Label>
-              <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v, product_color_id: "" })}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} ({p.style_code ?? p.code})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Colorway</Label>
-              <Select value={form.product_color_id} onValueChange={(v) => setForm({ ...form, product_color_id: v })}>
-                <SelectTrigger><SelectValue placeholder={form.product_id ? "Select" : "Pick a product first"} /></SelectTrigger>
-                <SelectContent>{colors.map((c) => <SelectItem key={c.id} value={c.id}>{c.color_name} ({c.colorway_code})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Sample Type</Label>
-              <Select value={form.sample_type} onValueChange={(v) => setForm({ ...form, sample_type: v })}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{SAMPLE_TYPES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Phase</Label>
-              <Select value={form.phase} onValueChange={(v) => setForm({ ...form, phase: v })}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{PHASES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>Requested Quantity</Label><Input type="number" value={form.requested_quantity} onChange={(e) => setForm({ ...form, requested_quantity: e.target.value })} /></div>
-            <div>
-              <Label>Conformity</Label>
-              <Select value={form.conformity_status} onValueChange={(v) => setForm({ ...form, conformity_status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{CONFORMITY.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2"><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+    <div className={PAGE_WRAPPER + " space-y-4"}>
+      {/* Stats bar */}
+      <div className="border border-border rounded-lg bg-card">
+        <button
+          type="button"
+          onClick={() => setStatsOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium hover:bg-muted/40"
+        >
+          <span>Total: {total} sample{total !== 1 ? "s" : ""}</span>
+          {statsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+        {statsOpen && (
+          <div className="px-3 py-2 border-t border-border flex flex-wrap gap-2">
+            {CONFORMITY_PILLS.map((p) => {
+              const count = stats[p.key] ?? 0;
+              const active = filters.conformities.includes(p.key);
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setFilters({
+                    ...filters,
+                    conformities: active
+                      ? filters.conformities.filter((x) => x !== p.key)
+                      : [...filters.conformities, p.key],
+                  })}
+                  className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full border ${p.cls} ${active ? "ring-2 ring-primary/40" : ""}`}
+                >
+                  <span>{p.label}</span>
+                  <span className="font-semibold">{count}</span>
+                </button>
+              );
+            })}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={saving}>{saving ? "Saving…" : editId ? "Save" : "Create"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
 
-      <AlertDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete sample?</AlertDialogTitle>
-            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={doDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
+          <FlaskConical className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No samples yet</p>
+        </div>
+      ) : (
+        <DataTable
+          columns={tableColumns}
+          rows={filtered}
+          fixedColumns={pinned}
+          onPinColumn={(id) =>
+            setPinned((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
+          }
+          onRowClick={(r) => navigate(`/samples/${r.id}`)}
+          {...({ activeViewId } as any)}
+        />
+      )}
     </div>
   );
 }
