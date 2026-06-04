@@ -18,6 +18,8 @@ import {
   SlidersHorizontal,
   X,
   Menu,
+  FlaskConical,
+
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +38,9 @@ export const DRAWER_ITEMS = [
   { path: "/suppliers", label: "Suppliers", icon: Building2 },
   { path: "/boms", label: "BOMs", icon: Layers },
   { path: "/rfqs", label: "RFQ & Costing", icon: ClipboardList },
+  { path: "/samples", label: "Samples", icon: FlaskConical },
   { path: "/change-management/ecos", label: "Change Management", icon: GitPullRequestArrow },
+
 ];
 
 function getActiveItem(pathname: string) {
@@ -46,10 +50,12 @@ function getActiveItem(pathname: string) {
     const ctx = sessionStorage.getItem("productNavContext");
     return DRAWER_ITEMS.find((i) => i.path === (ctx === "materials" ? "/materials" : "/list-view"));
   }
+  if (pathname.startsWith("/samples")) return DRAWER_ITEMS.find((i) => i.path === "/samples");
   return DRAWER_ITEMS.find(
     (i) => pathname === i.path || pathname.startsWith(i.path + "/"),
   );
 }
+
 
 type Pos = { top?: number; left?: number; right?: number; bottom?: number };
 
