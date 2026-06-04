@@ -168,7 +168,7 @@ function TrackingBoard() {
 
   useEffect(() => {
     setOptions({
-      items: [{ label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) }],
+      items: [{ label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v), keepOpen: true }],
       customContent: showViewMenu ? (
         <ViewDrawerContent pageKey="rfq_tracking_board" activeViewId={activeViewId}
           onSelectView={(id:string) => { setActiveViewId(id); setShowViewMenu(false); }}

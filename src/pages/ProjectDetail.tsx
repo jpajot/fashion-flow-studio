@@ -295,8 +295,8 @@ function StylesSection({ projectId, linkedStyles, onRefresh, setOptions }: { pro
       items: [
         { label:"Link Style", icon:Plus, onClick:()=>setShowLink(true), className:"text-primary hover:bg-primary/10" },
         { divider:true },
-        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid") },
-        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v) },
+        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid"), keepOpen: true },
+        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v), keepOpen: true },
       ],
       customContent: showViewMenu ? (
         <ViewDrawerContent pageKey="project_styles" activeViewId={activeViewId}
@@ -527,8 +527,8 @@ function ColorwaysSection({ projectId, linkedColorways, onRefresh, setOptions }:
       items: [
         { label:"Link Colorway", icon:Plus, onClick:()=>setShowLink(true), className:"text-primary hover:bg-primary/10" },
         { divider:true },
-        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid") },
-        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v) },
+        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid"), keepOpen: true },
+        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v), keepOpen: true },
       ],
       customContent: showViewMenu ? (
         <ViewDrawerContent pageKey="project_colorways" activeViewId={activeViewId}
@@ -727,8 +727,8 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
       items: [
         { label:"Link Variation", icon:Plus, onClick:()=>setShowLink(true), className:"text-primary hover:bg-primary/10" },
         { divider:true },
-        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid") },
-        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v) },
+        { label:view==="grid"?"View: List":"View: Grid", icon:view==="grid"?ListIcon:LayoutGrid, onClick:()=>setView(v=>v==="grid"?"list":"grid"), keepOpen: true },
+        { label:"Manage Views", icon:Pencil, onClick:()=>setShowViewMenu(v=>!v), keepOpen: true },
       ],
       customContent: showViewMenu ? (
         <ViewDrawerContent pageKey="project_variations" activeViewId={activeViewId}
@@ -1582,7 +1582,7 @@ function DCperCOTSection({ projectId, linkedVariations, setOptions }: { projectI
         { label: "Import XLSX", icon: Upload, onClick: () => document.getElementById("dc-import-input")?.click() },
         { divider: true },
         { label: showStats?"Hide Stats":"Show Stats", icon: BarChart2, onClick: ()=>setShowStats(v=>!v) },
-        { label: "Manage Views", icon: Pencil, onClick: ()=>setShowViewMenu(v=>!v) },
+        { label: "Manage Views", icon: Pencil, onClick: ()=>setShowViewMenu(v=>!v), keepOpen: true },
       ],
       customContent: showViewMenu ? (
         <ViewDrawerContent
@@ -2247,7 +2247,7 @@ function SupplierRequestsSection({ projectId, setOptions }: { projectId: string;
       items: [
         { label: "New Supplier Request", icon: Plus, onClick: () => setShowCreate(true), className: "text-primary hover:bg-primary/10" },
         { divider: true },
-        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v) },
+        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v), keepOpen: true },
       ],
       customContent: showViewMenu ? (
         <ViewDrawerContent
