@@ -1253,6 +1253,7 @@ export default function SupplierRequestDetail() {
             locked={!isDraft}
             onLinesRefresh={load}
             setOptions={setOptions}
+            currencies={currencies}
           />
         )}
         {activeTab === "samples" && <RFQSamplesTab rfq={sr} />}
