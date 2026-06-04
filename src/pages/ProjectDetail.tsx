@@ -2029,6 +2029,22 @@ function DocumentsSection({ projectId }: { projectId: string }) {
               <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[doc.status] ?? STATUS_BADGE.uploaded}`}>
                 {STATUS_LABEL[doc.status] ?? doc.status}
               </span>
+              {(doc.status === 'uploaded' || doc.status === 'error') && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await supabase.from('uploaded_documents').update({ status: 'processing' }).eq('id', doc.id);
+                    setDocs(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'processing' } : d));
+                    supabase.functions.invoke('parse-document', { body: { document_id: doc.id } })
+                      .then(() => pollStatus(doc.id))
+                      .catch(() => load());
+                  }}
+                  className="text-xs text-primary hover:underline font-medium shrink-0"
+                  title="Re-run parsing"
+                >
+                  Parse
+                </button>
+              )}
               {(doc.status === 'staged' || doc.status === 'processed') && (
                 <button
                   type="button"
