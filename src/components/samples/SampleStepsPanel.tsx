@@ -349,6 +349,7 @@ export default function SampleStepsPanel({ sample, suppliersArray, stepsCache, o
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
