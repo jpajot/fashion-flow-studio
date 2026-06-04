@@ -26,6 +26,7 @@ const SECTIONS = [
   { to: "/currencies", title: "Currencies", desc: "Currencies and pricing units", icon: CircleDollarSign, ready: true },
   { to: "/app-config", title: "App Config", desc: "Application configuration values", icon: SettingsIcon, ready: true },
   { to: "/rfq-rounds", title: "RFQ Rounds", desc: "Quotation round types for Supplier Requests", icon: RefreshCw, ready: true },
+  { to: "/document-parsing-schemes", title: "Document Parsing", desc: "AI extraction schemes per document type", icon: FileJson, ready: true },
 ];
 
 export default function SettingsHub() {
