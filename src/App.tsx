@@ -33,6 +33,8 @@ import AppConfiguration from "@/pages/AppConfiguration";
 import RFQRounds from "@/pages/RFQRounds";
 import SupplierRequestDetail from "@/pages/SupplierRequestDetail";
 import SampleDetail from "@/pages/SampleDetail";
+import DocumentParsingSchemes from "@/pages/DocumentParsingSchemes";
+import DocumentStaging from "@/pages/DocumentStaging";
 
 import NotFound from "./pages/NotFound.tsx";
 
