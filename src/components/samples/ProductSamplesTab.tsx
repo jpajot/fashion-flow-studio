@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePageOptions } from '@/contexts/PageOptionsContext';
-import { Plus, FlaskConical, Filter, Pencil } from 'lucide-react';
+import { Plus, FlaskConical, Filter, Pencil, List, LayoutGrid } from 'lucide-react';
 import SamplesDataTable, { Sample, SampleFilters, DEFAULT_SAMPLE_FILTERS } from './SamplesDataTable';
 import SampleCreateDialog from './SampleCreateDialog';
 import SampleFiltersPanel from './SampleFiltersPanel';
 import ViewDrawerContent from '@/components/ViewDrawerContent';
+import { SAMPLE_TYPE_LABELS } from '@/lib/sampleUtils';
+import WorkflowStatusBadge from './WorkflowStatusBadge';
 
 interface Product { id: string; size_grid_id?: string | null; }
 
