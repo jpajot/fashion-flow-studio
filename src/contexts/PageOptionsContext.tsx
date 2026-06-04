@@ -8,6 +8,7 @@ export type PageOptionItem = {
   badge?: string | number;
   divider?: boolean;
   custom?: ReactNode;
+  keepOpen?: boolean;
 };
 
 export type PageOptionsValue = {
