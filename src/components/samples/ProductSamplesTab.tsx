@@ -2,11 +2,21 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePageOptions } from '@/contexts/PageOptionsContext';
-import { Plus, FlaskConical } from 'lucide-react';
-import SamplesDataTable, { Sample } from './SamplesDataTable';
+import { Plus, FlaskConical, Filter, Pencil } from 'lucide-react';
+import SamplesDataTable, { Sample, SampleFilters, DEFAULT_SAMPLE_FILTERS } from './SamplesDataTable';
 import SampleCreateDialog from './SampleCreateDialog';
+import SampleFiltersPanel from './SampleFiltersPanel';
+import ViewDrawerContent from '@/components/ViewDrawerContent';
 
 interface Product { id: string; size_grid_id?: string | null; }
+
+const ALL_FIELDS = [
+  { id: 'code', label: 'Code' }, { id: 'product', label: 'Product' },
+  { id: 'type', label: 'Type' }, { id: 'phase', label: 'Phase' },
+  { id: 'color', label: 'Color' }, { id: 'size', label: 'Size' },
+  { id: 'qty', label: 'Req. Qty' }, { id: 'conformity', label: 'Conformity' },
+  { id: 'workflow', label: 'Workflow' },
+];
 
 export default function ProductSamplesTab({ product }: { product: Product }) {
   const { user } = useAuth();
@@ -17,6 +27,10 @@ export default function ProductSamplesTab({ product }: { product: Product }) {
   const [projectsMap, setProjectsMap] = useState<Record<string, any>>({});
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
+  const [filters, setFilters] = useState<SampleFilters>(DEFAULT_SAMPLE_FILTERS);
+  const [showQF, setShowQF] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
+  const [activeViewId, setActiveViewId] = useState('default');
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('samples').select('*').eq('product_id', product.id).order('created_at', { ascending: false });
@@ -51,9 +65,21 @@ export default function ProductSamplesTab({ product }: { product: Product }) {
   }, [product.id, product.size_grid_id]);
 
   useEffect(() => {
-    setOptions({ items: [{ label: 'Add Sample', icon: Plus, onClick: () => setOpenCreate(true) }] });
+    const items = [
+      { label: 'Add Sample', icon: Plus, onClick: () => setOpenCreate(true), className: 'text-primary hover:bg-primary/10' },
+      { divider: true },
+      { label: 'Quick Filters', icon: Filter, onClick: () => { setShowQF((v) => !v); setShowViewMenu(false); } },
+      { label: 'Manage Views', icon: Pencil, onClick: () => { setShowViewMenu((v) => !v); setShowQF(false); } },
+    ];
+    const customContent = showQF ? (
+      <SampleFiltersPanel filters={filters} onFiltersChange={setFilters} suppliersArray={suppliers} />
+    ) : showViewMenu ? (
+      <ViewDrawerContent pageKey="product_samples_list" activeViewId={activeViewId}
+        onSelectView={setActiveViewId} allFields={ALL_FIELDS} />
+    ) : null;
+    setOptions({ items, customContent });
     return () => setOptions(null);
-  }, [setOptions]);
+  }, [setOptions, showQF, showViewMenu, filters, suppliers, activeViewId]);
 
   const handleRowUpdate = async (id: string, updates: Partial<Sample>) => {
     await supabase.from('samples').update(updates).eq('id', id);
@@ -77,6 +103,9 @@ export default function ProductSamplesTab({ product }: { product: Product }) {
         colorsMap={colorsMap}
         sizesMap={sizesMap}
         projectsMap={projectsMap}
+        filters={filters}
+        onFiltersChange={setFilters}
+        activeViewId={activeViewId}
         emptyState={{ icon: FlaskConical, title: 'No samples yet', body: 'Add a sample to start tracking.', ctaLabel: 'Add Sample', ctaOnClick: () => setOpenCreate(true) }}
       />
       <SampleCreateDialog
