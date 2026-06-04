@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
 import GalleryView from "@/components/GalleryView";
 import DataTable from "@/components/shared/DataTable";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
@@ -2057,14 +2057,22 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      <div className="flex justify-end gap-1">
-        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setExpandedIds(new Set(lines.map((l: any) => l.id)))}>
-          <ChevronDown className="w-3 h-3" />Expand all
-        </Button>
-        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => setExpandedIds(new Set())}>
-          <ChevronRight className="w-3 h-3" />Collapse
-        </Button>
-      </div>
+      {lines.length > 0 && (
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] text-muted-foreground">{lines.length} line{lines.length !== 1 ? 's' : ''}</span>
+          <button type="button"
+            onClick={() => {
+              const allExpanded = lines.every((l: any) => expandedIds.has(l.id));
+              if (allExpanded) setExpandedIds(new Set());
+              else setExpandedIds(new Set(lines.map((l: any) => l.id)));
+            }}
+            className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+            {lines.every((l: any) => expandedIds.has(l.id))
+              ? <><ChevronsUp className="w-3 h-3" />Collapse all</>
+              : <><ChevronsDown className="w-3 h-3" />Expand all</>}
+          </button>
+        </div>
+      )}
 
       {lines.length === 0 ? (
         <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">

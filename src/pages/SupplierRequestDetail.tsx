@@ -20,8 +20,9 @@ import { toast } from "sonner";
 import {
   Loader2, ArrowLeft, FileSearch, MoreVertical, Pencil, Trash2,
   Plus, Search, X, AlertTriangle, FlaskConical, MessageSquarePlus,
-  Download, Upload,
+  Download, Upload, Filter,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import ResponsesPanel from "@/components/rfq/ResponsesPanel";
 import AddResponseDialog from "@/components/rfq/AddResponseDialog";
 import ExportTodoDialog from "@/components/rfq/ExportTodoDialog";
@@ -651,10 +652,10 @@ function EditHeaderDialog({ sr, onSaved, onClose }: { sr: any; onSaved: (updated
 }
 
 // ── RFQ Lines Tab ─────────────────────────────────────────────────────────────
-function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }: {
+function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, currencies }: {
   sr: any; lines: any[];
   refData: { products: any[]; colors: any[]; pcams: any[]; steps: any[]; suppliers: any[] };
-  locked: boolean; onLinesRefresh: () => void; setOptions: any;
+  locked: boolean; onLinesRefresh: () => void; setOptions: any; currencies: any[];
 }) {
   const { products, colors, pcams, steps, suppliers } = refData;
   const [showBuilder, setShowBuilder] = useState(false);
@@ -664,10 +665,14 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
   const [filterStatus, setFilterStatus] = useState("all");
   const [activeViewId, setActiveViewId] = useState("default");
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const [showQF, setShowQF] = useState(false);
   const [pinnedCols, setPinnedCols] = useState<string[]>(["product", "status"]);
   const [responses, setResponses] = useState<any[]>([]);
   const [panelLine, setPanelLine] = useState<any>(null);
   const [responseTarget, setResponseTarget] = useState<any>(null);
+  const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(new Set());
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
   const colorMap = useMemo(() => Object.fromEntries(colors.map(c => [c.id, c])), [colors]);
@@ -707,6 +712,22 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
   };
 
   const tableColumns = useMemo(() => [
+    {
+      id: "select", label: "", width: 40,
+      render: (l: any) => (
+        <Checkbox
+          checked={selectedLineIds.has(l.id)}
+          onCheckedChange={(checked) => {
+            setSelectedLineIds(prev => {
+              const next = new Set(prev);
+              if (checked) next.add(l.id); else next.delete(l.id);
+              return next;
+            });
+          }}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        />
+      ),
+    },
     {
       id: "product", label: "Product", width: 200,
       sortKey: (l: any) => productMap[l.product_id]?.name || "",
@@ -810,27 +831,53 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [productMap, colorMap, pcamMap, stepMap, supplierMap, locked, responses, panelLine]);
+  ], [productMap, colorMap, pcamMap, stepMap, supplierMap, locked, responses, panelLine, selectedLineIds]);
 
   useEffect(() => {
     setOptions({
       items: [
         ...(!locked ? [{ label: "Add Lines", icon: Plus, onClick: () => setShowBuilder(true), className: "text-primary hover:bg-primary/10" }, { divider: true }] : []),
-        { label: "Manage Views", icon: Pencil, onClick: () => setShowViewMenu(v => !v), keepOpen: true },
+        { label: "Quick Filters", icon: Filter, onClick: () => { setShowQF(v => !v); setShowViewMenu(false); }, keepOpen: true },
+        { label: "Manage Views", icon: Pencil, onClick: () => { setShowViewMenu(v => !v); setShowQF(false); }, keepOpen: true },
       ],
-      customContent: showViewMenu ? (
+      customContent: showQF ? (
+        <div className="p-3 space-y-3 border-t">
+          <div className="space-y-1.5">
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Search</label>
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Product, supplier, step…" className="h-8 text-xs" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</label>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {["pending","answered","awarded","declined","cancelled"].map(s => (
+                  <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {(search || filterStatus !== 'all') && (
+            <button type="button" onClick={() => { setSearch(''); setFilterStatus('all'); }}
+              className="text-xs text-muted-foreground hover:text-foreground w-full text-left underline">
+              Clear filters
+            </button>
+          )}
+        </div>
+      ) : showViewMenu ? (
         <ViewDrawerContent
           pageKey="supplier_request_rfq_lines"
           activeViewId={activeViewId}
           onSelectView={id => { setActiveViewId(id); setShowViewMenu(false); }}
-          allFields={tableColumns.filter(c => c.id !== "_delete").map(c => ({ id: c.id, label: c.label }))}
+          allFields={tableColumns.filter(c => c.id !== "_delete" && c.id !== "select").map(c => ({ id: c.id, label: c.label }))}
           currentViewType={null}
         />
       ) : null,
     });
     return () => setOptions(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locked, showViewMenu, activeViewId, tableColumns, setOptions]);
+  }, [locked, showViewMenu, showQF, activeViewId, tableColumns, setOptions, search, filterStatus]);
 
   const handleDeleteLine = async () => {
     if (!deleteTarget) return;
@@ -845,7 +892,7 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="hidden sm:flex items-center gap-2 flex-wrap">
         {!locked && (
           <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setShowBuilder(true)}>
             <Plus className="w-3.5 h-3.5" />Add Lines
@@ -870,6 +917,51 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
           </button>
         )}
       </div>
+
+      {filtered.length > 0 && (
+        <div className="flex items-center gap-2 py-1.5 border-b border-border mb-1 flex-wrap">
+          <Checkbox
+            checked={selectedLineIds.size === filtered.length && filtered.length > 0}
+            onCheckedChange={(checked) => {
+              setSelectedLineIds(checked ? new Set(filtered.map((l: any) => l.id)) : new Set());
+            }}
+            className="h-3.5 w-3.5 ml-1"
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {selectedLineIds.size > 0
+              ? <span className="text-primary font-medium">{selectedLineIds.size} of {filtered.length} selected</span>
+              : `${filtered.length} line${filtered.length !== 1 ? 's' : ''}`}
+          </span>
+          {selectedLineIds.size > 0 && (
+            <button type="button" onClick={() => setSelectedLineIds(new Set())}
+              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 ml-1">
+              <X className="w-3 h-3" />Clear
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+              onClick={() => setShowExportDialog(true)}>
+              <Download className="w-3 h-3" />
+              Export ToDo{selectedLineIds.size > 0 ? ` (${selectedLineIds.size})` : ''}
+            </Button>
+            {!locked && (
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                onClick={() => setShowImportDialog(true)}>
+                <Upload className="w-3 h-3" />Import Responses
+              </Button>
+            )}
+            {selectedLineIds.size === 1 && (
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                onClick={() => {
+                  const line = filtered.find((l: any) => selectedLineIds.has(l.id));
+                  if (line) setResponseTarget(line);
+                }}>
+                <MessageSquarePlus className="w-3 h-3" />Add Response
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-16 bg-muted/20 rounded-xl border border-dashed border-border">
@@ -944,6 +1036,29 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
           supplierMap={supplierMap}
           onSaved={() => { setResponseTarget(null); onLinesRefresh(); }}
           onClose={() => setResponseTarget(null)}
+        />
+      )}
+
+      {showExportDialog && (
+        <ExportTodoDialog
+          sr={sr}
+          lines={selectedLineIds.size > 0 ? lines.filter((l: any) => selectedLineIds.has(l.id)) : lines}
+          productMap={productMap}
+          colorMap={colorMap}
+          pcamMap={pcamMap}
+          stepMap={stepMap}
+          supplierMap={supplierMap}
+          onClose={() => setShowExportDialog(false)}
+        />
+      )}
+
+      {showImportDialog && (
+        <ImportResponsesDialog
+          sr={sr}
+          rfqLines={lines}
+          currencies={currencies}
+          onClose={() => setShowImportDialog(false)}
+          onImportSuccess={onLinesRefresh}
         />
       )}
     </div>
@@ -1138,6 +1253,7 @@ export default function SupplierRequestDetail() {
             locked={!isDraft}
             onLinesRefresh={load}
             setOptions={setOptions}
+            currencies={currencies}
           />
         )}
         {activeTab === "samples" && <RFQSamplesTab rfq={sr} />}
