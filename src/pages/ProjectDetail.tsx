@@ -1893,6 +1893,21 @@ function DocumentsSection({ projectId }: { projectId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const pollStatus = useCallback(async (docId: string) => {
+    const MAX_POLLS = 75; // 5 min at 4s intervals
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await new Promise(r => setTimeout(r, 4000));
+      const { data } = await supabase
+        .from('uploaded_documents')
+        .select('*')
+        .eq('id', docId)
+        .single();
+      if (!data) break;
+      setDocs(prev => prev.map(d => d.id === docId ? data : d));
+      if (['staged', 'processed', 'error'].includes(data.status)) break;
+    }
+  }, []);
+
   useEffect(() => {
     supabase
       .from('list_of_values')
@@ -1932,13 +1947,21 @@ function DocumentsSection({ projectId }: { projectId: string }) {
       toast.success('Document uploaded — parsing started…');
 
       supabase.functions.invoke('parse-document', { body: { document_id: doc.id } })
-        .then(() => load())
-        .catch(async (err: any) => {
-          await supabase.from('uploaded_documents').update({
+        .then(({ error: fnError }) => {
+          if (fnError) {
+            supabase.from('uploaded_documents').update({
+              status: 'error',
+              error_message: fnError.message ?? 'Edge function invocation failed',
+            }).eq('id', doc.id).then(() => load());
+          } else {
+            pollStatus(doc.id);
+          }
+        })
+        .catch((err: any) => {
+          supabase.from('uploaded_documents').update({
             status: 'error',
-            error_message: err?.message ?? 'Parsing failed',
-          }).eq('id', doc.id);
-          load();
+            error_message: err?.message ?? 'Invocation failed',
+          }).eq('id', doc.id).then(() => load());
         });
     } catch (err: any) {
       toast.error(err?.message ?? 'Upload failed');
@@ -2006,6 +2029,22 @@ function DocumentsSection({ projectId }: { projectId: string }) {
               <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[doc.status] ?? STATUS_BADGE.uploaded}`}>
                 {STATUS_LABEL[doc.status] ?? doc.status}
               </span>
+              {(doc.status === 'uploaded' || doc.status === 'error') && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await supabase.from('uploaded_documents').update({ status: 'processing' }).eq('id', doc.id);
+                    setDocs(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'processing' } : d));
+                    supabase.functions.invoke('parse-document', { body: { document_id: doc.id } })
+                      .then(() => pollStatus(doc.id))
+                      .catch(() => load());
+                  }}
+                  className="text-xs text-primary hover:underline font-medium shrink-0"
+                  title="Re-run parsing"
+                >
+                  Parse
+                </button>
+              )}
               {(doc.status === 'staged' || doc.status === 'processed') && (
                 <button
                   type="button"
