@@ -713,6 +713,22 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, c
 
   const tableColumns = useMemo(() => [
     {
+      id: "select", label: "", width: 40,
+      render: (l: any) => (
+        <Checkbox
+          checked={selectedLineIds.has(l.id)}
+          onCheckedChange={(checked) => {
+            setSelectedLineIds(prev => {
+              const next = new Set(prev);
+              if (checked) next.add(l.id); else next.delete(l.id);
+              return next;
+            });
+          }}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        />
+      ),
+    },
+    {
       id: "product", label: "Product", width: 200,
       sortKey: (l: any) => productMap[l.product_id]?.name || "",
       render: (l: any) => {
@@ -815,7 +831,7 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, c
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [productMap, colorMap, pcamMap, stepMap, supplierMap, locked, responses, panelLine]);
+  ], [productMap, colorMap, pcamMap, stepMap, supplierMap, locked, responses, panelLine, selectedLineIds]);
 
   useEffect(() => {
     setOptions({
