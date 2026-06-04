@@ -1893,6 +1893,21 @@ function DocumentsSection({ projectId }: { projectId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const pollStatus = useCallback(async (docId: string) => {
+    const MAX_POLLS = 75; // 5 min at 4s intervals
+    for (let i = 0; i < MAX_POLLS; i++) {
+      await new Promise(r => setTimeout(r, 4000));
+      const { data } = await supabase
+        .from('uploaded_documents')
+        .select('*')
+        .eq('id', docId)
+        .single();
+      if (!data) break;
+      setDocs(prev => prev.map(d => d.id === docId ? data : d));
+      if (['staged', 'processed', 'error'].includes(data.status)) break;
+    }
+  }, []);
+
   useEffect(() => {
     supabase
       .from('list_of_values')
