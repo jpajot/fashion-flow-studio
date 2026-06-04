@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, ChevronDown, MoreVertical, Wand2, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, MoreVertical, Wand2, X, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
