@@ -20,8 +20,9 @@ import { toast } from "sonner";
 import {
   Loader2, ArrowLeft, FileSearch, MoreVertical, Pencil, Trash2,
   Plus, Search, X, AlertTriangle, FlaskConical, MessageSquarePlus,
-  Download, Upload,
+  Download, Upload, Filter,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import ResponsesPanel from "@/components/rfq/ResponsesPanel";
 import AddResponseDialog from "@/components/rfq/AddResponseDialog";
 import ExportTodoDialog from "@/components/rfq/ExportTodoDialog";
@@ -651,10 +652,10 @@ function EditHeaderDialog({ sr, onSaved, onClose }: { sr: any; onSaved: (updated
 }
 
 // ── RFQ Lines Tab ─────────────────────────────────────────────────────────────
-function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }: {
+function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, currencies }: {
   sr: any; lines: any[];
   refData: { products: any[]; colors: any[]; pcams: any[]; steps: any[]; suppliers: any[] };
-  locked: boolean; onLinesRefresh: () => void; setOptions: any;
+  locked: boolean; onLinesRefresh: () => void; setOptions: any; currencies: any[];
 }) {
   const { products, colors, pcams, steps, suppliers } = refData;
   const [showBuilder, setShowBuilder] = useState(false);
@@ -664,10 +665,14 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions }:
   const [filterStatus, setFilterStatus] = useState("all");
   const [activeViewId, setActiveViewId] = useState("default");
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const [showQF, setShowQF] = useState(false);
   const [pinnedCols, setPinnedCols] = useState<string[]>(["product", "status"]);
   const [responses, setResponses] = useState<any[]>([]);
   const [panelLine, setPanelLine] = useState<any>(null);
   const [responseTarget, setResponseTarget] = useState<any>(null);
+  const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(new Set());
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
   const colorMap = useMemo(() => Object.fromEntries(colors.map(c => [c.id, c])), [colors]);
