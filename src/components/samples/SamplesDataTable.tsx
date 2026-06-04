@@ -343,6 +343,7 @@ export default function SamplesDataTable({
             </table>
           </div>
         </div>
+        </>
       )}
 
       {routingDialog && (
