@@ -399,7 +399,7 @@ export default function DocumentStaging() {
               <span className="font-mono text-xs font-semibold">{r['Style Code'] || '—'}</span>
               {existing && <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-300">exists</Badge>}
             </div>
-            {createdInfo.has(r.id) && newCode && newCode !== r['Style Code'] && (
+            {createdInfo.has(r.id) && newCode && (
               <span className="text-[10px] text-green-600 font-mono font-medium">
                 New: {newCode}
               </span>
