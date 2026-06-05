@@ -204,6 +204,20 @@ export default function DocumentStaging() {
     const styleName = row['Style Description'];
     const styleCode = row['Style Code'] ?? '';
 
+    let resolvedCode = styleCode;
+    if (!resolvedCode && !existingProduct) {
+      const { data: maxRows } = await supabase
+        .from('products')
+        .select('code')
+        .like('code', 'STY%')
+        .order('code', { ascending: false })
+        .limit(1);
+      const lastNum = maxRows?.[0]?.code
+        ? parseInt(maxRows[0].code.replace(/[^0-9]/g, ''), 10)
+        : 0;
+      resolvedCode = `STY${String(lastNum + 1).padStart(5, '0')}`;
+    }
+
     let product: any;
     if (existingProduct) {
       const updates: any = {};
@@ -220,7 +234,7 @@ export default function DocumentStaging() {
       const { data: created } = await supabase.from('products').insert({
         type: 'Product',
         name: styleName,
-        code: styleCode,
+        code: resolvedCode,
         category: '',
         sub_category: '',
         customer_need: '',
