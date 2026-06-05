@@ -580,6 +580,18 @@ export default function DocumentStaging() {
           <div className="flex-1" />
           {data.collection && <Badge variant="outline" className="font-mono text-xs">{data.collection}</Badge>}
           <Badge variant={isProcessed ? 'default' : 'secondary'} className="text-xs">{isProcessed ? 'Processed' : 'Staged'}</Badge>
+          {(doc.status === 'staged' || doc.status === 'processed' || doc.status === 'error') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleReparse}
+              disabled={reparsing}
+            >
+              {reparsing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              {reparsing ? 'Re-parsing…' : 'Re-parse'}
+            </Button>
+          )}
         </div>
       )}
 
