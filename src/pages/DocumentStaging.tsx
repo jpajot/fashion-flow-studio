@@ -206,16 +206,10 @@ export default function DocumentStaging() {
 
     let resolvedCode = styleCode;
     if (!resolvedCode && !existingProduct) {
-      const { data: maxRows } = await supabase
-        .from('products')
-        .select('code')
-        .like('code', 'STY%')
-        .order('code', { ascending: false })
-        .limit(1);
-      const lastNum = maxRows?.[0]?.code
-        ? parseInt(maxRows[0].code.replace(/[^0-9]/g, ''), 10)
-        : 0;
-      resolvedCode = `STY${String(lastNum + 1).padStart(5, '0')}`;
+      const { data: generatedCode, error: codeErr } = await supabase
+        .rpc('generate_next_code', { p_entity_name: 'Product', p_entity_type: 'Product' });
+      if (codeErr) throw new Error(`Code generation failed: ${codeErr.message}`);
+      resolvedCode = generatedCode as string;
     }
 
     let product: any;
