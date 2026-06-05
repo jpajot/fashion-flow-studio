@@ -285,7 +285,7 @@ export default function DocumentStaging() {
     const product = await applyRowToDatabase(row, null);
     if (product) {
       setExistingProducts(prev => [...prev, product]);
-      setCreatedRowIds(prev => new Set([...prev, row.id]));
+      setCreatedInfo(prev => new Map([...prev, [row.id, product?.code ?? '']]));
       toast.success('Style created');
     }
   };
@@ -297,7 +297,7 @@ export default function DocumentStaging() {
     setExistingProducts(prev => prev.map(p => p.id === product.id ? product : p));
     const { data: freshColorways } = await supabase.from('product_colors').select('*').order('created_at', { ascending: false }).limit(5000);
     setExistingColorways(freshColorways ?? []);
-    setCreatedRowIds(prev => new Set([...prev, diffModal.row.id]));
+    setCreatedInfo(prev => new Map([...prev, [diffModal.row.id, product?.code ?? '']]));
     toast.success('Style updated');
     setDiffSaving(false);
     setDiffModal(null);
@@ -314,7 +314,10 @@ export default function DocumentStaging() {
           if (!row['Style Description']) continue;
           const existing = findExistingProduct(row['Style Code']);
           const product = await applyRowToDatabase(row, existing ?? null);
-          if (product) processedIds.push(product.id);
+          if (product) {
+            processedIds.push(product.id);
+            setCreatedInfo(prev => new Map([...prev, [row.id, product?.code ?? '']]));
+          }
         }
       }
       await supabase.from('uploaded_documents').update({
@@ -375,10 +378,18 @@ export default function DocumentStaging() {
       sortKey: (r: any) => r['Style Code'] ?? '',
       render: (r: any) => {
         const existing = findExistingProduct(r['Style Code']);
+        const newCode = createdInfo.get(r.id);
         return (
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-xs font-semibold">{r['Style Code'] || '—'}</span>
-            {existing && <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-300">exists</Badge>}
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs font-semibold">{r['Style Code'] || '—'}</span>
+              {existing && <Badge variant="outline" className="text-[10px] px-1 py-0 text-amber-600 border-amber-300">exists</Badge>}
+            </div>
+            {createdInfo.has(r.id) && newCode && newCode !== r['Style Code'] && (
+              <span className="text-[10px] text-green-600 font-mono font-medium">
+                New: {newCode}
+              </span>
+            )}
           </div>
         );
       },
@@ -449,7 +460,7 @@ export default function DocumentStaging() {
       label: '',
       width: 90,
       render: (r: any) => {
-        const done = createdRowIds.has(r.id);
+        const done = createdInfo.has(r.id);
         const existing = findExistingProduct(r['Style Code']);
         if (done) return (
           <div className="flex items-center gap-1 text-green-600">
@@ -465,7 +476,7 @@ export default function DocumentStaging() {
       },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [techColors, existingProducts, existingColorways, editingRow, createdRowIds]);
+  ], [techColors, existingProducts, existingColorways, editingRow, createdInfo]);
 
   const renderEditPanel = () => {
     if (!editingRow) return null;
