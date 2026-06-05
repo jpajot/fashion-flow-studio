@@ -113,14 +113,15 @@ export default function DocumentStaging() {
   const loadData = useCallback(async () => {
     if (!docId) return;
     setLoading(true);
-    const [docRes, tcRes, prodsRes, colorsRes] = await Promise.all([
+    const [docRes, tcRes1, tcRes2, prodsRes, colorsRes] = await Promise.all([
       supabase.from('uploaded_documents').select('*').eq('id', docId).single(),
-      supabase.from('technical_colors').select('*').order('code').limit(3000),
+      supabase.from('technical_colors').select('*').order('code').range(0, 999),
+      supabase.from('technical_colors').select('*').order('code').range(1000, 1999),
       supabase.from('products').select('*').not('code', 'is', null).order('created_at', { ascending: false }).limit(2000),
       supabase.from('product_colors').select('*').order('created_at', { ascending: false }).limit(5000),
     ]);
     setDoc(docRes.data);
-    setTechColors(tcRes.data ?? []);
+    setTechColors([...(tcRes1.data ?? []), ...(tcRes2.data ?? [])]);
     setExistingProducts((prodsRes.data ?? []).filter((p: any) => p.code));
     setExistingColorways(colorsRes.data ?? []);
     if (docRes.data?.staged_data) setData(JSON.parse(JSON.stringify(docRes.data.staged_data)));
