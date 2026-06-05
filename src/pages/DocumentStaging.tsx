@@ -101,7 +101,7 @@ export default function DocumentStaging() {
   const [search, setSearch] = useState('');
   const [visibleColumns, setVisibleColumns] = useState<string[] | null>(null);
   const [editingRow, setEditingRow] = useState<string | null>(null);
-  const [createdRowIds, setCreatedRowIds] = useState<Set<string>>(new Set());
+  const [createdInfo, setCreatedInfo] = useState<Map<string, string>>(new Map());
   const [diffModal, setDiffModal] = useState<{ row: any; existingProduct: any } | null>(null);
   const [diffSaving, setDiffSaving] = useState(false);
   const [showViewMenu, setShowViewMenu] = useState(false);
