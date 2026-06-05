@@ -2027,7 +2027,7 @@ function DocumentsSection({ projectId }: { projectId: string }) {
               <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[doc.status] ?? STATUS_BADGE.uploaded}`}>
                 {STATUS_LABEL[doc.status] ?? doc.status}
               </span>
-              {(doc.status === 'uploaded' || doc.status === 'error') && (
+              {(doc.status === 'uploaded' || doc.status === 'error' || doc.status === 'staged' || doc.status === 'processed') && (
                 <button
                   type="button"
                   onClick={async () => {
