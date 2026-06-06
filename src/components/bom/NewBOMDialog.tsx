@@ -64,7 +64,8 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     if (!productId) { setRoutings([]); setApprovedSuppliers([]); return; }
     (async () => {
       const [r, a] = await Promise.all([
-        supabase.from("supplier_routings").select("*").eq("product_id", productId).eq("status", "released"),
+        // Routings are now BOMs with bom_type='routing'.
+        supabase.from("boms").select("*").eq("product_id", productId).eq("bom_type", "routing").eq("status", "released"),
         supabase.from("approved_suppliers").select("*").eq("product_id", productId),
       ]);
       setRoutings(r.data ?? []);
