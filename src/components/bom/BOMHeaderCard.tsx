@@ -50,7 +50,7 @@ export default function BOMHeaderCard({
             onClick={() => navigate(`/boms/${bom.derived_from_bom_id}`)}
             className="text-[11px] px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100"
           >
-            Derived from {derivedFromBom?.bom_type === "production" ? "PROD" : "DEV"} Rev {bom.derived_from_revision_code || "—"}
+            Derived from {derivedFromBom?.bom_phase === "production" ? "PROD" : "DEV"} Rev {bom.derived_from_revision_code || "—"}
           </button>
         )}
         {bom.pending_eco_review_count > 0 && (
