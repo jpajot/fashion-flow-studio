@@ -269,7 +269,7 @@ function TrackingBoard() {
                   const isExpanded = expandedIds.has(line.id);
                   const sr = srs.find((s:any) => s.id === line.supplier_request_id);
                   const prod = productMap[line.product_id];
-                  const step = stepMap[line.routing_step_id];
+                  const step = stepMap[line.bom_line_id];
                   const sup = supplierMap[line.recipient_supplier_id];
                   const proj = projectMap[sr?.project_id];
                   const targetCcy = currencyMap[sr?.target_currency_id];
