@@ -15,7 +15,9 @@ import { CONFORMITY_OPTIONS } from '@/lib/sampleUtils';
 interface SampleStep {
   id: string;
   sequence: number;
-  step_type?: string | null;
+  // step_type was removed; operation identity is now sample_steps.operation_product_id (FK products).
+  // TODO(round 9.3): render the operation product's name here.
+  operation_product_id?: string | null;
   supplier_id?: string | null;
   unit_cost?: number | null;
   currency_id?: string | null;
