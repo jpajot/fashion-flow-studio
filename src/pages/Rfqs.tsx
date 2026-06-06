@@ -142,7 +142,7 @@ function TrackingBoard() {
     const sr = srs.find((s:any) => s.id === line.supplier_request_id);
     const {data:priors} = await supabase.from("product_costs").select("id,total_cost_target_ccy,target_currency_id,awarded_at")
       .eq("status","active").eq("project_id",sr?.project_id).eq("product_id",line.product_id)
-      .eq("routing_step_id",line.routing_step_id).eq("supplier_id",line.recipient_supplier_id);
+      .eq("bom_line_id",line.bom_line_id).eq("supplier_id",line.recipient_supplier_id);
     setAwardingResponse(response); setAwardingLine(line); setPriorCost(priors?.[0]??null); setShowAwardConfirm(true);
   };
 
