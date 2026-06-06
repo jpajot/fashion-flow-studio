@@ -8,7 +8,9 @@ interface SampleStep {
   id: string;
   sample_id: string;
   sequence: number;
-  step_type?: string | null;
+  // step_type removed — operation comes from operation_product_id.
+  // TODO(round 9.3): render the operation product's name in this board.
+  operation_product_id?: string | null;
   supplier_id?: string | null;
   due_date?: string | null;
   workflow_status?: string | null;
