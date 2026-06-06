@@ -486,7 +486,7 @@ export default function BOMOptionsContent({
           {["draft", "in_review", "released"].includes(bom?.status) && onCreateRevision && (
             <button type="button" onClick={onCreateRevision} className="w-full text-left px-3 py-2 rounded-md border border-border text-xs hover:bg-muted transition-colors">Create new revision</button>
           )}
-          {bom?.status === "released" && bom?.bom_type === "development" && onCreateProductionBOM && (
+          {bom?.status === "released" && bom?.bom_phase === "development" && onCreateProductionBOM && (
             <button type="button" onClick={onCreateProductionBOM} className="w-full text-left px-3 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-800 text-xs hover:bg-indigo-100 transition-colors">Create Production BOM from this dev BOM</button>
           )}
           {bom?.status === "released" && onMarkObsolete && (
