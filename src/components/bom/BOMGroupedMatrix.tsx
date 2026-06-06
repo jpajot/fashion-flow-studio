@@ -432,7 +432,7 @@ export default function BOMGroupedMatrix({
                             allProductColors={allProductColors}
                             techColors={techColors}
                             commColors={commColors}
-                            bomType={bom?.bom_type}
+                            bomPhase={bom?.bom_phase}
                             onUpsertVariant={(payload: any) => {
                               const sFk = fkForAxis(secondaryAxis);
                               if (sFk) payload[sFk] = sm.id;
