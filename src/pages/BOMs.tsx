@@ -113,7 +113,7 @@ export default function BOMs() {
           </div>
         ) : filtered.map(b => {
           const prod = productById.get(b.product_id);
-          const isProd = b.bom_type === "production";
+          const isProd = b.bom_phase === "production";
           return (
             <div
               key={b.id}
