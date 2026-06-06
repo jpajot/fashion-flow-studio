@@ -308,9 +308,8 @@ export default function SampleStepsPanel({ sample, suppliersArray, stepsCache, o
                   </td>
                   <td className="px-2 py-2 font-mono text-muted-foreground">{step.sequence}</td>
                   <td className="px-2 py-2 text-foreground">
-                    {step.step_type
-                      ? step.step_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-                      : <span className="text-muted-foreground/40">—</span>}
+                    {/* TODO(round 9.3): render operation product name from operation_product_id */}
+                    <span className="text-muted-foreground/40">—</span>
                   </td>
                   <td className="px-2 py-2">
                     <StepInlineDropdown value={step.supplier_id} options={supplierOptions} placeholder="—"
