@@ -2130,7 +2130,7 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
     const [srRes, prodRes, stepRes, supRes, curRes] = await Promise.all([
       supabase.from("supplier_requests").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
       supabase.from("products").select("id,code,name,images"),
-      supabase.from("supplier_routing_steps").select("id,supplier_routing_id,sequence,step_type,supplier_id"),
+      supabase.from("bom_lines").select("id,bom_id,position,bom_line_role,component_product_id"),
       supabase.from("suppliers").select("id,name"),
       supabase.from("currencies").select("id,code,decimal_places").eq("is_active", true),
     ]);
