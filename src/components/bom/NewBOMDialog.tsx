@@ -29,7 +29,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
 
   const [productId, setProductId] = useState<string>(prefilledProductId || "");
   const [productSearch, setProductSearch] = useState("");
-  const [bomType, setBomType] = useState<"development" | "production">("development");
+  const [bomPhase, setBomPhase] = useState<"development" | "production">("development");
   const [selectedRoutingId, setSelectedRoutingId] = useState<string>("");
 
   const [customerRef, setCustomerRef] = useState("");
