@@ -19,7 +19,7 @@ interface Props {
 
 export default function ResponsesPanel({ line, rfq, productMap, stepMap, supplierMap, onClose, onLineChanged }: Props) {
   const product  = productMap[line.product_id];
-  const step     = stepMap[line.routing_step_id];
+  const step     = stepMap[line.bom_line_id];
   const supplier = supplierMap[line.recipient_supplier_id];
 
   const [responses, setResponses] = useState<any[]>([]);
@@ -66,7 +66,7 @@ export default function ResponsesPanel({ line, rfq, productMap, stepMap, supplie
       .eq("status", "active")
       .eq("project_id", rfq.project_id)
       .eq("product_id", line.product_id)
-      .eq("routing_step_id", line.routing_step_id)
+      .eq("bom_line_id", line.bom_line_id)
       .eq("supplier_id", line.recipient_supplier_id);
 
     setAwardingResponse(response);

@@ -21,7 +21,7 @@ export default function ExportTodoDialog({ sr, lines, productMap, colorMap, pcam
       const data = exportLines.map(line => {
         const prod = productMap[line.product_id];
         const sup = supplierMap[line.recipient_supplier_id];
-        const step = stepMap[line.routing_step_id];
+        const step = stepMap[line.bom_line_id];
         let granLabel = "Product";
         if (line.product_color_and_more_id) {
           const c = colorMap[line.product_color_id]; const pc = pcamMap[line.product_color_and_more_id];

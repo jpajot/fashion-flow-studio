@@ -47,7 +47,7 @@ const LINE_STATUS_COLORS: Record<string, string> = {
 
 // ── lineKey dedup helper ─────────────────────────────────────────────────────
 const lineKey = (row: any) =>
-  [row.recipient_supplier_id, row.routing_step_id, row.product_id, row.product_color_id ?? null, row.product_color_and_more_id ?? null].join("|");
+  [row.recipient_supplier_id, row.bom_line_id, row.product_id, row.product_color_id ?? null, row.product_color_and_more_id ?? null].join("|");
 
 // ── Section header for line builder ─────────────────────────────────────────
 function SectionHeader({ number, title, done }: { number: number; title: string; done: boolean }) {
@@ -301,7 +301,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
             product_id: pid,
             product_color_id: gran.product_color_id,
             product_color_and_more_id: gran.product_color_and_more_id,
-            routing_step_id: step.id,
+            bom_line_id: step.id,
             recipient_supplier_id: step.supplier_id || "",
             forecasted_qty: 0,
             forecasted_qty_uom: prod?.default_uom || "",
@@ -382,7 +382,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
       product_id: r.product_id,
       product_color_id: r.product_color_id || null,
       product_color_and_more_id: r.product_color_and_more_id || null,
-      routing_step_id: r.routing_step_id,
+      bom_line_id: r.bom_line_id,
       recipient_supplier_id: r.recipient_supplier_id || null,
       forecasted_qty: Number(r.forecasted_qty) || null,
       forecasted_qty_uom: r.forecasted_qty_uom || null,
@@ -751,9 +751,9 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, c
     },
     {
       id: "step", label: "Routing Step", width: 160,
-      sortKey: (l: any) => stepMap[l.routing_step_id]?.step_type || "",
+      sortKey: (l: any) => stepMap[l.bom_line_id]?.step_type || "",
       render: (l: any) => {
-        const s = stepMap[l.routing_step_id];
+        const s = stepMap[l.bom_line_id];
         return s
           ? <span className="text-xs text-muted-foreground">Step {s.sequence}: {(s.step_type || "").replace(/_/g, " ")}</span>
           : <span className="text-muted-foreground/40">—</span>;
