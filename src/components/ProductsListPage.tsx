@@ -573,7 +573,14 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
           <GalleryView
             pageKey="styles_list"
             allFields={[
-              { id: "name", label: "Name", getValue: (p) => p.name, render: (p) => <span className="font-medium text-sm">{p.name || "—"}</span> },
+              { id: "name", label: "Name", getValue: (p) => p.name, render: (p) => (
+                <span className="font-medium text-sm inline-flex items-center gap-1.5">
+                  {p.name || "—"}
+                  {p.type === "Service" && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-300 font-semibold uppercase tracking-wide">Service</span>
+                  )}
+                </span>
+              ) },
               { id: "code", label: "Code", getValue: (p) => p.code, render: (p) => <span className="font-mono text-xs text-muted-foreground">{p.code || "—"}</span> },
               { id: "category", label: "Category", getValue: (p) => p.category, render: (p) => p.category || "—" },
               { id: "sub_category", label: "Sub-Category", getValue: (p) => p.sub_category, render: (p) => p.sub_category || "—" },
