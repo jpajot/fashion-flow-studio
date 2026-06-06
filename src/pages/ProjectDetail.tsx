@@ -1758,7 +1758,7 @@ function BOMStatusSection({ linkedStyles }: { linkedStyles:any[] }) {
                 return(
                   <tr key={b.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={()=>navigate(`/boms/${b.id}`)}>
                     <td className="px-4 py-3"><p className="font-medium text-xs">{prod?.name??b.product_id.slice(0,8)}</p>{prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</td>
-                    <td className="px-4 py-3"><span className="text-[11px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{b.bom_type==="production"?"PROD":"DEV"}</span></td>
+                    <td className="px-4 py-3"><span className="text-[11px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{b.bom_phase==="production"?"PROD":"DEV"}</span></td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">Rev {b.revision_code??"—"} v{b.version}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
