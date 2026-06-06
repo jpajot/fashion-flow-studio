@@ -109,7 +109,7 @@ export default function BOMDetail() {
     const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap, tc, cc, apc] = await Promise.all([
       supabase.from("products").select("*").eq("id", b.product_id).single(),
       supabase.from("bom_lines").select("*").eq("bom_id", b.id).order("position"),
-      supabase.from("supplier_routings").select("*").eq("product_id", b.product_id),
+      supabase.from("boms").select("*").eq("product_id", b.product_id).eq("bom_type", "routing"),
       supabase.from("product_colors").select("*").eq("product_id", b.product_id),
       supabase.from("approved_suppliers").select("*").eq("product_id", b.product_id).order("rank"),
       supabase.from("suppliers").select("id,name"),
