@@ -103,6 +103,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [commColors, setCommColors] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "Product" | "Service">("all");
   const [refresh, setRefresh] = useState(0);
 
   const [stylesView, setStylesView] = useState<"grid" | "list">(
@@ -203,8 +204,10 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
 
   useEffect(() => {
     (async () => {
+      // Products page also includes Service-type products (operations library).
+      const typeFilterArg = type === "Product" ? ["Product", "Service"] : [type];
       const [p, cw, mv, tc, cc, pr] = await Promise.all([
-        supabase.from("products").select("*").eq("type", type).order("code"),
+        supabase.from("products").select("*").in("type", typeFilterArg).order("code"),
         supabase.from("product_colors").select("*").order("created_at", { ascending: false }),
         supabase.from("product_color_and_more").select("*").order("created_at", { ascending: false }),
         supabase.from("technical_colors").select("id,code,name,hex").order("code"),
@@ -272,11 +275,14 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const filteredStyles = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = products;
+    if (type === "Product" && typeFilter !== "all") {
+      list = list.filter((p) => p.type === typeFilter);
+    }
     if (q) list = list.filter((p) => (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q));
     list = applyQuickFilters(list, stylesFields, styleQF);
     if (stylesViewFilters.length > 0) list = applyQuickFilters(list, stylesFields, stylesViewFilters as any);
     return list;
-  }, [products, search, styleQF, stylesFields, stylesViewFilters]);
+  }, [products, search, styleQF, stylesFields, stylesViewFilters, type, typeFilter]);
 
   const filteredColorways = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -312,7 +318,15 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
         : <div className="h-10 w-10 bg-muted rounded grid place-items-center text-xs">{initials(p.name)}</div>;
     }},
     { id: "name", label: "Name", render: (p) => (
-      <><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground font-mono">{p.code}</div></>
+      <>
+        <div className="font-medium flex items-center gap-1.5">
+          {p.name}
+          {p.type === "Service" && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-300 font-semibold uppercase tracking-wide">Service</span>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground font-mono">{p.code}</div>
+      </>
     )},
     { id: "category", label: "Category", render: (p) => p.category || "—" },
     { id: "sub_category", label: "Sub-Category", render: (p) => p.sub_category || "—" },
@@ -533,6 +547,16 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-56"
           />
+          {type === "Product" && activeSection === "styles" && (
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="Product">Style</SelectItem>
+                <SelectItem value="Service">Service</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           {activeSection === "styles" && (
             <Button size="sm" onClick={() => navigate(`/products/new?type=${type}`)}>
               <Plus className="h-4 w-4 mr-2" /> {newButtonLabel}
@@ -549,7 +573,14 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
           <GalleryView
             pageKey="styles_list"
             allFields={[
-              { id: "name", label: "Name", getValue: (p) => p.name, render: (p) => <span className="font-medium text-sm">{p.name || "—"}</span> },
+              { id: "name", label: "Name", getValue: (p) => p.name, render: (p) => (
+                <span className="font-medium text-sm inline-flex items-center gap-1.5">
+                  {p.name || "—"}
+                  {p.type === "Service" && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-300 font-semibold uppercase tracking-wide">Service</span>
+                  )}
+                </span>
+              ) },
               { id: "code", label: "Code", getValue: (p) => p.code, render: (p) => <span className="font-mono text-xs text-muted-foreground">{p.code || "—"}</span> },
               { id: "category", label: "Category", getValue: (p) => p.category, render: (p) => p.category || "—" },
               { id: "sub_category", label: "Sub-Category", getValue: (p) => p.sub_category, render: (p) => p.sub_category || "—" },

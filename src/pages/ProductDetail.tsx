@@ -195,6 +195,8 @@ export default function ProductDetail() {
         if (field === "type") {
           next.category = null;
           next.sub_category = null;
+          // Smart default for new Service products: per-piece UOM unless already set
+          if (value === "Service" && !next.default_uom) next.default_uom = "pcs";
         }
 
         if (!isNew) {
@@ -381,7 +383,14 @@ export default function ProductDetail() {
           </Button>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold truncate">{pageTitle || "Untitled"}</h1>
-            {!isNew && product?.type && <Badge variant="outline" className="mt-1">{product.type}</Badge>}
+            {!isNew && product?.type && (
+              <Badge
+                variant="outline"
+                className={`mt-1 ${product.type === "Service" ? "bg-amber-100 text-amber-700 border-amber-300" : ""}`}
+              >
+                {product.type}
+              </Badge>
+            )}
           </div>
         </div>
         {!isNew && (
@@ -520,9 +529,9 @@ export default function ProductDetail() {
                 </Select>
               </div>
             )}
-            {product?.type === "Product" && (
+            {(product?.type === "Product" || product?.type === "Service") && (
               <div>
-                <Label>Customer Need</Label>
+                <Label>Customer Need{product?.type === "Service" ? " (optional)" : ""}</Label>
                 <Select value={product?.customer_need || NONE} onValueChange={(v) => updateField("customer_need", v === NONE ? null : v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
