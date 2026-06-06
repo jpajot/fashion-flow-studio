@@ -32,7 +32,7 @@ export default function ExportTodoDialog({ sr, lines, productMap, colorMap, pcam
         }
         return {
           "Line ID": line.id, "Product Code": prod?.code || "", "Product Name": prod?.name || "",
-          "Granularity": granLabel, "Routing Step": step ? `Step ${step.sequence}: ${step.bom_line_role}` : "—",
+          "Granularity": granLabel, "Routing Step": step ? `Step ${step.position}: ${step.bom_line_role}` : "—",
           "Recipient Supplier": sup?.name || "", "Forecasted Qty": line.forecasted_qty ?? "",
           "UOM": line.forecasted_qty_uom || "", "Buyer Notes": line.buyer_notes || "",
           "Valid From": "", "Valid Until": "", "Min Qty": "", "Max Qty": "",

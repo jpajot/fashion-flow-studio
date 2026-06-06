@@ -290,7 +290,7 @@ function TrackingBoard() {
                         </div>
                       </td>
                       <td className="px-3 py-2"><span className="text-xs text-muted-foreground">{getGranLabel(line)}</span></td>
-                      <td className="px-3 py-2">{step?<span className="text-xs text-muted-foreground">Step {step.sequence}: {(step.bom_line_role||"").replace(/_/g," ")}</span>:<span className="text-muted-foreground/40">—</span>}</td>
+                      <td className="px-3 py-2">{step?<span className="text-xs text-muted-foreground">Step {step.position}: {(step.bom_line_role||"").replace(/_/g," ")}</span>:<span className="text-muted-foreground/40">—</span>}</td>
                       <td className="px-3 py-2">{sup?<span className="text-xs">{sup.name}</span>:<span className="text-muted-foreground/40">—</span>}</td>
                       <td className="px-3 py-2"><span className="text-xs text-muted-foreground font-mono">{line.forecasted_qty!=null?`${line.forecasted_qty} ${line.forecasted_qty_uom||""}`.trim():"—"}</span></td>
                       <td className="px-3 py-2">
