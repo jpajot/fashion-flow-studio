@@ -71,7 +71,7 @@ export default function BOMCreateProdBOMDialog({ open, onClose, bom, bomLines, b
     if (customerRef) orderContext.customer_ref = customerRef;
 
     const { data: newBom } = await supabase.from("boms").insert({
-      bom_type: "production", product_id: bom.product_id,
+      bom_type: "bom", bom_phase: "production", product_id: bom.product_id,
       revision_code: "A", version: 1, status: "draft",
       derived_from_bom_id: bom.id, derived_from_revision_code: bom.revision_code,
       source_change_pending: false,
