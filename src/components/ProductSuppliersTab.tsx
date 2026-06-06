@@ -44,27 +44,23 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
 
   const loadData = async () => {
     setLoading(true);
-    const [apps, rts, sups, curs, lt, lv] = await Promise.all([
+    // TODO(round 9.3): Load routings/routing steps from the new unified BOM model
+    // (boms.bom_type='routing' + bom_lines). supplier_routings / supplier_routing_steps
+    // were dropped from the schema.
+    const [apps, sups, curs, lt, lv] = await Promise.all([
       supabase.from("approved_suppliers").select("*").eq("product_id", product.id).order("rank"),
-      supabase.from("supplier_routings").select("*").eq("product_id", product.id).order("name"),
       supabase.from("suppliers").select("*").order("name"),
       supabase.from("currencies").select("id,code,name").eq("is_active", true).order("code"),
       supabase.from("type_of_lov").select("id,code"),
       supabase.from("list_of_values").select("*"),
     ]);
     setApprovedSuppliers((apps.data || []).sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99)));
-    setRoutings(rts.data || []);
+    setRoutings([]);
     setAllSuppliers(sups.data || []);
     setCurrencies(curs.data || []);
     setLovTypes(lt.data || []);
     setLovValues(lv.data || []);
-    if (rts.data?.length) {
-      const { data: steps } = await supabase.from("supplier_routing_steps")
-        .select("*").in("supplier_routing_id", rts.data.map((r: any) => r.id));
-      setRoutingSteps(steps || []);
-    } else {
-      setRoutingSteps([]);
-    }
+    setRoutingSteps([]);
     setLoading(false);
   };
 
