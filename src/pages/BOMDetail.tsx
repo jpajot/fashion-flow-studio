@@ -847,7 +847,7 @@ function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, o
         {loading ? (
           <p className="text-sm text-muted-foreground py-4">Loading routings…</p>
         ) : availableRoutings.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No {expectedType} routings exist for this product.</p>
+          <p className="text-sm text-muted-foreground py-4">No routings exist for this product.</p>
         ) : (
           <div className="space-y-2 py-1 max-h-[400px] overflow-y-auto">
             {availableRoutings.map(r => (
