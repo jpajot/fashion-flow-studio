@@ -214,7 +214,7 @@ export default function BOMDetail() {
 
   const bomTitle = useMemo(() => {
     if (!bom) return "BOM";
-    return `${product?.name || "—"} · ${bom.bom_type === "production" ? "PROD" : "DEV"} · Rev ${bom.revision_code} v${bom.version}`;
+    return `${product?.name || "—"} · ${bom.bom_phase === "production" ? "PROD" : "DEV"} · Rev ${bom.revision_code} v${bom.version}`;
   }, [bom, product]);
 
   const subNavItems = useMemo(() => ([
