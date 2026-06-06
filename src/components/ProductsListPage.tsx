@@ -539,6 +539,16 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-56"
           />
+          {type === "Product" && activeSection === "styles" && (
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+              <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="Product">Style</SelectItem>
+                <SelectItem value="Service">Service</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           {activeSection === "styles" && (
             <Button size="sm" onClick={() => navigate(`/products/new?type=${type}`)}>
               <Plus className="h-4 w-4 mr-2" /> {newButtonLabel}
