@@ -19,7 +19,7 @@ export default function BOMHeaderCard({
   const navigate = useNavigate();
   if (!bom) return null;
 
-  const isProd = bom.bom_type === "production";
+  const isProd = bom.bom_phase === "production";
   const ctx = bom.order_context || {};
 
   return (
