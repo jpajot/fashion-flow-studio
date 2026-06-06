@@ -807,15 +807,15 @@ function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, o
   const [availableRoutings, setAvailableRoutings] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const expectedType = bom?.bom_type === "production" ? "production" : "development";
 
   useEffect(() => {
     if (!open || !bom?.product_id) return;
     setLoading(true);
-    supabase.from("supplier_routings").select("*")
-      .eq("product_id", bom.product_id).eq("routing_type", expectedType)
+    // Routings are now boms with bom_type='routing'. Phase filtering happens via bom_phase.
+    supabase.from("boms").select("*")
+      .eq("product_id", bom.product_id).eq("bom_type", "routing")
       .then(({ data }) => {
-        const rs = (data ?? []).sort((a, b) => {
+        const rs = (data ?? []).sort((a: any, b: any) => {
           const r = (b.revision_code || "").localeCompare(a.revision_code || "");
           return r !== 0 ? r : (b.version || 0) - (a.version || 0);
         });
@@ -823,7 +823,7 @@ function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, o
         setSelectedId(preselectedRoutingId || bom?.selected_routing_id || rs[0]?.id || null);
         setLoading(false);
       });
-  }, [open, bom?.product_id, bom?.selected_routing_id, expectedType, preselectedRoutingId]);
+  }, [open, bom?.product_id, bom?.selected_routing_id, preselectedRoutingId]);
 
   const handleSave = async () => {
     if (!selectedId || !bom) return;
