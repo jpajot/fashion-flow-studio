@@ -1706,7 +1706,7 @@ function BOMStatusSection({ linkedStyles }: { linkedStyles:any[] }) {
   }, [linkedStyles]);
 
   const filtered = useMemo(()=>boms.filter(b=>{
-    if(filterType!=="all"&&b.bom_type!==filterType) return false;
+    if(filterType!=="all"&&b.bom_phase!==filterType) return false;
     if(filterStatus!=="all"&&b.status!==filterStatus) return false;
     if(search.trim()){
       const prod = products.get(b.product_id);
@@ -1758,7 +1758,7 @@ function BOMStatusSection({ linkedStyles }: { linkedStyles:any[] }) {
                 return(
                   <tr key={b.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={()=>navigate(`/boms/${b.id}`)}>
                     <td className="px-4 py-3"><p className="font-medium text-xs">{prod?.name??b.product_id.slice(0,8)}</p>{prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</td>
-                    <td className="px-4 py-3"><span className="text-[11px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{b.bom_type==="production"?"PROD":"DEV"}</span></td>
+                    <td className="px-4 py-3"><span className="text-[11px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground">{b.bom_phase==="production"?"PROD":"DEV"}</span></td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">Rev {b.revision_code??"—"} v{b.version}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
@@ -1793,8 +1793,10 @@ function SourcingSection({ linkedStyles }: { linkedStyles:any[] }) {
     const pIds=linkedStyles.map(s=>s.id);
     Promise.all([
       supabase.from("approved_suppliers").select("*").in("product_id",pIds),
-      supabase.from("supplier_routings").select("*").in("product_id",pIds),
-      supabase.from("supplier_routing_steps").select("supplier_routing_id,supplier_id"),
+      // Routings now live in `boms` with bom_type='routing'.
+      supabase.from("boms").select("*").in("product_id",pIds).eq("bom_type","routing"),
+      // TODO(round 9.3): replace with bom_lines join once routing builder lands.
+      Promise.resolve({ data: [] as any[] }),
     ]).then(([a,r,s])=>{
       setApprovedSuppliers(a.data??[]);
       setRoutings(r.data??[]);
@@ -2128,7 +2130,7 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
     const [srRes, prodRes, stepRes, supRes, curRes] = await Promise.all([
       supabase.from("supplier_requests").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
       supabase.from("products").select("id,code,name,images"),
-      supabase.from("supplier_routing_steps").select("id,supplier_routing_id,sequence,step_type,supplier_id"),
+      supabase.from("bom_lines").select("id,bom_id,position,bom_line_role,component_product_id"),
       supabase.from("suppliers").select("id,name"),
       supabase.from("currencies").select("id,code,decimal_places").eq("is_active", true),
     ]);
@@ -2277,7 +2279,7 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
                   const isExpanded = expandedIds.has(line.id);
                   const sr = srs.find((s: any) => s.id === line.supplier_request_id);
                   const prod = productMap[line.product_id];
-                  const step = stepMap[line.routing_step_id];
+                  const step = stepMap[line.bom_line_id];
                   const sup = supplierMap[line.recipient_supplier_id];
                   const targetCcy = currencyMap[sr?.target_currency_id];
                   const submittedResps = lineResps.filter((r: any) => r.status === "submitted");

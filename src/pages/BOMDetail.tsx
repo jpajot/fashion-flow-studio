@@ -109,7 +109,7 @@ export default function BOMDetail() {
     const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap, tc, cc, apc] = await Promise.all([
       supabase.from("products").select("*").eq("id", b.product_id).single(),
       supabase.from("bom_lines").select("*").eq("bom_id", b.id).order("position"),
-      supabase.from("supplier_routings").select("*").eq("product_id", b.product_id),
+      supabase.from("boms").select("*").eq("product_id", b.product_id).eq("bom_type", "routing"),
       supabase.from("product_colors").select("*").eq("product_id", b.product_id),
       supabase.from("approved_suppliers").select("*").eq("product_id", b.product_id).order("rank"),
       supabase.from("suppliers").select("id,name"),
@@ -214,7 +214,7 @@ export default function BOMDetail() {
 
   const bomTitle = useMemo(() => {
     if (!bom) return "BOM";
-    return `${product?.name || "—"} · ${bom.bom_type === "production" ? "PROD" : "DEV"} · Rev ${bom.revision_code} v${bom.version}`;
+    return `${product?.name || "—"} · ${bom.bom_phase === "production" ? "PROD" : "DEV"} · Rev ${bom.revision_code} v${bom.version}`;
   }, [bom, product]);
 
   const subNavItems = useMemo(() => ([
@@ -807,15 +807,15 @@ function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, o
   const [availableRoutings, setAvailableRoutings] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const expectedType = bom?.bom_type === "production" ? "production" : "development";
 
   useEffect(() => {
     if (!open || !bom?.product_id) return;
     setLoading(true);
-    supabase.from("supplier_routings").select("*")
-      .eq("product_id", bom.product_id).eq("routing_type", expectedType)
+    // Routings are now boms with bom_type='routing'. Phase filtering happens via bom_phase.
+    supabase.from("boms").select("*")
+      .eq("product_id", bom.product_id).eq("bom_type", "routing")
       .then(({ data }) => {
-        const rs = (data ?? []).sort((a, b) => {
+        const rs = (data ?? []).sort((a: any, b: any) => {
           const r = (b.revision_code || "").localeCompare(a.revision_code || "");
           return r !== 0 ? r : (b.version || 0) - (a.version || 0);
         });
@@ -823,7 +823,7 @@ function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, o
         setSelectedId(preselectedRoutingId || bom?.selected_routing_id || rs[0]?.id || null);
         setLoading(false);
       });
-  }, [open, bom?.product_id, bom?.selected_routing_id, expectedType, preselectedRoutingId]);
+  }, [open, bom?.product_id, bom?.selected_routing_id, preselectedRoutingId]);
 
   const handleSave = async () => {
     if (!selectedId || !bom) return;
@@ -847,7 +847,7 @@ function ChangeRoutingDialog({ open, onClose, bom, preselectedRoutingId, user, o
         {loading ? (
           <p className="text-sm text-muted-foreground py-4">Loading routings…</p>
         ) : availableRoutings.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">No {expectedType} routings exist for this product.</p>
+          <p className="text-sm text-muted-foreground py-4">No routings exist for this product.</p>
         ) : (
           <div className="space-y-2 py-1 max-h-[400px] overflow-y-auto">
             {availableRoutings.map(r => (

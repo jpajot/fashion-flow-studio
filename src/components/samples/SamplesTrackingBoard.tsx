@@ -8,7 +8,9 @@ interface SampleStep {
   id: string;
   sample_id: string;
   sequence: number;
-  step_type?: string | null;
+  // step_type removed — operation comes from operation_product_id.
+  // TODO(round 9.3): render the operation product's name in this board.
+  operation_product_id?: string | null;
   supplier_id?: string | null;
   due_date?: string | null;
   workflow_status?: string | null;
@@ -122,7 +124,7 @@ export default function SamplesTrackingBoard({ projectId }: { projectId: string 
                     <tr key={s.id} className={isOverdue(s) ? 'bg-red-50' : 'hover:bg-muted/20'}>
                       <td className="px-2 py-1.5 font-mono">{sample?.code ?? '—'}</td>
                       <td className="px-2 py-1.5">{prod?.name ?? '—'}</td>
-                      <td className="px-2 py-1.5">{s.step_type ?? '—'}</td>
+                      <td className="px-2 py-1.5">—</td>
                       <td className="px-2 py-1.5">{s.due_date ?? '—'}</td>
                       <td className="px-2 py-1.5"><WorkflowStatusBadge status={s.workflow_status} /></td>
                       <td className="px-2 py-1.5">

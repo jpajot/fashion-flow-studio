@@ -7,7 +7,7 @@ import ColorwayStatusBadge from "./ColorwayStatusBadge";
 
 interface Props {
   componentProductId: string;
-  bomType?: string;
+  bomPhase?: string;
   currentColorId?: string | null;
   techColors?: any[];
   commColors?: any[];
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function ComponentColorwayPicker({
-  componentProductId, bomType, currentColorId,
+  componentProductId, bomPhase, currentColorId,
   techColors = [], commColors = [],
   onSelect, onClear, onClose,
 }: Props) {
@@ -27,7 +27,7 @@ export default function ComponentColorwayPicker({
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(currentColorId || null);
 
-  const defaultExcluded = bomType === "production"
+  const defaultExcluded = bomPhase === "production"
     ? ["requested", "in_progress", "submitted_for_approval", "rejected", "obsolete"]
     : ["obsolete"];
 

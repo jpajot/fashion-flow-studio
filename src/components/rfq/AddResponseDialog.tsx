@@ -25,7 +25,7 @@ export default function AddResponseDialog({ line, rfq, productMap, stepMap, supp
   const isEdit = !!existingResponse;
 
   const product  = productMap[line.product_id];
-  const step     = stepMap[line.routing_step_id];
+  const step     = stepMap[line.bom_line_id];
   const supplier = supplierMap[line.recipient_supplier_id];
   const dialogTitle = `${isEdit ? "Edit" : "Add"} Response — ${product?.code || "?"} / Step ${step?.sequence}: ${(step?.step_type || "").replace(/_/g, " ")} / ${supplier?.name || "?"}`;
 

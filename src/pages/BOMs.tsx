@@ -51,7 +51,7 @@ export default function BOMs() {
   }, [products]);
 
   const filtered = boms.filter(b => {
-    if (typeFilter !== "all" && b.bom_type !== typeFilter) return false;
+    if (typeFilter !== "all" && b.bom_phase !== typeFilter) return false;
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     if (productFilter !== "all" && b.product_id !== productFilter) return false;
     if (search) {
@@ -113,7 +113,7 @@ export default function BOMs() {
           </div>
         ) : filtered.map(b => {
           const prod = productById.get(b.product_id);
-          const isProd = b.bom_type === "production";
+          const isProd = b.bom_phase === "production";
           return (
             <div
               key={b.id}

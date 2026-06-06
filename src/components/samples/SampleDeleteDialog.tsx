@@ -28,8 +28,8 @@ export default function SampleDeleteDialog({ open, sample, onClose, onDeleted }:
     await supabase.from('sample_steps').delete().eq('sample_id', sample.id);
 
     if (alsoDeleteRouting && sample.linked_routing_id) {
-      await supabase.from('supplier_routing_steps').delete().eq('supplier_routing_id', sample.linked_routing_id);
-      await supabase.from('supplier_routings').delete().eq('id', sample.linked_routing_id);
+      // TODO(round 9.3): delete the linked routing BOM (bom_type='routing') and its bom_lines.
+      // supplier_routings / supplier_routing_steps no longer exist.
     }
 
     await supabase.from('samples').delete().eq('id', sample.id);

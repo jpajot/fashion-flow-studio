@@ -60,7 +60,7 @@ function TrackingBoard() {
       supabase.from("products").select("id,code,name,images"),
       supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex"),
       supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code"),
-      supabase.from("supplier_routing_steps").select("id,supplier_routing_id,sequence,step_type,supplier_id"),
+      supabase.from("bom_lines").select("id,bom_id,position,bom_line_role,component_product_id"),
       supabase.from("suppliers").select("id,name"),
       supabase.from("currencies").select("id,code,decimal_places").eq("is_active",true),
       supabase.from("rfq_rounds").select("id,code,label,sequence").order("sequence"),
@@ -142,7 +142,7 @@ function TrackingBoard() {
     const sr = srs.find((s:any) => s.id === line.supplier_request_id);
     const {data:priors} = await supabase.from("product_costs").select("id,total_cost_target_ccy,target_currency_id,awarded_at")
       .eq("status","active").eq("project_id",sr?.project_id).eq("product_id",line.product_id)
-      .eq("routing_step_id",line.routing_step_id).eq("supplier_id",line.recipient_supplier_id);
+      .eq("bom_line_id",line.bom_line_id).eq("supplier_id",line.recipient_supplier_id);
     setAwardingResponse(response); setAwardingLine(line); setPriorCost(priors?.[0]??null); setShowAwardConfirm(true);
   };
 
@@ -269,7 +269,7 @@ function TrackingBoard() {
                   const isExpanded = expandedIds.has(line.id);
                   const sr = srs.find((s:any) => s.id === line.supplier_request_id);
                   const prod = productMap[line.product_id];
-                  const step = stepMap[line.routing_step_id];
+                  const step = stepMap[line.bom_line_id];
                   const sup = supplierMap[line.recipient_supplier_id];
                   const proj = projectMap[sr?.project_id];
                   const targetCcy = currencyMap[sr?.target_currency_id];

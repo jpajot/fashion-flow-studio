@@ -47,8 +47,7 @@ export default function BOMReleaseValidationDialog({ open, onClose, onConfirm, b
   const [errors, setErrors] = useState<any[]>([]);
   const [warnings, setWarnings] = useState<any[]>([]);
   const [releasing, setReleasing] = useState(false);
-  const isProduction = bom?.bom_type === "production";
-  const expectedRoutingType = isProduction ? "production" : "development";
+  const isProduction = bom?.bom_phase === "production";
 
   useEffect(() => { if (open && bom) runValidation(); /* eslint-disable-next-line */ }, [open, bom?.id, bom?.selected_routing_id]);
 
@@ -58,19 +57,15 @@ export default function BOMReleaseValidationDialog({ open, onClose, onConfirm, b
     const allWarnings: any[] = [];
     allErrors.push(...checkVariantCompleteness(bomLines, bomLineVariants, colorVariants, styleSizes, colorAndMores, isProduction));
     if (!bom.selected_routing_id) {
-      allErrors.push({ type: "error", kind: "no_routing", title: "No routing linked", body: "This BOM must be linked to a SupplierRouting before release.", action: { label: "Link a routing", handler: "open_change_routing" } });
+      allErrors.push({ type: "error", kind: "no_routing", title: "No routing linked", body: "This BOM must be linked to a routing BOM before release.", action: { label: "Link a routing", handler: "open_change_routing" } });
     } else {
-      const rs = (await supabase.from("supplier_routings").select("*").eq("id", bom.selected_routing_id)).data ?? [];
+      // Routings live in `boms` with bom_type='routing'.
+      const rs = (await supabase.from("boms").select("*").eq("id", bom.selected_routing_id).eq("bom_type", "routing")).data ?? [];
       const resolvedRouting = rs[0] || null;
       if (!resolvedRouting) {
         allErrors.push({ type: "error", kind: "no_routing", title: "Routing not found", body: "The linked routing could not be found.", action: { label: "Link a routing", handler: "open_change_routing" } });
-      } else {
-        if (resolvedRouting.routing_type !== expectedRoutingType) {
-          allErrors.push({ type: "error", kind: "type_mismatch", title: "Routing type mismatch", body: `This ${isProduction ? "Production" : "Development"} BOM is linked to a "${resolvedRouting.routing_type}" routing. Link a "${expectedRoutingType}" routing before release.`, action: { label: "Change routing", handler: "open_change_routing" } });
-        }
-        if (isProduction && resolvedRouting.routing_type === expectedRoutingType && resolvedRouting.status !== "released") {
-          allWarnings.push({ type: "warning", kind: "routing_not_released", title: "Production routing is not released", body: `The linked routing "${resolvedRouting.name}" is in status "${resolvedRouting.status}". The BOM can still be released, but the routing should normally be released first.` });
-        }
+      } else if (isProduction && resolvedRouting.status !== "released") {
+        allWarnings.push({ type: "warning", kind: "routing_not_released", title: "Production routing is not released", body: `The linked routing is in status "${resolvedRouting.status}". The BOM can still be released, but the routing should normally be released first.` });
       }
     }
     setErrors(allErrors); setWarnings(allWarnings); setValidating(false);

@@ -52,19 +52,19 @@ export default function SupplierDetail() {
         supabase.from("currencies").select("id,code,name").eq("is_active", true).order("code"),
       ];
       if (!isNew) {
-        const [sup, apps, steps, prods, rts, lt, lv, curs] = await Promise.all([
+        const [sup, apps, prods, lt, lv, curs] = await Promise.all([
           supabase.from("suppliers").select("*").eq("id", id!).single(),
           supabase.from("approved_suppliers").select("*").eq("supplier_id", id!),
-          supabase.from("supplier_routing_steps").select("*").eq("supplier_id", id!),
+          // TODO(round 9.3): load routing steps for this supplier from bom_lines
+          // joined to boms where bom_type='routing'. supplier_routing_steps no longer exists.
           supabase.from("products").select("id,name,type,category,images").order("name"),
-          supabase.from("supplier_routings").select("*").order("name"),
           ...baseLoaders,
         ]);
         setSupplier(sup.data ?? null);
         setApprovedLinks(apps.data ?? []);
-        setRoutingSteps(steps.data ?? []);
+        setRoutingSteps([]);
         setProducts(prods.data ?? []);
-        setRoutings(rts.data ?? []);
+        setRoutings([]);
         setLovTypes(lt.data ?? []);
         setLovValues(lv.data ?? []);
         setCurrencies(curs.data ?? []);

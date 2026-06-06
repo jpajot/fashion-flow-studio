@@ -15,7 +15,7 @@ interface Props {
   allProductColors: any[];
   techColors: any[];
   commColors: any[];
-  bomType?: string;
+  bomPhase?: string;
   allSizes?: any[];
   onUpsertVariant: (payload: any) => void;
   onDeleteVariant?: (id: string) => void;
@@ -25,7 +25,7 @@ interface Props {
 
 export default function BOMVariantCellEditor({
   variant, line, col, columnAxis, isReadOnly,
-  allProductColors, techColors, commColors, bomType,
+  allProductColors, techColors, commColors, bomPhase,
   allSizes, onUpsertVariant, onDeleteVariant,
 }: Props) {
   const [editing, setEditing] = useState(false);
@@ -157,7 +157,7 @@ export default function BOMVariantCellEditor({
       <div className="fixed z-[9999]" style={{ top: pickerPos.top, left: pickerPos.left, transform: "translateX(-50%)" }}>
         <ComponentColorwayPicker
           componentProductId={componentProductId}
-          bomType={bomType}
+          bomPhase={bomPhase}
           currentColorId={compColorId}
           techColors={techColors}
           commColors={commColors}
