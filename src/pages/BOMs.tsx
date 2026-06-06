@@ -51,7 +51,7 @@ export default function BOMs() {
   }, [products]);
 
   const filtered = boms.filter(b => {
-    if (typeFilter !== "all" && b.bom_type !== typeFilter) return false;
+    if (typeFilter !== "all" && b.bom_phase !== typeFilter) return false;
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     if (productFilter !== "all" && b.product_id !== productFilter) return false;
     if (search) {
