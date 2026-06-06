@@ -142,27 +142,19 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
     loadData();
   };
 
-  const handleToggleDefault = async (routing: any) => {
-    if (READONLY(routing.status)) return;
-    if (!routing.is_default) {
-      await supabase.from("supplier_routings").update({ is_default: false })
-        .eq("product_id", product.id).eq("routing_type", routing.routing_type);
-      await supabase.from("supplier_routings").update({ is_default: true }).eq("id", routing.id);
-    } else {
-      await supabase.from("supplier_routings").update({ is_default: false }).eq("id", routing.id);
-    }
-    loadData();
+  const handleToggleDefault = async (_routing: any) => {
+    // TODO(round 9.3): toggle default flag on the routing BOM record.
+    return;
   };
 
-  const handleStatusChange = async (routingId: string, newStatus: string, extra: any = {}) => {
-    await supabase.from("supplier_routings").update({ status: newStatus, ...extra }).eq("id", routingId);
-    loadData();
+  const handleStatusChange = async (_routingId: string, _newStatus: string, _extra: any = {}) => {
+    // TODO(round 9.3): status transitions on routing BOMs.
+    return;
   };
 
   const handleDeleteRouting = async () => {
     if (!delRouting) return;
-    await supabase.from("supplier_routing_steps").delete().eq("supplier_routing_id", delRouting.id);
-    await supabase.from("supplier_routings").delete().eq("id", delRouting.id);
+    // TODO(round 9.3): delete routing BOM + its bom_lines. supplier_routings/_steps no longer exist.
     setDelRouting(null);
     setSelectedRoutingId(null);
     loadData();
