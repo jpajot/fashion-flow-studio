@@ -43,7 +43,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
   useEffect(() => {
     if (!open) return;
     setProductId(prefilledProductId || "");
-    setBomType("development");
+    setBomPhase("development");
     setSelectedRoutingId("");
     setCustomerRef(""); setSeasonVariant(""); setTargetQuantity("");
     setRegion(""); setFactorySupplierId(""); setNotes("");
@@ -80,12 +80,12 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
 
   const supplierName = (sid: string) => suppliers.find(s => s.id === sid)?.name || "Unknown";
 
-  const canCreate = !!productId && !!bomType && !saving;
+  const canCreate = !!productId && !!bomPhase && !saving;
 
   const handleCreate = async () => {
     if (!canCreate) return;
     setSaving(true);
-    const order_context = bomType === "production" ? {
+    const order_context = bomPhase === "production" ? {
       customer_ref: customerRef || undefined,
       season_variant: seasonVariant || undefined,
       target_quantity: targetQuantity ? Number(targetQuantity) : undefined,
@@ -94,12 +94,12 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     } : null;
 
     const { data, error } = await supabase.from("boms").insert({
-      bom_type: bomType,
+      bom_type: bomPhase,
       product_id: productId,
       revision_code: "A",
       version: 1,
       status: "draft",
-      selected_routing_id: bomType === "production" ? (selectedRoutingId || null) : null,
+      selected_routing_id: bomPhase === "production" ? (selectedRoutingId || null) : null,
       order_context,
       notes: notes || null,
       created_by: user?.email,
@@ -149,7 +149,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
 
           <div className="space-y-1.5">
             <Label>BOM Type</Label>
-            <Select value={bomType} onValueChange={(v) => setBomType(v as any)}>
+            <Select value={bomPhase} onValueChange={(v) => setBomPhase(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="development">Development</SelectItem>
@@ -158,7 +158,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
             </Select>
           </div>
 
-          {bomType === "production" && (
+          {bomPhase === "production" && (
             <>
               <div className="space-y-1.5">
                 <Label>Initial Routing</Label>
