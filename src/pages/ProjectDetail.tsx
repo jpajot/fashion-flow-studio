@@ -1793,8 +1793,10 @@ function SourcingSection({ linkedStyles }: { linkedStyles:any[] }) {
     const pIds=linkedStyles.map(s=>s.id);
     Promise.all([
       supabase.from("approved_suppliers").select("*").in("product_id",pIds),
-      supabase.from("supplier_routings").select("*").in("product_id",pIds),
-      supabase.from("supplier_routing_steps").select("supplier_routing_id,supplier_id"),
+      // Routings now live in `boms` with bom_type='routing'.
+      supabase.from("boms").select("*").in("product_id",pIds).eq("bom_type","routing"),
+      // TODO(round 9.3): replace with bom_lines join once routing builder lands.
+      Promise.resolve({ data: [] as any[] }),
     ]).then(([a,r,s])=>{
       setApprovedSuppliers(a.data??[]);
       setRoutings(r.data??[]);
