@@ -252,14 +252,14 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
   const relevantSteps = useMemo(() => {
     const selPids = new Set(selectedProductIds);
     const relRoutingIds = new Set(allRoutings.filter(r => selPids.has(r.product_id)).map(r => r.id));
-    return allSteps.filter(s => relRoutingIds.has(s.supplier_routing_id)).sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+    return allSteps.filter(s => relRoutingIds.has(s.bom_id)).sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
   }, [allRoutings, allSteps, selectedProductIds]);
 
   const stepsByProduct = useMemo(() => {
     const result: Record<string, any[]> = {};
     selectedProductIds.forEach(pid => {
       const routingIds = new Set(allRoutings.filter(r => r.product_id === pid).map(r => r.id));
-      result[pid] = relevantSteps.filter(s => routingIds.has(s.supplier_routing_id));
+      result[pid] = relevantSteps.filter(s => routingIds.has(s.bom_id));
     });
     return result;
   }, [relevantSteps, allRoutings, selectedProductIds]);
@@ -294,7 +294,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
         });
       }
       const routingIds = new Set(allRoutings.filter(r => r.product_id === pid).map(r => r.id));
-      const productSteps = selectedSteps.filter(s => routingIds.has(s.supplier_routing_id));
+      const productSteps = selectedSteps.filter(s => routingIds.has(s.bom_id));
       granEntries.forEach(gran => {
         productSteps.forEach(step => {
           rows.push({
@@ -441,7 +441,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                               <button key={s.id} type="button" onClick={() => toggleStep(s.id)}
                                 className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${sel ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}>
                                 <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 border ${sel ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>{s.sequence}</span>
-                                <span className="flex-1 truncate">{(s.step_type || "—").replace(/_/g, " ")}</span>
+                                <span className="flex-1 truncate">{(s.bom_line_role || "—").replace(/_/g, " ")}</span>
                                 {supplier && <span className="text-[10px] text-muted-foreground shrink-0">{supplier.name}</span>}
                                 {sel && <span className="text-primary font-bold shrink-0">✓</span>}
                               </button>
@@ -482,7 +482,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
                             <div><span className="text-muted-foreground">Product: </span><span className="font-medium">{row._product?.name}</span><span className="text-muted-foreground font-mono ml-1">{row._product?.code}</span></div>
                             <div><span className="text-muted-foreground">Scope: </span><span>{getGranLabel(row)}</span></div>
-                            <div className="col-span-2"><span className="text-muted-foreground">Step: </span><span>Step {row._step?.sequence}: {(row._step?.step_type || "—").replace(/_/g, " ")}</span></div>
+                            <div className="col-span-2"><span className="text-muted-foreground">Step: </span><span>Step {row._step?.sequence}: {(row._step?.bom_line_role || "—").replace(/_/g, " ")}</span></div>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
@@ -752,11 +752,11 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, c
     },
     {
       id: "step", label: "Routing Step", width: 160,
-      sortKey: (l: any) => stepMap[l.bom_line_id]?.step_type || "",
+      sortKey: (l: any) => stepMap[l.bom_line_id]?.bom_line_role || "",
       render: (l: any) => {
         const s = stepMap[l.bom_line_id];
         return s
-          ? <span className="text-xs text-muted-foreground">Step {s.sequence}: {(s.step_type || "").replace(/_/g, " ")}</span>
+          ? <span className="text-xs text-muted-foreground">Step {s.sequence}: {(s.bom_line_role || "").replace(/_/g, " ")}</span>
           : <span className="text-muted-foreground/40">—</span>;
       },
     },
