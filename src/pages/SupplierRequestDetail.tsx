@@ -207,8 +207,9 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
       const [products, suppliers, routings, steps, colors, pcams] = await Promise.all([
         supabase.from("products").select("id,code,name,images,default_uom,project_ids").contains("project_ids", [projectId]).order("code"),
         supabase.from("suppliers").select("id,name").eq("status", "active").order("name"),
-        supabase.from("supplier_routings").select("id,product_id,name,routing_type,status").order("name"),
-        supabase.from("supplier_routing_steps").select("id,supplier_routing_id,sequence,step_type,supplier_id").order("sequence"),
+        // TODO(round 9.3): load routings (boms.bom_type='routing') and bom_lines as the new "steps".
+        supabase.from("boms").select("id,product_id,revision_code,version,status,bom_phase").eq("bom_type", "routing"),
+        supabase.from("bom_lines").select("id,bom_id,position,bom_line_role,component_product_id").order("position"),
         supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex").order("color_name"),
         supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code,variant").order("sequence"),
       ]);
