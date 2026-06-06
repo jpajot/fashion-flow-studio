@@ -537,7 +537,7 @@ export default function BOMMatrixEditor({
                           allProductColors={allProductColors}
                           techColors={techColors}
                           commColors={commColors}
-                          bomType={bom?.bom_type}
+                          bomPhase={bom?.bom_phase}
                           onUpsertVariant={onUpsertVariant}
                           onDeleteVariant={onDeleteVariant}
                           allSizes={allSizes}
