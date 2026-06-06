@@ -85,7 +85,7 @@ export default function MfgOpsTab({ bom, allProducts, onOpenChangeRouting }: { b
             <p className="text-xs text-amber-800">
               {displayedImpacted.map((b: any, i: number) => {
                 const prod = allProducts.find((p: any) => p.id === b.product_id);
-                const label = `${prod?.code || prod?.name || "Unknown"} · ${BOM_TYPE_LABEL[b.bom_type] || b.bom_type} Rev ${b.revision_code} v${b.version}`;
+                const label = `${prod?.code || prod?.name || "Unknown"} · ${BOM_TYPE_LABEL[b.bom_phase] || b.bom_phase} Rev ${b.revision_code} v${b.version}`;
                 return (
                   <span key={b.id}>{i > 0 && ", "}<button type="button" className="underline underline-offset-2 hover:text-amber-900 transition-colors" onClick={() => navigate(`/boms/${b.id}`)}>{label}</button>{" "}<StatusBadge status={b.status} /></span>
                 );
