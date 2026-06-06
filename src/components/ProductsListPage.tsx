@@ -318,7 +318,15 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
         : <div className="h-10 w-10 bg-muted rounded grid place-items-center text-xs">{initials(p.name)}</div>;
     }},
     { id: "name", label: "Name", render: (p) => (
-      <><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground font-mono">{p.code}</div></>
+      <>
+        <div className="font-medium flex items-center gap-1.5">
+          {p.name}
+          {p.type === "Service" && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-300 font-semibold uppercase tracking-wide">Service</span>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground font-mono">{p.code}</div>
+      </>
     )},
     { id: "category", label: "Category", render: (p) => p.category || "—" },
     { id: "sub_category", label: "Sub-Category", render: (p) => p.sub_category || "—" },
