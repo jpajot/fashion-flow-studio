@@ -1706,7 +1706,7 @@ function BOMStatusSection({ linkedStyles }: { linkedStyles:any[] }) {
   }, [linkedStyles]);
 
   const filtered = useMemo(()=>boms.filter(b=>{
-    if(filterType!=="all"&&b.bom_type!==filterType) return false;
+    if(filterType!=="all"&&b.bom_phase!==filterType) return false;
     if(filterStatus!=="all"&&b.status!==filterStatus) return false;
     if(search.trim()){
       const prod = products.get(b.product_id);
