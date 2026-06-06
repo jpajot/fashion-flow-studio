@@ -95,7 +95,8 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     } : null;
 
     const { data, error } = await supabase.from("boms").insert({
-      bom_type: bomPhase,
+      bom_type: "bom",
+      bom_phase: bomPhase,
       product_id: productId,
       revision_code: "A",
       version: 1,
