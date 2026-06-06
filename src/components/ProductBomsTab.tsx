@@ -39,9 +39,9 @@ export default function ProductBomsTab({ productId }: { productId: string }) {
             >
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                style={{ backgroundColor: b.bom_type === "production" ? "#10B981" : "#6B7280", color: "#fff" }}
+                style={{ backgroundColor: b.bom_phase === "production" ? "#10B981" : "#6B7280", color: "#fff" }}
               >
-                {b.bom_type === "production" ? "PROD" : "DEV"}
+                {b.bom_phase === "production" ? "PROD" : "DEV"}
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
