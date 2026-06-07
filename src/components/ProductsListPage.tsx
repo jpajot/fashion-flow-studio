@@ -275,7 +275,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const filteredStyles = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = products;
-    if (type === "Product" && typeFilter !== "all") {
+    if (type === "Material" && typeFilter !== "all") {
       list = list.filter((p) => p.type === typeFilter);
     }
     if (q) list = list.filter((p) => (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q));
