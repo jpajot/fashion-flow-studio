@@ -103,7 +103,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [commColors, setCommColors] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "Product" | "Service">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "Material" | "Service">("all");
   const [refresh, setRefresh] = useState(0);
 
   const [stylesView, setStylesView] = useState<"grid" | "list">(
