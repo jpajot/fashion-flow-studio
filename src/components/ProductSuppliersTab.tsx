@@ -209,7 +209,7 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
       {/* 2. Approved Suppliers */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="w-4 h-4" />Approved Suppliers</h3>
+          <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="w-4 h-4" />{product.type === "Service" ? "Approved suppliers for this operation" : "Approved Suppliers"}</h3>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={openAddSupplier}>
             <Plus className="w-3.5 h-3.5" />Add Supplier
           </Button>
