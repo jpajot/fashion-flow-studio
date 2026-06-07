@@ -150,7 +150,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
           )}
 
           <div className="space-y-1.5">
-            <Label>BOM Type</Label>
+            <Label>BOM Phase</Label>
             <Select value={bomPhase} onValueChange={(v) => setBomPhase(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
