@@ -103,7 +103,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const [commColors, setCommColors] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "Product" | "Service">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "Material" | "Service">("all");
   const [refresh, setRefresh] = useState(0);
 
   const [stylesView, setStylesView] = useState<"grid" | "list">(
@@ -204,8 +204,8 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
 
   useEffect(() => {
     (async () => {
-      // Products page also includes Service-type products (operations library).
-      const typeFilterArg = type === "Product" ? ["Product", "Service"] : [type];
+      // Materials page also includes Service-type products (operations library).
+      const typeFilterArg = type === "Material" ? ["Material", "Service"] : [type];
       const [p, cw, mv, tc, cc, pr] = await Promise.all([
         supabase.from("products").select("*").in("type", typeFilterArg).order("code"),
         supabase.from("product_colors").select("*").order("created_at", { ascending: false }),
@@ -275,7 +275,7 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
   const filteredStyles = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = products;
-    if (type === "Product" && typeFilter !== "all") {
+    if (type === "Material" && typeFilter !== "all") {
       list = list.filter((p) => p.type === typeFilter);
     }
     if (q) list = list.filter((p) => (p.name || "").toLowerCase().includes(q) || (p.code || "").toLowerCase().includes(q));
@@ -547,12 +547,12 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 w-56"
           />
-          {type === "Product" && activeSection === "styles" && (
+          {type === "Material" && activeSection === "styles" && (
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
               <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="Product">Style</SelectItem>
+                <SelectItem value="Material">Material</SelectItem>
                 <SelectItem value="Service">Service</SelectItem>
               </SelectContent>
             </Select>
