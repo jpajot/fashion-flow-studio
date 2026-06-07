@@ -204,8 +204,8 @@ export default function ProductsListPage({ type, title, newButtonLabel, pagePath
 
   useEffect(() => {
     (async () => {
-      // Products page also includes Service-type products (operations library).
-      const typeFilterArg = type === "Product" ? ["Product", "Service"] : [type];
+      // Materials page also includes Service-type products (operations library).
+      const typeFilterArg = type === "Material" ? ["Material", "Service"] : [type];
       const [p, cw, mv, tc, cc, pr] = await Promise.all([
         supabase.from("products").select("*").in("type", typeFilterArg).order("code"),
         supabase.from("product_colors").select("*").order("created_at", { ascending: false }),
