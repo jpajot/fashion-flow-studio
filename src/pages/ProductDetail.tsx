@@ -101,16 +101,22 @@ export default function ProductDetail() {
 
   // ── sub-nav ──
   const subNavItems = useMemo(
-    () => [
-      { id: "details", label: "Details", icon: FileText },
-      { id: "colorways", label: "Colorways", count: colorwayCount, icon: Palette },
-      { id: "sizes", label: "Sizes", icon: Ruler },
-      { id: "more", label: "More Variations", icon: Layers },
-      { id: "suppliers", label: "Suppliers", icon: Building2 },
-      { id: "boms", label: "BOMs", count: bomCount, icon: ClipboardList },
-      { id: "samples", label: "Samples", icon: Package },
-    ],
-    [colorwayCount, bomCount],
+    () => {
+      const items: any[] = [
+        { id: "details", label: "Details", icon: FileText },
+        { id: "colorways", label: "Colorways", count: colorwayCount, icon: Palette },
+        { id: "sizes", label: "Sizes", icon: Ruler },
+        { id: "more", label: "More Variations", icon: Layers },
+        { id: "suppliers", label: "Suppliers", icon: Building2 },
+        { id: "boms", label: "BOMs", count: bomCount, icon: ClipboardList },
+      ];
+      if (product?.type !== "Service") {
+        items.push({ id: "routings", label: "Routings", icon: GitBranch });
+      }
+      items.push({ id: "samples", label: "Samples", icon: Package });
+      return items;
+    },
+    [colorwayCount, bomCount, product?.type],
   );
   const pageTitle = isNew
     ? `New ${qsType}`
