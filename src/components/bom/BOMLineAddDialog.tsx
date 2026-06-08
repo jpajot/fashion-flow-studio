@@ -234,7 +234,7 @@ export default function BOMLineAddDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={!canSave}>Add Line</Button>
+          <Button onClick={handleCreate} disabled={!canSave}>{isRouting ? "Add Operation" : "Add Line"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

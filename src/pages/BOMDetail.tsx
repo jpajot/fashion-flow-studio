@@ -372,7 +372,7 @@ export default function BOMDetail() {
   const lineColumns = useMemo(() => ([
     { id: "position", label: "#", width: 50, sortKey: (l: any) => l.position,
       render: (l: any) => <span className="font-mono text-xs text-muted-foreground">{l.position}</span> },
-    { id: "component", label: "Component", width: 240, sortKey: (l: any) => productById.get(l.component_product_id)?.name || "",
+    { id: "component", label: isRouting ? "Operation" : "Component", width: 240, sortKey: (l: any) => productById.get(l.component_product_id)?.name || "",
       render: (l: any) => {
         const cp = productById.get(l.component_product_id);
         return (
@@ -395,7 +395,7 @@ export default function BOMDetail() {
         <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground">{l.component_role.replace(/_/g, " ")}</span>
       ) : <span className="text-muted-foreground/40">—</span>
     },
-    { id: "quantity", label: "Qty", width: 110, sortKey: (l: any) => l.base_quantity,
+    { id: "quantity", label: isRouting ? "Qty / Time" : "Qty", width: 110, sortKey: (l: any) => l.base_quantity,
       render: (l: any) => {
         const cp = productById.get(l.component_product_id);
         const effectiveUom = l.uom || cp?.default_uom || "—";
@@ -726,7 +726,7 @@ export default function BOMDetail() {
             {bomLines.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-xl border border-dashed">
                 <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground mb-3">No lines yet. Add the first {componentNoun.toLowerCase()}.</p>
+                <p className="text-sm text-muted-foreground mb-3">{isRouting ? "No operations yet. Add an operation to get started." : "No lines yet. Add the first component."}</p>
                 {isBomEditable(bom) && (
                   <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
                     <Plus className="w-4 h-4" /> {addLabel}
