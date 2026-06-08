@@ -212,17 +212,24 @@ export default function BOMDetail() {
 
   useEffect(() => { if (!isNew && id) loadAll(); /* eslint-disable-next-line */ }, [id, isNew]);
 
+  const isRouting = bom?.bom_type === "routing";
+  const componentNoun = isRouting ? "Operation" : "Component";
+  const linesNoun = isRouting ? "Operations" : "Lines";
+  const addLabel = `Add ${componentNoun}`;
+
   const bomTitle = useMemo(() => {
     if (!bom) return "BOM";
-    return `${product?.name || "—"} · ${bom.bom_phase === "production" ? "PROD" : "DEV"} · Rev ${bom.revision_code} v${bom.version}`;
+    const typeLbl = bom.bom_type === "routing" ? "Routing" : "BOM";
+    const phaseLbl = bom.bom_phase === "production" ? "PROD" : bom.bom_phase === "sample" ? "SAMPLE" : "DEV";
+    return `${product?.name || "—"} · ${typeLbl} · ${phaseLbl} · Rev ${bom.revision_code} v${bom.version}`;
   }, [bom, product]);
 
   const subNavItems = useMemo(() => ([
     { id: "matrix",    label: "Matrix",        count: bomVariants.length, icon: LayoutGrid },
-    { id: "lines",     label: "Lines",         count: bomLines.length,    icon: List },
+    { id: "lines",     label: linesNoun,       count: bomLines.length,    icon: List },
     { id: "mfgops",    label: "Manufacturing", icon: Factory },
     { id: "changelog", label: "Change Log",    icon: History },
-  ]), [bomLines.length, bomVariants.length]);
+  ]), [bomLines.length, bomVariants.length, linesNoun]);
 
   useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, bomTitle);
 
