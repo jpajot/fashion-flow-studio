@@ -64,20 +64,22 @@ export default function BOMLineAddDialog({
     setUomValue("inherit"); setVariesByColor(false); setVariesBySize(false);
     setVariesByColorAndMore(false); setVariesBySupplier(false); setNotes("");
     supabase.from("products")
-      .select("id,name,type,images,default_uom,default_uom_for_purchasing,uom_conversion_factor")
+      .select("id,name,type,images,category,sub_category,default_uom,default_uom_for_purchasing,uom_conversion_factor")
       .order("name")
       .then(({ data }) => setCandidates(data ?? []));
   }, [open]);
 
   const componentProduct = candidates.find(c => c.id === componentProductId);
-  const roleOptions = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_role"), [lovTypes, lovValues]);
+  const roleOptions = useMemo(() => getRoleOptionsFiltered(lovTypes, lovValues, bomType), [lovTypes, lovValues, bomType]);
   const uomOptions = useMemo(() => getLovValues(lovTypes, lovValues, "uom"), [lovTypes, lovValues]);
 
   const filteredCandidates = useMemo(() => {
+    const allowedType = isRouting ? "Service" : "Material";
+    const base = candidates.filter(c => c.type === allowedType);
     const q = search.toLowerCase().trim();
-    if (!q) return candidates;
-    return candidates.filter(c => (c.name || "").toLowerCase().includes(q));
-  }, [candidates, search]);
+    if (!q) return base;
+    return base.filter(c => (c.name || "").toLowerCase().includes(q));
+  }, [candidates, search, isRouting]);
 
   const handleCreate = async () => {
     if (!componentProductId || !role || !baseQuantity) return;
