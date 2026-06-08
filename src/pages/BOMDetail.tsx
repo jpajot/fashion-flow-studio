@@ -717,7 +717,7 @@ export default function BOMDetail() {
               </div>
               {isBomEditable(bom) && (
                 <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
-                  <Plus className="w-4 h-4" /> Add Line
+                  <Plus className="w-4 h-4" /> {addLabel}
                 </Button>
               )}
             </div>
@@ -728,7 +728,7 @@ export default function BOMDetail() {
                 <p className="text-sm text-muted-foreground mb-3">No lines yet. Add the first component.</p>
                 {isBomEditable(bom) && (
                   <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
-                    <Plus className="w-4 h-4" /> Add Line
+                    <Plus className="w-4 h-4" /> {addLabel}
                   </Button>
                 )}
               </div>
