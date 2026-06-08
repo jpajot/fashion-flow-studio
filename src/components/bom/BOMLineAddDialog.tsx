@@ -124,9 +124,9 @@ export default function BOMLineAddDialog({
 
         <div className="space-y-4">
           <div>
-            <Label className="text-xs">Component Product *</Label>
+            <Label className="text-xs">{isRouting ? "Operation *" : "Component Product *"}</Label>
             <Input
-              placeholder="Search component product…"
+              placeholder={isRouting ? "Search operation…" : "Search component product…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 mt-1"
