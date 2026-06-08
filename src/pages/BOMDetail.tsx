@@ -372,7 +372,7 @@ export default function BOMDetail() {
   const lineColumns = useMemo(() => ([
     { id: "position", label: "#", width: 50, sortKey: (l: any) => l.position,
       render: (l: any) => <span className="font-mono text-xs text-muted-foreground">{l.position}</span> },
-    { id: "component", label: "Component", width: 240, sortKey: (l: any) => productById.get(l.component_product_id)?.name || "",
+    { id: "component", label: isRouting ? "Operation" : "Component", width: 240, sortKey: (l: any) => productById.get(l.component_product_id)?.name || "",
       render: (l: any) => {
         const cp = productById.get(l.component_product_id);
         return (
