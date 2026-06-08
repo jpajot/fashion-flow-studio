@@ -41,9 +41,10 @@ const getRoleOptionsFiltered = (lovTypes: any[], lovValues: any[], bomType: stri
 };
 
 export default function BOMLineAddDialog({
-  open, onClose, onCreated, bomId, currentLineCount, lovTypes, lovValues,
+  open, onClose, onCreated, bomId, currentLineCount, lovTypes, lovValues, bomType = "bom",
 }: Props) {
   const { toast } = useToast();
+  const isRouting = bomType === "routing";
   const [candidates, setCandidates] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [componentProductId, setComponentProductId] = useState<string>("");
