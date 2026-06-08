@@ -28,6 +28,7 @@ import BOMCreateVersionDialog from "@/components/bom/BOMCreateVersionDialog";
 import BOMCreateProdBOMDialog from "@/components/bom/BOMCreateProdBOMDialog";
 import BOMChangeLogTab from "@/components/bom/BOMChangeLogTab";
 import MfgOpsTab from "@/components/bom/MfgOpsTab";
+import SortableRoutingLinesTable from "@/components/bom/SortableRoutingLinesTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 
@@ -725,13 +726,26 @@ export default function BOMDetail() {
             {bomLines.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-xl border border-dashed">
                 <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground mb-3">No lines yet. Add the first component.</p>
+                <p className="text-sm text-muted-foreground mb-3">No lines yet. Add the first {componentNoun.toLowerCase()}.</p>
                 {isBomEditable(bom) && (
                   <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
                     <Plus className="w-4 h-4" /> {addLabel}
                   </Button>
                 )}
               </div>
+            ) : isRouting ? (
+              <SortableRoutingLinesTable
+                rows={filteredLines}
+                columns={lineColumns as any}
+                disabled={!isBomEditable(bom) || !!lineSearch || roleFilter !== "all"}
+                onRowClick={(l) => setEditLine(l)}
+                onReorder={(reordered) => {
+                  // Merge reordered IDs back into full bomLines (preserving any filtered-out rows' relative position)
+                  const idToPos = new Map(reordered.map(r => [r.id, r.position]));
+                  setBomLines(prev => prev.map(l => idToPos.has(l.id) ? { ...l, position: idToPos.get(l.id)! } : l)
+                    .sort((a, b) => (a.position || 0) - (b.position || 0)));
+                }}
+              />
             ) : (
               <DataTable
                 columns={lineColumns}
