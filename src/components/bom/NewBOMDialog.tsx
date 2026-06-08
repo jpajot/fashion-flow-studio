@@ -16,11 +16,13 @@ interface Props {
   onClose: () => void;
   onCreated: (newBom: any) => void;
   prefilledProductId?: string;
+  mode?: "bom" | "routing";
 }
 
-export default function NewBOMDialog({ open, onClose, onCreated, prefilledProductId }: Props) {
+export default function NewBOMDialog({ open, onClose, onCreated, prefilledProductId, mode = "bom" }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isRouting = mode === "routing";
 
   const [products, setProducts] = useState<any[]>([]);
   const [routings, setRoutings] = useState<any[]>([]);
@@ -29,7 +31,8 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
 
   const [productId, setProductId] = useState<string>(prefilledProductId || "");
   const [productSearch, setProductSearch] = useState("");
-  const [bomPhase, setBomPhase] = useState<"development" | "production">("development");
+  const [bomPhase, setBomPhase] = useState<"development" | "production" | "sample">("development");
+  const [name, setName] = useState("");
   const [selectedRoutingId, setSelectedRoutingId] = useState<string>("");
 
   const [customerRef, setCustomerRef] = useState("");
@@ -44,6 +47,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     if (!open) return;
     setProductId(prefilledProductId || "");
     setBomPhase("development");
+    setName("");
     setSelectedRoutingId("");
     setCustomerRef(""); setSeasonVariant(""); setTargetQuantity("");
     setRegion(""); setFactorySupplierId(""); setNotes("");
