@@ -119,7 +119,7 @@ export default function BOMLineAddDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add BOM Line</DialogTitle>
+          <DialogTitle>{isRouting ? "Add Operation" : "Add BOM Line"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
