@@ -99,13 +99,14 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     } : null;
 
     const { data, error } = await supabase.from("boms").insert({
-      bom_type: "bom",
+      bom_type: mode,
       bom_phase: bomPhase,
       product_id: productId,
+      name: name || null,
       revision_code: "A",
       version: 1,
       status: "draft",
-      selected_routing_id: bomPhase === "production" ? (selectedRoutingId || null) : null,
+      selected_routing_id: !isRouting && bomPhase === "production" ? (selectedRoutingId || null) : null,
       order_context,
       notes: notes || null,
       created_by: user?.email,
