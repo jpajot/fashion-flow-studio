@@ -20,12 +20,24 @@ interface Props {
   currentLineCount: number;
   lovTypes: any[];
   lovValues: any[];
+  bomType?: "bom" | "routing";
 }
 
 const getLovValues = (lovTypes: any[], lovValues: any[], code: string) => {
   const t = lovTypes.find(x => x.code === code);
   if (!t) return [];
   return lovValues.filter(v => v.type_of_lov_id === t.id).map(v => v.name).sort();
+};
+
+const getRoleOptionsFiltered = (lovTypes: any[], lovValues: any[], bomType: string) => {
+  const roleType = lovTypes.find(t => t.code === "bom_line_role");
+  const bomTypeType = lovTypes.find(t => t.code === "bom_type");
+  if (!roleType) return [];
+  const all = lovValues.filter(v => v.type_of_lov_id === roleType.id);
+  if (!bomTypeType) return all.map(v => v.name).sort();
+  const match = lovValues.find(v => v.type_of_lov_id === bomTypeType.id && v.name === bomType);
+  if (!match) return all.map(v => v.name).sort();
+  return all.filter(v => !v.depends_on_value_id || v.depends_on_value_id === match.id).map(v => v.name).sort();
 };
 
 export default function BOMLineAddDialog({
