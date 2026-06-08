@@ -242,7 +242,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleCreate} disabled={!canCreate}>
-            {saving ? "Creating…" : "Create BOM"}
+            {saving ? "Creating…" : `Create ${isRouting ? "Routing" : "BOM"}`}
           </Button>
         </DialogFooter>
       </DialogContent>
