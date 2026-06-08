@@ -235,6 +235,22 @@ export default function BOMLineEditPanel({
               </Select>
             </div>
 
+            {bom?.bom_type === "routing" && (
+              <div>
+                <label className={cn("flex items-center gap-2 text-sm", !editable && "opacity-60 cursor-not-allowed")}>
+                  <Checkbox
+                    checked={line.ships_to_next !== false}
+                    onCheckedChange={(c) => updateFields({ ships_to_next: !!c })}
+                    disabled={!editable}
+                  />
+                  Ships output to next step
+                </label>
+                <p className="text-[10px] text-muted-foreground mt-1 ml-6">
+                  Untick for a parallel operation that does not feed the next step.
+                </p>
+              </div>
+            )}
+
             <div>
               <Label className="text-xs">Line-level Approved Supplier</Label>
               <Select
