@@ -92,7 +92,7 @@ export default function BOMLineEditPanel({
       .then(({ count }) => setVariantCount(count ?? 0));
   }, [line?.id]);
 
-  const roleOptions = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_role"), [lovTypes, lovValues]);
+  const roleOptions = useMemo(() => getRoleOptionsFiltered(lovTypes, lovValues, bom?.bom_type), [lovTypes, lovValues, bom?.bom_type]);
   const uomOptions = useMemo(() => getLovValues(lovTypes, lovValues, "uom"), [lovTypes, lovValues]);
   const resolutionModeOptions = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_resolution_mode"), [lovTypes, lovValues]);
 
