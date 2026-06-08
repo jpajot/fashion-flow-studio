@@ -763,6 +763,7 @@ export default function BOMDetail() {
         currentLineCount={bomLines.length}
         lovTypes={lovTypes}
         lovValues={lovValues}
+        bomType={bom.bom_type}
         onCreated={async (newLine) => {
           setBomLines(prev => [...prev, newLine].sort((a, b) => a.position - b.position));
           setShowAddLine(false);
