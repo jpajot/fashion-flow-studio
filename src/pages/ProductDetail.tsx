@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, GitCommit, Info, Trash2, Upload, X, Star, FileText, Palette, Ruler, Layers, Building2, ClipboardList, Package } from "lucide-react";
+import { ArrowLeft, GitCommit, Info, Trash2, Upload, X, Star, FileText, Palette, Ruler, Layers, Building2, ClipboardList, Package, GitBranch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRegisterSubNav } from "@/hooks/useRegisterSubNav";
@@ -101,16 +101,22 @@ export default function ProductDetail() {
 
   // ── sub-nav ──
   const subNavItems = useMemo(
-    () => [
-      { id: "details", label: "Details", icon: FileText },
-      { id: "colorways", label: "Colorways", count: colorwayCount, icon: Palette },
-      { id: "sizes", label: "Sizes", icon: Ruler },
-      { id: "more", label: "More Variations", icon: Layers },
-      { id: "suppliers", label: "Suppliers", icon: Building2 },
-      { id: "boms", label: "BOMs", count: bomCount, icon: ClipboardList },
-      { id: "samples", label: "Samples", icon: Package },
-    ],
-    [colorwayCount, bomCount],
+    () => {
+      const items: any[] = [
+        { id: "details", label: "Details", icon: FileText },
+        { id: "colorways", label: "Colorways", count: colorwayCount, icon: Palette },
+        { id: "sizes", label: "Sizes", icon: Ruler },
+        { id: "more", label: "More Variations", icon: Layers },
+        { id: "suppliers", label: "Suppliers", icon: Building2 },
+        { id: "boms", label: "BOMs", count: bomCount, icon: ClipboardList },
+      ];
+      if (product?.type !== "Service") {
+        items.push({ id: "routings", label: "Routings", icon: GitBranch });
+      }
+      items.push({ id: "samples", label: "Samples", icon: Package });
+      return items;
+    },
+    [colorwayCount, bomCount, product?.type],
   );
   const pageTitle = isNew
     ? `New ${qsType}`
@@ -639,7 +645,8 @@ export default function ProductDetail() {
         />
       )}
       {!isNew && activeTab === "suppliers" && <ProductSuppliersTab product={product} colorVariants={colorways} />}
-      {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} />}
+      {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} bomType="bom" />}
+      {!isNew && activeTab === "routings" && <ProductBomsTab productId={product.id} bomType="routing" />}
       {!isNew && activeTab === "samples" && <ProductSamplesTab product={product} />}
 
       {/* Modals */}

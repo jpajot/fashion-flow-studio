@@ -20,6 +20,7 @@ interface Props {
   currentLineCount: number;
   lovTypes: any[];
   lovValues: any[];
+  bomType?: "bom" | "routing";
 }
 
 const getLovValues = (lovTypes: any[], lovValues: any[], code: string) => {
@@ -28,10 +29,22 @@ const getLovValues = (lovTypes: any[], lovValues: any[], code: string) => {
   return lovValues.filter(v => v.type_of_lov_id === t.id).map(v => v.name).sort();
 };
 
+const getRoleOptionsFiltered = (lovTypes: any[], lovValues: any[], bomType: string) => {
+  const roleType = lovTypes.find(t => t.code === "bom_line_role");
+  const bomTypeType = lovTypes.find(t => t.code === "bom_type");
+  if (!roleType) return [];
+  const all = lovValues.filter(v => v.type_of_lov_id === roleType.id);
+  if (!bomTypeType) return all.map(v => v.name).sort();
+  const match = lovValues.find(v => v.type_of_lov_id === bomTypeType.id && v.name === bomType);
+  if (!match) return all.map(v => v.name).sort();
+  return all.filter(v => !v.depends_on_value_id || v.depends_on_value_id === match.id).map(v => v.name).sort();
+};
+
 export default function BOMLineAddDialog({
-  open, onClose, onCreated, bomId, currentLineCount, lovTypes, lovValues,
+  open, onClose, onCreated, bomId, currentLineCount, lovTypes, lovValues, bomType = "bom",
 }: Props) {
   const { toast } = useToast();
+  const isRouting = bomType === "routing";
   const [candidates, setCandidates] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [componentProductId, setComponentProductId] = useState<string>("");
@@ -51,20 +64,22 @@ export default function BOMLineAddDialog({
     setUomValue("inherit"); setVariesByColor(false); setVariesBySize(false);
     setVariesByColorAndMore(false); setVariesBySupplier(false); setNotes("");
     supabase.from("products")
-      .select("id,name,type,images,default_uom,default_uom_for_purchasing,uom_conversion_factor")
+      .select("id,name,type,images,category,sub_category,default_uom,default_uom_for_purchasing,uom_conversion_factor")
       .order("name")
       .then(({ data }) => setCandidates(data ?? []));
   }, [open]);
 
   const componentProduct = candidates.find(c => c.id === componentProductId);
-  const roleOptions = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_role"), [lovTypes, lovValues]);
+  const roleOptions = useMemo(() => getRoleOptionsFiltered(lovTypes, lovValues, bomType), [lovTypes, lovValues, bomType]);
   const uomOptions = useMemo(() => getLovValues(lovTypes, lovValues, "uom"), [lovTypes, lovValues]);
 
   const filteredCandidates = useMemo(() => {
+    const allowedType = isRouting ? "Service" : "Material";
+    const base = candidates.filter(c => c.type === allowedType);
     const q = search.toLowerCase().trim();
-    if (!q) return candidates;
-    return candidates.filter(c => (c.name || "").toLowerCase().includes(q));
-  }, [candidates, search]);
+    if (!q) return base;
+    return base.filter(c => (c.name || "").toLowerCase().includes(q));
+  }, [candidates, search, isRouting]);
 
   const handleCreate = async () => {
     if (!componentProductId || !role || !baseQuantity) return;
@@ -86,6 +101,7 @@ export default function BOMLineAddDialog({
       varies_by_size: variesBySize,
       varies_by_color_and_more: variesByColorAndMore,
       varies_by_supplier: variesBySupplier,
+      ships_to_next: isRouting ? true : null,
       notes: notes || null,
     }).select().single();
 
@@ -103,14 +119,14 @@ export default function BOMLineAddDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add BOM Line</DialogTitle>
+          <DialogTitle>{isRouting ? "Add Operation" : "Add BOM Line"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label className="text-xs">Component Product *</Label>
+            <Label className="text-xs">{isRouting ? "Operation *" : "Component Product *"}</Label>
             <Input
-              placeholder="Search component product…"
+              placeholder={isRouting ? "Search operation…" : "Search component product…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 mt-1"
@@ -136,6 +152,11 @@ export default function BOMLineAddDialog({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{c.name}</p>
+                    {isRouting && (c.category || c.sub_category) && (
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {[c.category, c.sub_category].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
                   </div>
                   {c.type && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground shrink-0">

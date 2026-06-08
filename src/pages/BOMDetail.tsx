@@ -212,17 +212,24 @@ export default function BOMDetail() {
 
   useEffect(() => { if (!isNew && id) loadAll(); /* eslint-disable-next-line */ }, [id, isNew]);
 
+  const isRouting = bom?.bom_type === "routing";
+  const componentNoun = isRouting ? "Operation" : "Component";
+  const linesNoun = isRouting ? "Operations" : "Lines";
+  const addLabel = `Add ${componentNoun}`;
+
   const bomTitle = useMemo(() => {
     if (!bom) return "BOM";
-    return `${product?.name || "—"} · ${bom.bom_phase === "production" ? "PROD" : "DEV"} · Rev ${bom.revision_code} v${bom.version}`;
+    const typeLbl = bom.bom_type === "routing" ? "Routing" : "BOM";
+    const phaseLbl = bom.bom_phase === "production" ? "PROD" : bom.bom_phase === "sample" ? "SAMPLE" : "DEV";
+    return `${product?.name || "—"} · ${typeLbl} · ${phaseLbl} · Rev ${bom.revision_code} v${bom.version}`;
   }, [bom, product]);
 
   const subNavItems = useMemo(() => ([
     { id: "matrix",    label: "Matrix",        count: bomVariants.length, icon: LayoutGrid },
-    { id: "lines",     label: "Lines",         count: bomLines.length,    icon: List },
+    { id: "lines",     label: linesNoun,       count: bomLines.length,    icon: List },
     { id: "mfgops",    label: "Manufacturing", icon: Factory },
     { id: "changelog", label: "Change Log",    icon: History },
-  ]), [bomLines.length, bomVariants.length]);
+  ]), [bomLines.length, bomVariants.length, linesNoun]);
 
   useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, bomTitle);
 
@@ -314,7 +321,7 @@ export default function BOMDetail() {
     } else if (activeTab === "lines") {
       setOptions({
         items: isBomEditable(bom)
-          ? [{ label: "Add Line", icon: Plus, onClick: () => setShowAddLine(true), className: "text-primary hover:bg-primary/10" }]
+          ? [{ label: addLabel, icon: Plus, onClick: () => setShowAddLine(true), className: "text-primary hover:bg-primary/10" }]
           : [],
       });
     } else {
@@ -332,7 +339,21 @@ export default function BOMDetail() {
   const approvedSupplierById = useMemo(() => new Map(approvedSuppliers.map(a => [a.id, a])), [approvedSuppliers]);
   const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
 
-  const roleLov = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_role"), [lovTypes, lovValues]);
+  // Filter roles by bom_type via list_of_values.depends_on_value_id chain.
+  // The role LOV value depends on a `bom_type` LOV value whose name matches bom.bom_type.
+  const roleLov = useMemo(() => {
+    const roleType = lovTypes.find(t => t.code === "bom_line_role");
+    const bomTypeType = lovTypes.find(t => t.code === "bom_type");
+    if (!roleType) return [];
+    const allRoles = lovValues.filter(v => v.type_of_lov_id === roleType.id);
+    if (!bomTypeType || !bom?.bom_type) return allRoles.map(v => v.name).sort();
+    const matchingBomTypeValue = lovValues.find(
+      v => v.type_of_lov_id === bomTypeType.id && v.name === bom.bom_type,
+    );
+    if (!matchingBomTypeValue) return allRoles.map(v => v.name).sort();
+    const filtered = allRoles.filter(v => !v.depends_on_value_id || v.depends_on_value_id === matchingBomTypeValue.id);
+    return filtered.map(v => v.name).sort();
+  }, [lovTypes, lovValues, bom?.bom_type]);
 
   const filteredLines = useMemo(() => {
     return bomLines.filter(l => {
@@ -404,6 +425,28 @@ export default function BOMDetail() {
         return <span className="text-xs">{sup?.name || "—"}</span>;
       }
     },
+    ...(isRouting ? [{
+      id: "ships_to_next", label: "Ships to next", width: 120,
+      render: (l: any) => {
+        const checked = l.ships_to_next !== false;
+        const toggle = async () => {
+          if (!isBomEditable(bom)) return;
+          const next = !checked;
+          await supabase.from("bom_lines").update({ ships_to_next: next }).eq("id", l.id);
+          setBomLines(prev => prev.map(x => x.id === l.id ? { ...x, ships_to_next: next } : x));
+        };
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggle(); }}
+            className={`text-[10px] px-2 py-0.5 rounded-full border ${checked ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
+            title={checked ? "Ships output to next step" : "Parallel — does not feed next step"}
+          >
+            {checked ? "→ Next" : "Parallel"}
+          </button>
+        );
+      }
+    }] : []),
     { id: "actions", label: "", width: 60,
       render: (l: any) => (
         <div className="flex items-center justify-end gap-1">
@@ -416,7 +459,7 @@ export default function BOMDetail() {
         </div>
       )
     },
-  ]), [productById, approvedSupplierById, supplierById, bom]);
+  ]), [productById, approvedSupplierById, supplierById, bom, isRouting]);
 
   const handleDelete = async () => {
     if (!bom) return;
@@ -674,7 +717,7 @@ export default function BOMDetail() {
               </div>
               {isBomEditable(bom) && (
                 <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
-                  <Plus className="w-4 h-4" /> Add Line
+                  <Plus className="w-4 h-4" /> {addLabel}
                 </Button>
               )}
             </div>
@@ -685,7 +728,7 @@ export default function BOMDetail() {
                 <p className="text-sm text-muted-foreground mb-3">No lines yet. Add the first component.</p>
                 {isBomEditable(bom) && (
                   <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
-                    <Plus className="w-4 h-4" /> Add Line
+                    <Plus className="w-4 h-4" /> {addLabel}
                   </Button>
                 )}
               </div>
@@ -720,6 +763,7 @@ export default function BOMDetail() {
         currentLineCount={bomLines.length}
         lovTypes={lovTypes}
         lovValues={lovValues}
+        bomType={bom.bom_type}
         onCreated={async (newLine) => {
           setBomLines(prev => [...prev, newLine].sort((a, b) => a.position - b.position));
           setShowAddLine(false);

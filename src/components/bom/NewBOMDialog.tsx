@@ -16,11 +16,13 @@ interface Props {
   onClose: () => void;
   onCreated: (newBom: any) => void;
   prefilledProductId?: string;
+  mode?: "bom" | "routing";
 }
 
-export default function NewBOMDialog({ open, onClose, onCreated, prefilledProductId }: Props) {
+export default function NewBOMDialog({ open, onClose, onCreated, prefilledProductId, mode = "bom" }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isRouting = mode === "routing";
 
   const [products, setProducts] = useState<any[]>([]);
   const [routings, setRoutings] = useState<any[]>([]);
@@ -29,7 +31,8 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
 
   const [productId, setProductId] = useState<string>(prefilledProductId || "");
   const [productSearch, setProductSearch] = useState("");
-  const [bomPhase, setBomPhase] = useState<"development" | "production">("development");
+  const [bomPhase, setBomPhase] = useState<"development" | "production" | "sample">("development");
+  const [name, setName] = useState("");
   const [selectedRoutingId, setSelectedRoutingId] = useState<string>("");
 
   const [customerRef, setCustomerRef] = useState("");
@@ -44,6 +47,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     if (!open) return;
     setProductId(prefilledProductId || "");
     setBomPhase("development");
+    setName("");
     setSelectedRoutingId("");
     setCustomerRef(""); setSeasonVariant(""); setTargetQuantity("");
     setRegion(""); setFactorySupplierId(""); setNotes("");
@@ -95,13 +99,14 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     } : null;
 
     const { data, error } = await supabase.from("boms").insert({
-      bom_type: "bom",
+      bom_type: mode,
       bom_phase: bomPhase,
       product_id: productId,
+      name: name || null,
       revision_code: "A",
       version: 1,
       status: "draft",
-      selected_routing_id: bomPhase === "production" ? (selectedRoutingId || null) : null,
+      selected_routing_id: !isRouting && bomPhase === "production" ? (selectedRoutingId || null) : null,
       order_context,
       notes: notes || null,
       created_by: user?.email,
@@ -119,7 +124,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New BOM</DialogTitle>
+          <DialogTitle>{isRouting ? "New Routing" : "New BOM"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -150,17 +155,23 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
           )}
 
           <div className="space-y-1.5">
-            <Label>BOM Phase</Label>
+            <Label>Name {isRouting ? "(optional)" : "(optional)"}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={isRouting ? "e.g. Main assembly routing" : "e.g. Default BOM"} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{isRouting ? "Routing Phase" : "BOM Phase"}</Label>
             <Select value={bomPhase} onValueChange={(v) => setBomPhase(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="development">Development</SelectItem>
                 <SelectItem value="production">Production</SelectItem>
+                {isRouting && <SelectItem value="sample">Sample</SelectItem>}
               </SelectContent>
             </Select>
           </div>
 
-          {bomPhase === "production" && (
+          {!isRouting && bomPhase === "production" && (
             <>
               <div className="space-y-1.5">
                 <Label>Initial Routing</Label>
@@ -231,7 +242,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleCreate} disabled={!canCreate}>
-            {saving ? "Creating…" : "Create BOM"}
+            {saving ? "Creating…" : `Create ${isRouting ? "Routing" : "BOM"}`}
           </Button>
         </DialogFooter>
       </DialogContent>

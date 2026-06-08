@@ -20,15 +20,25 @@ export default function BOMHeaderCard({
   if (!bom) return null;
 
   const isProd = bom.bom_phase === "production";
+  const isSample = bom.bom_phase === "sample";
+  const isRouting = bom.bom_type === "routing";
   const ctx = bom.order_context || {};
+  const phaseLabel = isProd ? "PROD" : isSample ? "SAMPLE" : "DEV";
+  const phaseBg = isProd ? "#10B981" : isSample ? "#8B5CF6" : "#6B7280";
 
   return (
     <div className="rounded-xl border bg-card p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* Column 1 — Identity */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: isProd ? "#10B981" : "#6B7280", color: "#fff" }}>
-            {isProd ? "PROD" : "DEV"}
+          <span
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+            style={{ backgroundColor: isRouting ? "#6366F1" : "#0EA5E9", color: "#fff" }}
+          >
+            {isRouting ? "ROUTING" : "BOM"}
+          </span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: phaseBg, color: "#fff" }}>
+            {phaseLabel}
           </span>
           <StatusBadge value={bom.status} />
           <span className="font-mono text-xs text-muted-foreground">Rev {bom.revision_code || "—"} · v{bom.version || "—"}</span>

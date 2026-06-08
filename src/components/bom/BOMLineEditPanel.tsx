@@ -36,6 +36,17 @@ const getLovValues = (lovTypes: any[], lovValues: any[], code: string) => {
   return lovValues.filter(v => v.type_of_lov_id === t.id).map(v => v.name).sort();
 };
 
+const getRoleOptionsFiltered = (lovTypes: any[], lovValues: any[], bomType?: string) => {
+  const roleType = lovTypes.find(t => t.code === "bom_line_role");
+  const bomTypeType = lovTypes.find(t => t.code === "bom_type");
+  if (!roleType) return [];
+  const all = lovValues.filter(v => v.type_of_lov_id === roleType.id);
+  if (!bomTypeType || !bomType) return all.map(v => v.name).sort();
+  const match = lovValues.find(v => v.type_of_lov_id === bomTypeType.id && v.name === bomType);
+  if (!match) return all.map(v => v.name).sort();
+  return all.filter(v => !v.depends_on_value_id || v.depends_on_value_id === match.id).map(v => v.name).sort();
+};
+
 export default function BOMLineEditPanel({
   open, onClose, onUpdated, onDeleted, line: lineProp, bom, lovTypes, lovValues,
 }: Props) {
@@ -81,7 +92,7 @@ export default function BOMLineEditPanel({
       .then(({ count }) => setVariantCount(count ?? 0));
   }, [line?.id]);
 
-  const roleOptions = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_role"), [lovTypes, lovValues]);
+  const roleOptions = useMemo(() => getRoleOptionsFiltered(lovTypes, lovValues, bom?.bom_type), [lovTypes, lovValues, bom?.bom_type]);
   const uomOptions = useMemo(() => getLovValues(lovTypes, lovValues, "uom"), [lovTypes, lovValues]);
   const resolutionModeOptions = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_resolution_mode"), [lovTypes, lovValues]);
 
@@ -223,6 +234,22 @@ export default function BOMLineEditPanel({
                 </SelectContent>
               </Select>
             </div>
+
+            {bom?.bom_type === "routing" && (
+              <div>
+                <label className={cn("flex items-center gap-2 text-sm", !editable && "opacity-60 cursor-not-allowed")}>
+                  <Checkbox
+                    checked={line.ships_to_next !== false}
+                    onCheckedChange={(c) => updateFields({ ships_to_next: !!c })}
+                    disabled={!editable}
+                  />
+                  Ships output to next step
+                </label>
+                <p className="text-[10px] text-muted-foreground mt-1 ml-6">
+                  Untick for a parallel operation that does not feed the next step.
+                </p>
+              </div>
+            )}
 
             <div>
               <Label className="text-xs">Line-level Approved Supplier</Label>
