@@ -101,6 +101,7 @@ export default function BOMLineAddDialog({
       varies_by_size: variesBySize,
       varies_by_color_and_more: variesByColorAndMore,
       varies_by_supplier: variesBySupplier,
+      ships_to_next: isRouting ? true : null,
       notes: notes || null,
     }).select().single();
 
