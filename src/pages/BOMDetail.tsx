@@ -339,7 +339,21 @@ export default function BOMDetail() {
   const approvedSupplierById = useMemo(() => new Map(approvedSuppliers.map(a => [a.id, a])), [approvedSuppliers]);
   const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
 
-  const roleLov = useMemo(() => getLovValues(lovTypes, lovValues, "bom_line_role"), [lovTypes, lovValues]);
+  // Filter roles by bom_type via list_of_values.depends_on_value_id chain.
+  // The role LOV value depends on a `bom_type` LOV value whose name matches bom.bom_type.
+  const roleLov = useMemo(() => {
+    const roleType = lovTypes.find(t => t.code === "bom_line_role");
+    const bomTypeType = lovTypes.find(t => t.code === "bom_type");
+    if (!roleType) return [];
+    const allRoles = lovValues.filter(v => v.type_of_lov_id === roleType.id);
+    if (!bomTypeType || !bom?.bom_type) return allRoles.map(v => v.name).sort();
+    const matchingBomTypeValue = lovValues.find(
+      v => v.type_of_lov_id === bomTypeType.id && v.name === bom.bom_type,
+    );
+    if (!matchingBomTypeValue) return allRoles.map(v => v.name).sort();
+    const filtered = allRoles.filter(v => !v.depends_on_value_id || v.depends_on_value_id === matchingBomTypeValue.id);
+    return filtered.map(v => v.name).sort();
+  }, [lovTypes, lovValues, bom?.bom_type]);
 
   const filteredLines = useMemo(() => {
     return bomLines.filter(l => {
