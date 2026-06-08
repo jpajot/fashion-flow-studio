@@ -152,6 +152,11 @@ export default function BOMLineAddDialog({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{c.name}</p>
+                    {isRouting && (c.category || c.sub_category) && (
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {[c.category, c.sub_category].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
                   </div>
                   {c.type && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground shrink-0">
