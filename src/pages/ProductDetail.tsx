@@ -645,7 +645,8 @@ export default function ProductDetail() {
         />
       )}
       {!isNew && activeTab === "suppliers" && <ProductSuppliersTab product={product} colorVariants={colorways} />}
-      {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} />}
+      {!isNew && activeTab === "boms" && <ProductBomsTab productId={product.id} bomType="bom" />}
+      {!isNew && activeTab === "routings" && <ProductBomsTab productId={product.id} bomType="routing" />}
       {!isNew && activeTab === "samples" && <ProductSamplesTab product={product} />}
 
       {/* Modals */}
