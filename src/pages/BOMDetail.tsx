@@ -425,6 +425,28 @@ export default function BOMDetail() {
         return <span className="text-xs">{sup?.name || "—"}</span>;
       }
     },
+    ...(isRouting ? [{
+      id: "ships_to_next", label: "Ships to next", width: 120,
+      render: (l: any) => {
+        const checked = l.ships_to_next !== false;
+        const toggle = async () => {
+          if (!isBomEditable(bom)) return;
+          const next = !checked;
+          await supabase.from("bom_lines").update({ ships_to_next: next }).eq("id", l.id);
+          setBomLines(prev => prev.map(x => x.id === l.id ? { ...x, ships_to_next: next } : x));
+        };
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggle(); }}
+            className={`text-[10px] px-2 py-0.5 rounded-full border ${checked ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}
+            title={checked ? "Ships output to next step" : "Parallel — does not feed next step"}
+          >
+            {checked ? "→ Next" : "Parallel"}
+          </button>
+        );
+      }
+    }] : []),
     { id: "actions", label: "", width: 60,
       render: (l: any) => (
         <div className="flex items-center justify-end gap-1">
@@ -437,7 +459,7 @@ export default function BOMDetail() {
         </div>
       )
     },
-  ]), [productById, approvedSupplierById, supplierById, bom]);
+  ]), [productById, approvedSupplierById, supplierById, bom, isRouting]);
 
   const handleDelete = async () => {
     if (!bom) return;
