@@ -395,7 +395,7 @@ export default function BOMDetail() {
         <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground">{l.component_role.replace(/_/g, " ")}</span>
       ) : <span className="text-muted-foreground/40">—</span>
     },
-    { id: "quantity", label: "Qty", width: 110, sortKey: (l: any) => l.base_quantity,
+    { id: "quantity", label: isRouting ? "Qty / Time" : "Qty", width: 110, sortKey: (l: any) => l.base_quantity,
       render: (l: any) => {
         const cp = productById.get(l.component_product_id);
         const effectiveUom = l.uom || cp?.default_uom || "—";
