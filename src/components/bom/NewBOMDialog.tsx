@@ -124,7 +124,7 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New BOM</DialogTitle>
+          <DialogTitle>{isRouting ? "New Routing" : "New BOM"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -155,17 +155,23 @@ export default function NewBOMDialog({ open, onClose, onCreated, prefilledProduc
           )}
 
           <div className="space-y-1.5">
-            <Label>BOM Phase</Label>
+            <Label>Name {isRouting ? "(optional)" : "(optional)"}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={isRouting ? "e.g. Main assembly routing" : "e.g. Default BOM"} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{isRouting ? "Routing Phase" : "BOM Phase"}</Label>
             <Select value={bomPhase} onValueChange={(v) => setBomPhase(v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="development">Development</SelectItem>
                 <SelectItem value="production">Production</SelectItem>
+                {isRouting && <SelectItem value="sample">Sample</SelectItem>}
               </SelectContent>
             </Select>
           </div>
 
-          {bomPhase === "production" && (
+          {!isRouting && bomPhase === "production" && (
             <>
               <div className="space-y-1.5">
                 <Label>Initial Routing</Label>
