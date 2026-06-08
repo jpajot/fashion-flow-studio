@@ -321,7 +321,7 @@ export default function BOMDetail() {
     } else if (activeTab === "lines") {
       setOptions({
         items: isBomEditable(bom)
-          ? [{ label: "Add Line", icon: Plus, onClick: () => setShowAddLine(true), className: "text-primary hover:bg-primary/10" }]
+          ? [{ label: addLabel, icon: Plus, onClick: () => setShowAddLine(true), className: "text-primary hover:bg-primary/10" }]
           : [],
       });
     } else {
