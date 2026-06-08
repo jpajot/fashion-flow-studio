@@ -726,7 +726,7 @@ export default function BOMDetail() {
             {bomLines.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-xl border border-dashed">
                 <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground mb-3">No lines yet. Add the first {componentNoun.toLowerCase()}.</p>
+                <p className="text-sm text-muted-foreground mb-3">{isRouting ? "No operations yet. Add an operation to get started." : "No lines yet. Add the first component."}</p>
                 {isBomEditable(bom) && (
                   <Button onClick={() => setShowAddLine(true)} className="gap-1.5">
                     <Plus className="w-4 h-4" /> {addLabel}
