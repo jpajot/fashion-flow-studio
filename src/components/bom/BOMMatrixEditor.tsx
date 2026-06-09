@@ -187,6 +187,7 @@ interface Props {
   onEditLine?: (line: any) => void;
   user?: any;
   externalSearch?: string;
+  onAssignLineSupplier?: (lineId: string) => void;
 }
 
 export default function BOMMatrixEditor({
@@ -199,6 +200,7 @@ export default function BOMMatrixEditor({
   onReorderLines, onEditLineSaved, onEditLine,
   allSizes = [],
   externalSearch = "",
+  onAssignLineSupplier,
 }: Props) {
   const [inlineConfirm, setInlineConfirm] = useState<any>(null);
 
