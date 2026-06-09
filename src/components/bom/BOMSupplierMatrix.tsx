@@ -63,7 +63,7 @@ export default function BOMSupplierMatrix({
       for (const line of bomLines) {
         for (const pv of parentVendors) {
           const variant = bomLineVariants.find((v: any) => v.bom_line_id === line.id && v.parent_approved_supplier_id === pv.id);
-          const cacheKey = variant?.id || `${line.id}:${pv.id}`;
+          const cacheKey = variant?.id || `${line.id}:${pv.id}:${line.line_level_approved_supplier_id || "none"}`;
           if (supplierCache[cacheKey]) continue;
           let asId = variant?.approved_supplier_id || line.line_level_approved_supplier_id;
           if (!asId) {
