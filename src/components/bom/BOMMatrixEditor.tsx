@@ -393,6 +393,7 @@ export default function BOMMatrixEditor({
           onUpdateLine={onUpdateLine}
           onUpsertVariant={onUpsertVariant}
           getUom={getUom}
+          onAssignLineSupplier={onAssignLineSupplier}
         />
       </div>
     );
