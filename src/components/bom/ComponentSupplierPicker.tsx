@@ -173,6 +173,8 @@ function CreateApprovedSupplierInline({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existing, setExisting] = useState<any | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -186,6 +188,29 @@ function CreateApprovedSupplierInline({
 
   // Show all suppliers (no filtering for "already approved" — user wants the full list visible)
   const availSuppliers = suppliers;
+
+  // When supplier changes, check if (product_id, supplier_id) row already exists
+  useEffect(() => {
+    if (!supplierId) { setExisting(null); return; }
+    let cancelled = false;
+    setChecking(true);
+    supabase
+      .from("approved_suppliers")
+      .select("id, is_primary, rank, unit_cost, currency_id")
+      .eq("product_id", componentProductId)
+      .eq("supplier_id", supplierId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setExisting(data ?? null);
+        setChecking(false);
+      });
+    return () => { cancelled = true; };
+  }, [supplierId, componentProductId]);
+
+  const isUniqueViolation = (err: any) =>
+    err?.code === "23505" ||
+    (typeof err?.message === "string" && err.message.includes("approved_suppliers_product_supplier_unique"));
 
   const handleCreate = async () => {
     if (!supplierId) { setError("Pick a supplier"); return; }
@@ -205,7 +230,20 @@ function CreateApprovedSupplierInline({
       approved_at: new Date().toISOString(),
     }).select().single();
     setSaving(false);
-    if (err) { setError(err.message); return; }
+    if (err) {
+      if (isUniqueViolation(err)) {
+        // Re-fetch the existing row so the UI can offer "Use this approved supplier"
+        const { data: existingRow } = await supabase
+          .from("approved_suppliers")
+          .select("id, is_primary, rank, unit_cost, currency_id")
+          .eq("product_id", componentProductId)
+          .eq("supplier_id", supplierId)
+          .maybeSingle();
+        if (existingRow) { setExisting(existingRow); return; }
+      }
+      setError(err.message);
+      return;
+    }
     if (data?.id) onCreated(data.id);
   };
 
@@ -231,41 +269,71 @@ function CreateApprovedSupplierInline({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label className="text-[11px]">Unit cost</Label>
-            <Input type="number" step="any" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="h-8 text-xs mt-1" />
+        {existing ? (
+          <div className="rounded-md border border-border bg-muted/40 p-2.5 space-y-2">
+            <p className="text-[11px] text-foreground">
+              This supplier is already approved for this {isService ? "operation" : "product"}. You can assign it to this line instead.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1 h-7 text-xs"
+                onClick={() => onCreated(existing.id)}
+              >
+                Use this approved supplier
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => { setSupplierId(""); setExisting(null); }}
+              >
+                Choose another supplier
+              </Button>
+            </div>
           </div>
-          <div>
-            <Label className="text-[11px]">Currency</Label>
-            <Select value={currencyId} onValueChange={setCurrencyId}>
-              <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent className="z-[10000]">
-                {currencies.map(c => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-[11px]">Lead time (days)</Label>
-            <Input type="number" value={leadTime} onChange={(e) => setLeadTime(e.target.value)} className="h-8 text-xs mt-1" />
-          </div>
-          <div>
-            <Label className="text-[11px]">MOQ</Label>
-            <Input type="number" value={moq} onChange={(e) => setMoq(e.target.value)} className="h-8 text-xs mt-1" />
-          </div>
-        </div>
-        <div>
-          <Label className="text-[11px]">Notes</Label>
-          <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-xs mt-1" />
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-[11px]">Unit cost</Label>
+                <Input type="number" step="any" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="h-8 text-xs mt-1" />
+              </div>
+              <div>
+                <Label className="text-[11px]">Currency</Label>
+                <Select value={currencyId} onValueChange={setCurrencyId}>
+                  <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent className="z-[10000]">
+                    {currencies.map(c => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-[11px]">Lead time (days)</Label>
+                <Input type="number" value={leadTime} onChange={(e) => setLeadTime(e.target.value)} className="h-8 text-xs mt-1" />
+              </div>
+              <div>
+                <Label className="text-[11px]">MOQ</Label>
+                <Input type="number" value={moq} onChange={(e) => setMoq(e.target.value)} className="h-8 text-xs mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-[11px]">Notes</Label>
+              <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-xs mt-1" />
+            </div>
+          </>
+        )}
+        {checking && <p className="text-[10px] text-muted-foreground">Checking…</p>}
         {error && <p className="text-[11px] text-destructive">{error}</p>}
       </div>
-      <div className="px-3 py-2 border-t border-border flex gap-2">
-        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleCreate} disabled={saving || !supplierId}>
-          {saving ? "Creating…" : "Create & select"}
-        </Button>
-      </div>
+      {!existing && (
+        <div className="px-3 py-2 border-t border-border flex gap-2">
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onCancel} disabled={saving}>Cancel</Button>
+          <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleCreate} disabled={saving || !supplierId}>
+            {saving ? "Creating…" : "Create & select"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
