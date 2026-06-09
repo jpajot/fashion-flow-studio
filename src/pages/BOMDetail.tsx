@@ -904,6 +904,22 @@ export default function BOMDetail() {
         onChanged={loadAll}
       />
 
+      {pickerLine && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9997]" onClick={() => setSupplierPickerLineId(null)} />
+          <div className="fixed z-[9998]" style={{ top: "20%", left: "50%", transform: "translate(-50%, 0)" }}>
+            <ComponentSupplierPicker
+              componentProductId={pickerLine.component_product_id}
+              currentApprovedSupplierId={pickerLine.line_level_approved_supplier_id || null}
+              onSelect={(asId) => handleAssignLineSupplier(pickerLine.id, asId)}
+              onReset={() => handleResetLineSupplier(pickerLine.id)}
+              onClose={() => setSupplierPickerLineId(null)}
+            />
+          </div>
+        </>,
+        document.body
+      )}
+
     </div>
   );
 }
