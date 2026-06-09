@@ -112,12 +112,11 @@ export default function BOMDetail() {
     if (!bom) setActiveTab(b.bom_type === "routing" ? "lines" : "matrix");
     setBom(b);
 
-    const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap, tc, cc, apc] = await Promise.all([
+    const [prod, lines, rts, cws, sups, currs, lt, lv, ap, tc, cc, apc] = await Promise.all([
       supabase.from("products").select("*").eq("id", b.product_id).single(),
       supabase.from("bom_lines").select("*").eq("bom_id", b.id).order("position"),
       supabase.from("boms").select("*").eq("product_id", b.product_id).eq("bom_type", "routing"),
       supabase.from("product_colors").select("*").eq("product_id", b.product_id),
-      supabase.from("approved_suppliers").select("*").eq("product_id", b.product_id).order("rank"),
       supabase.from("suppliers").select("id,name"),
       supabase.from("currencies").select("id,code,name").eq("is_active", true).order("code"),
       supabase.from("type_of_lov").select("id,code"),
@@ -132,7 +131,6 @@ export default function BOMDetail() {
     setBomLines(lines.data ?? []);
     setRoutings(rts.data ?? []);
     setColorways(cws.data ?? []);
-    setApprovedSuppliers(apps.data ?? []);
     setSuppliers(sups.data ?? []);
     setCurrencies(currs.data ?? []);
     setLovTypes(lt.data ?? []);
