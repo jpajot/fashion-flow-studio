@@ -237,20 +237,19 @@ export default function BOMDetail() {
 
   useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, bomTitle);
 
-  // Persist matrix view state (debounced)
+  // Persist matrix view state (debounced) — direct update by viewStateId so it
+  // works regardless of whether (bom_id,user_id) has a unique constraint for upsert.
   useEffect(() => {
     if (!user?.id || !bom?.id || !viewStateId) return;
     const t = setTimeout(() => {
-      supabase.from("bom_matrix_view_states").upsert({
-        bom_id: bom.id,
-        user_id: user.id,
+      supabase.from("bom_matrix_view_states").update({
         row_axis: "bom_line",
         column_axis: columnAxis,
         secondary_column_axis: secondaryColumnAxis,
         filter_config: filterConfig,
         options_sidebar_groups_state: groupsState,
         last_used_at: new Date().toISOString(),
-      }, { onConflict: "bom_id,user_id" });
+      }).eq("id", viewStateId);
     }, 400);
     return () => clearTimeout(t);
   }, [columnAxis, secondaryColumnAxis, filterConfig, groupsState, viewStateId, bom?.id, user?.id]);
