@@ -173,6 +173,8 @@ function CreateApprovedSupplierInline({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existing, setExisting] = useState<any | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -186,6 +188,29 @@ function CreateApprovedSupplierInline({
 
   // Show all suppliers (no filtering for "already approved" — user wants the full list visible)
   const availSuppliers = suppliers;
+
+  // When supplier changes, check if (product_id, supplier_id) row already exists
+  useEffect(() => {
+    if (!supplierId) { setExisting(null); return; }
+    let cancelled = false;
+    setChecking(true);
+    supabase
+      .from("approved_suppliers")
+      .select("id, is_primary, rank, unit_cost, currency_id")
+      .eq("product_id", componentProductId)
+      .eq("supplier_id", supplierId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setExisting(data ?? null);
+        setChecking(false);
+      });
+    return () => { cancelled = true; };
+  }, [supplierId, componentProductId]);
+
+  const isUniqueViolation = (err: any) =>
+    err?.code === "23505" ||
+    (typeof err?.message === "string" && err.message.includes("approved_suppliers_product_supplier_unique"));
 
   const handleCreate = async () => {
     if (!supplierId) { setError("Pick a supplier"); return; }
@@ -205,7 +230,20 @@ function CreateApprovedSupplierInline({
       approved_at: new Date().toISOString(),
     }).select().single();
     setSaving(false);
-    if (err) { setError(err.message); return; }
+    if (err) {
+      if (isUniqueViolation(err)) {
+        // Re-fetch the existing row so the UI can offer "Use this approved supplier"
+        const { data: existingRow } = await supabase
+          .from("approved_suppliers")
+          .select("id, is_primary, rank, unit_cost, currency_id")
+          .eq("product_id", componentProductId)
+          .eq("supplier_id", supplierId)
+          .maybeSingle();
+        if (existingRow) { setExisting(existingRow); return; }
+      }
+      setError(err.message);
+      return;
+    }
     if (data?.id) onCreated(data.id);
   };
 
