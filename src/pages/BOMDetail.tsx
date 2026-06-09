@@ -29,6 +29,8 @@ import BOMCreateProdBOMDialog from "@/components/bom/BOMCreateProdBOMDialog";
 import BOMChangeLogTab from "@/components/bom/BOMChangeLogTab";
 import MfgOpsTab from "@/components/bom/MfgOpsTab";
 import SortableRoutingLinesTable from "@/components/bom/SortableRoutingLinesTable";
+import ComponentSupplierPicker from "@/components/bom/ComponentSupplierPicker";
+import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 
