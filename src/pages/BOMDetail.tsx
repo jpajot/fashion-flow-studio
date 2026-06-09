@@ -29,6 +29,8 @@ import BOMCreateProdBOMDialog from "@/components/bom/BOMCreateProdBOMDialog";
 import BOMChangeLogTab from "@/components/bom/BOMChangeLogTab";
 import MfgOpsTab from "@/components/bom/MfgOpsTab";
 import SortableRoutingLinesTable from "@/components/bom/SortableRoutingLinesTable";
+import ComponentSupplierPicker from "@/components/bom/ComponentSupplierPicker";
+import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 
@@ -98,6 +100,7 @@ export default function BOMDetail() {
   const [showCreateProdBOM, setShowCreateProdBOM] = useState(false);
   const [showChangeRouting, setShowChangeRouting] = useState(false);
   const [preselectedRoutingId, setPreselectedRoutingId] = useState<string | null>(null);
+  const [supplierPickerLineId, setSupplierPickerLineId] = useState<string | null>(null);
 
 
   const loadAll = async () => {
@@ -234,20 +237,19 @@ export default function BOMDetail() {
 
   useRegisterSubNav(isNew ? [] : subNavItems, activeTab, setActiveTab, bomTitle);
 
-  // Persist matrix view state (debounced)
+  // Persist matrix view state (debounced) — direct update by viewStateId so it
+  // works regardless of whether (bom_id,user_id) has a unique constraint for upsert.
   useEffect(() => {
     if (!user?.id || !bom?.id || !viewStateId) return;
     const t = setTimeout(() => {
-      supabase.from("bom_matrix_view_states").upsert({
-        bom_id: bom.id,
-        user_id: user.id,
+      supabase.from("bom_matrix_view_states").update({
         row_axis: "bom_line",
         column_axis: columnAxis,
         secondary_column_axis: secondaryColumnAxis,
         filter_config: filterConfig,
         options_sidebar_groups_state: groupsState,
         last_used_at: new Date().toISOString(),
-      }, { onConflict: "bom_id,user_id" });
+      }).eq("id", viewStateId);
     }, 400);
     return () => clearTimeout(t);
   }, [columnAxis, secondaryColumnAxis, filterConfig, groupsState, viewStateId, bom?.id, user?.id]);
@@ -418,11 +420,31 @@ export default function BOMDetail() {
         );
       }
     },
-    { id: "supplier", label: "Line Supplier", width: 160,
+    { id: "supplier", label: isRouting ? "Supplier" : "Line Supplier", width: 200,
       render: (l: any) => {
-        if (!l.line_level_approved_supplier_id) return <span className="text-muted-foreground/40 text-xs">component default</span>;
-        const as = approvedSupplierById.get(l.line_level_approved_supplier_id);
+        const as = l.line_level_approved_supplier_id ? approvedSupplierById.get(l.line_level_approved_supplier_id) : null;
         const sup = as ? supplierById.get(as.supplier_id) : null;
+        if (isRouting) {
+          const editable = isBomEditable(bom);
+          return (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); if (editable) setSupplierPickerLineId(l.id); }}
+              disabled={!editable}
+              className={`w-full text-left text-xs px-2 py-1 rounded border transition-colors ${sup ? "border-border bg-background hover:bg-muted/50" : "border-dashed border-border/70 text-primary hover:bg-primary/5"}`}
+            >
+              {sup ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="font-medium truncate">{sup.name}</span>
+                  {as?.is_primary && <span className="text-[9px] px-1 rounded bg-primary/10 text-primary border border-primary/20">Primary</span>}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1"><Plus className="w-3 h-3" /> Assign supplier</span>
+              )}
+            </button>
+          );
+        }
+        if (!l.line_level_approved_supplier_id) return <span className="text-muted-foreground/40 text-xs">component default</span>;
         return <span className="text-xs">{sup?.name || "—"}</span>;
       }
     },
@@ -460,7 +482,33 @@ export default function BOMDetail() {
         </div>
       )
     },
-  ]), [productById, approvedSupplierById, supplierById, bom, isRouting]);
+  ]), [productById, approvedSupplierById, supplierById, bom, isRouting, setSupplierPickerLineId]);
+
+  const pickerLine = supplierPickerLineId ? bomLines.find(l => l.id === supplierPickerLineId) : null;
+
+  const handleAssignLineSupplier = async (lineId: string, asId: string) => {
+    const { data } = await supabase.from("bom_lines").update({ line_level_approved_supplier_id: asId }).eq("id", lineId).select().single();
+    if (data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));
+    // Make sure the chosen approved_supplier row is in local cache (it may have been created inline)
+    if (!approvedSupplierById.has(asId)) {
+      const { data: newAs } = await supabase.from("approved_suppliers").select("*").eq("id", asId).maybeSingle();
+      if (newAs) {
+        setApprovedSuppliers(prev => [...prev, newAs]);
+        // Also ensure supplier name is loaded
+        if (newAs.supplier_id && !supplierById.has(newAs.supplier_id)) {
+          const { data: s } = await supabase.from("suppliers").select("id,name").eq("id", newAs.supplier_id).maybeSingle();
+          if (s) setSuppliers(prev => [...prev, s]);
+        }
+      }
+    }
+    setSupplierPickerLineId(null);
+  };
+
+  const handleResetLineSupplier = async (lineId: string) => {
+    const { data } = await supabase.from("bom_lines").update({ line_level_approved_supplier_id: null }).eq("id", lineId).select().single();
+    if (data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));
+    setSupplierPickerLineId(null);
+  };
 
   const handleDelete = async () => {
     if (!bom) return;
@@ -855,6 +903,22 @@ export default function BOMDetail() {
         user={user}
         onChanged={loadAll}
       />
+
+      {pickerLine && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9997]" onClick={() => setSupplierPickerLineId(null)} />
+          <div className="fixed z-[9998]" style={{ top: "20%", left: "50%", transform: "translate(-50%, 0)" }}>
+            <ComponentSupplierPicker
+              componentProductId={pickerLine.component_product_id}
+              currentApprovedSupplierId={pickerLine.line_level_approved_supplier_id || null}
+              onSelect={(asId) => handleAssignLineSupplier(pickerLine.id, asId)}
+              onReset={() => handleResetLineSupplier(pickerLine.id)}
+              onClose={() => setSupplierPickerLineId(null)}
+            />
+          </div>
+        </>,
+        document.body
+      )}
 
     </div>
   );
