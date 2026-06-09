@@ -342,6 +342,16 @@ export default function BOMDetail() {
 
   const productById = useMemo(() => new Map(allProducts.map(p => [p.id, p])), [allProducts]);
   const approvedSupplierById = useMemo(() => new Map(approvedSuppliers.map(a => [a.id, a])), [approvedSuppliers]);
+  const lineHasVariantOverride = useMemo(() => {
+    const map = new Map<string, boolean>();
+    const lineSupplier = new Map(bomLines.map((l: any) => [l.id, l.line_level_approved_supplier_id ?? null]));
+    for (const v of bomVariants) {
+      if (!v.approved_supplier_id) continue;
+      const ls = lineSupplier.get(v.bom_line_id);
+      if (v.approved_supplier_id !== ls) map.set(v.bom_line_id, true);
+    }
+    return map;
+  }, [bomVariants, bomLines]);
   const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
 
   // Filter roles by bom_type via list_of_values.depends_on_value_id chain.
