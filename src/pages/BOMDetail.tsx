@@ -482,7 +482,26 @@ export default function BOMDetail() {
         </div>
       )
     },
-  ]), [productById, approvedSupplierById, supplierById, bom, isRouting]);
+  ]), [productById, approvedSupplierById, supplierById, bom, isRouting, setSupplierPickerLineId]);
+
+  const pickerLine = supplierPickerLineId ? bomLines.find(l => l.id === supplierPickerLineId) : null;
+
+  const handleAssignLineSupplier = async (lineId: string, asId: string) => {
+    const { data } = await supabase.from("bom_lines").update({ line_level_approved_supplier_id: asId }).eq("id", lineId).select().single();
+    if (data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));
+    // Refresh approved suppliers in case a new one was just created inline
+    if (bom?.product_id) {
+      const { data: apps } = await supabase.from("approved_suppliers").select("*").order("rank");
+      if (apps) setApprovedSuppliers(apps.filter((a: any) => true));
+    }
+    setSupplierPickerLineId(null);
+  };
+
+  const handleResetLineSupplier = async (lineId: string) => {
+    const { data } = await supabase.from("bom_lines").update({ line_level_approved_supplier_id: null }).eq("id", lineId).select().single();
+    if (data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));
+    setSupplierPickerLineId(null);
+  };
 
   const handleDelete = async () => {
     if (!bom) return;
