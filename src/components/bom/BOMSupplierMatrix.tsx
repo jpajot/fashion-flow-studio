@@ -154,8 +154,11 @@ export default function BOMSupplierMatrix({
           <thead className="sticky top-0 z-[2] bg-card border-b border-border shadow-sm">
             <tr>
               <th className="px-3 py-2.5 w-8 sticky left-0 bg-card z-[3]"></th>
-              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground sticky left-8 bg-card z-[3] min-w-[220px]">Component</th>
-              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground w-20">Base Qty</th>
+              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground sticky left-8 bg-card z-[3] min-w-[220px]">{isRouting ? "Operation" : "Component"}</th>
+              {isRouting && (
+                <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground min-w-[180px]">Supplier</th>
+              )}
+              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground w-20">{isRouting ? "Qty / Time" : "Base Qty"}</th>
               <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground w-16">UOM</th>
               {parentVendors.map((pv: any) => {
                 const sup = parentSupplierMap[pv.supplier_id];
