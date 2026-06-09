@@ -225,7 +225,7 @@ export default function BOMSupplierMatrix({
                     const variant = getVariantForCell(line.id, pv.id);
                     const isNA = variant?.is_not_applicable === true;
                     const cellKey = `${line.id}-${pv.id}`;
-                    const cacheKey = variant?.id || `${line.id}:${pv.id}`;
+                    const cacheKey = variant?.id || `${line.id}:${pv.id}:${line.line_level_approved_supplier_id || "none"}`;
                     const cached = supplierCache[cacheKey];
 
                     if (isNA) {
