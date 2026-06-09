@@ -108,6 +108,8 @@ export default function BOMDetail() {
     setLoading(true);
     const { data: b } = await supabase.from("boms").select("*").eq("id", id).single();
     if (!b) { setLoading(false); return; }
+    // First-time default view: routings open on lines list, BOMs on matrix
+    if (!bom) setActiveTab(b.bom_type === "routing" ? "lines" : "matrix");
     setBom(b);
 
     const [prod, lines, rts, cws, apps, sups, currs, lt, lv, ap, tc, cc, apc] = await Promise.all([

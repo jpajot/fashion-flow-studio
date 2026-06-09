@@ -177,15 +177,15 @@ function CreateApprovedSupplierInline({
   useEffect(() => {
     Promise.all([
       supabase.from("suppliers").select("id,name,code").order("name"),
-      supabase.from("currencies").select("id,code").eq("is_active", true).order("code"),
+      supabase.from("currencies").select("id,code").order("code"),
     ]).then(([s, c]) => {
       setSuppliers(s.data ?? []);
       setCurrencies(c.data ?? []);
     });
   }, []);
 
-  const usedSet = new Set(existingSupplierIds);
-  const availSuppliers = suppliers.filter(s => !usedSet.has(s.id));
+  // Show all suppliers (no filtering for "already approved" — user wants the full list visible)
+  const availSuppliers = suppliers;
 
   const handleCreate = async () => {
     if (!supplierId) { setError("Pick a supplier"); return; }
@@ -224,7 +224,7 @@ function CreateApprovedSupplierInline({
           <Label className="text-[11px]">Supplier *</Label>
           <Select value={supplierId} onValueChange={setSupplierId}>
             <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="Select supplier…" /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[10000]">
               {availSuppliers.map(s => (
                 <SelectItem key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ""}</SelectItem>
               ))}
@@ -240,7 +240,7 @@ function CreateApprovedSupplierInline({
             <Label className="text-[11px]">Currency</Label>
             <Select value={currencyId} onValueChange={setCurrencyId}>
               <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[10000]">
                 {currencies.map(c => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}
               </SelectContent>
             </Select>
