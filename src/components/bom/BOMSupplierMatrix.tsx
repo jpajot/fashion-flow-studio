@@ -21,7 +21,9 @@ export default function BOMSupplierMatrix({
   onUpdateLine,
   onUpsertVariant,
   getUom,
+  onAssignLineSupplier,
 }: any) {
+  const isRouting = bom?.bom_type === "routing";
   const [parentVendors, setParentVendors] = useState<any[]>([]);
   const [parentSupplierMap, setParentSupplierMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
