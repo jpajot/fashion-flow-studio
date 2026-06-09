@@ -145,6 +145,10 @@ export default function BOMDetail() {
 
 
 
+    const productIds = Array.from(new Set([b.product_id, ...(lines.data ?? []).map((l: any) => l.component_product_id).filter(Boolean)]));
+    const { data: allApps } = await supabase.from("approved_suppliers").select("*").in("product_id", productIds).order("rank");
+    setApprovedSuppliers(allApps ?? []);
+
     if (lines.data?.length) {
       const { data: vars } = await supabase.from("bom_line_variants").select("*").in("bom_line_id", lines.data.map(l => l.id));
       setBomVariants(vars ?? []);
