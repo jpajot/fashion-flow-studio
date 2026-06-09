@@ -100,6 +100,7 @@ export default function BOMDetail() {
   const [showCreateProdBOM, setShowCreateProdBOM] = useState(false);
   const [showChangeRouting, setShowChangeRouting] = useState(false);
   const [preselectedRoutingId, setPreselectedRoutingId] = useState<string | null>(null);
+  const [supplierPickerLineId, setSupplierPickerLineId] = useState<string | null>(null);
 
 
   const loadAll = async () => {
