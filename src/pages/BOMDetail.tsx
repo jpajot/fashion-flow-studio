@@ -614,6 +614,7 @@ export default function BOMDetail() {
             onSecondaryAxisChange={setSecondaryColumnAxis}
             showSourcing={true}
             showRevisionSnapshots={false}
+            onAssignLineSupplier={(lineId: string) => setSupplierPickerLineId(lineId)}
             onUpdateLine={async (lineId: string, updates: any) => {
               const { data, error } = await supabase.from("bom_lines").update(updates).eq("id", lineId).select().single();
               if (!error && data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));

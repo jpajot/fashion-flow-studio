@@ -21,7 +21,9 @@ export default function BOMSupplierMatrix({
   onUpdateLine,
   onUpsertVariant,
   getUom,
+  onAssignLineSupplier,
 }: any) {
+  const isRouting = bom?.bom_type === "routing";
   const [parentVendors, setParentVendors] = useState<any[]>([]);
   const [parentSupplierMap, setParentSupplierMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function BOMSupplierMatrix({
       for (const line of bomLines) {
         for (const pv of parentVendors) {
           const variant = bomLineVariants.find((v: any) => v.bom_line_id === line.id && v.parent_approved_supplier_id === pv.id);
-          const cacheKey = variant?.id || `${line.id}:${pv.id}`;
+          const cacheKey = variant?.id || `${line.id}:${pv.id}:${line.line_level_approved_supplier_id || "none"}`;
           if (supplierCache[cacheKey]) continue;
           let asId = variant?.approved_supplier_id || line.line_level_approved_supplier_id;
           if (!asId) {
@@ -152,8 +154,11 @@ export default function BOMSupplierMatrix({
           <thead className="sticky top-0 z-[2] bg-card border-b border-border shadow-sm">
             <tr>
               <th className="px-3 py-2.5 w-8 sticky left-0 bg-card z-[3]"></th>
-              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground sticky left-8 bg-card z-[3] min-w-[220px]">Component</th>
-              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground w-20">Base Qty</th>
+              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground sticky left-8 bg-card z-[3] min-w-[220px]">{isRouting ? "Operation" : "Component"}</th>
+              {isRouting && (
+                <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground min-w-[180px]">Supplier</th>
+              )}
+              <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground w-20">{isRouting ? "Qty / Time" : "Base Qty"}</th>
               <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground w-16">UOM</th>
               {parentVendors.map((pv: any) => {
                 const sup = parentSupplierMap[pv.supplier_id];
@@ -173,8 +178,8 @@ export default function BOMSupplierMatrix({
           <tbody>
             {bomLines.length === 0 ? (
               <tr>
-                <td colSpan={4 + parentVendors.length + 1} className="px-4 py-12 text-center text-muted-foreground">
-                  No component lines yet.
+                <td colSpan={4 + (isRouting ? 1 : 0) + parentVendors.length + 1} className="px-4 py-12 text-center text-muted-foreground">
+                  {isRouting ? "No operations yet." : "No component lines yet."}
                 </td>
               </tr>
             ) : bomLines.map((line: any) => {
@@ -208,6 +213,46 @@ export default function BOMSupplierMatrix({
                       </div>
                     </div>
                   </td>
+                  {isRouting && (() => {
+                    const lineAs = line.line_level_approved_supplier_id
+                      ? bomLines && parentSupplierMap // noop guard
+                      : null;
+                    const asObj = line.line_level_approved_supplier_id
+                      ? null
+                      : null;
+                    // Resolve via cached entries: any cacheKey for this line carries `as` when line-level is set
+                    const cachedEntry = Object.entries(supplierCache).find(([k, v]: any) => k.startsWith(`${line.id}:`) && v?.as?.id === line.line_level_approved_supplier_id);
+                    const cachedSup = (cachedEntry?.[1] as any)?.supplier;
+                    const cachedAs = (cachedEntry?.[1] as any)?.as;
+                    return (
+                      <td className="px-3 py-2 min-w-[180px]">
+                        {isReadOnly ? (
+                          <span className="text-xs">{cachedSup?.name || "—"}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onAssignLineSupplier?.(line.id)}
+                            className={`w-full text-left px-2 py-1 rounded border text-xs transition-colors ${
+                              line.line_level_approved_supplier_id
+                                ? "border-border hover:border-primary/60 hover:bg-primary/5"
+                                : "border-2 border-dashed border-amber-300 bg-amber-50/50 hover:border-primary/60 hover:bg-primary/5 text-amber-700"
+                            }`}
+                          >
+                            {line.line_level_approved_supplier_id ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium truncate">{cachedSup?.name || "Supplier"}</span>
+                                {cachedAs?.supplier_reference && (
+                                  <span className="text-[10px] text-muted-foreground font-mono truncate">{cachedAs.supplier_reference}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span>+ Assign supplier</span>
+                            )}
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })()}
                   <td className="px-3 py-2 w-20">
                     {isReadOnly ? (
                       <span className="text-foreground text-xs">{line.base_quantity ?? "—"}</span>
@@ -223,7 +268,7 @@ export default function BOMSupplierMatrix({
                     const variant = getVariantForCell(line.id, pv.id);
                     const isNA = variant?.is_not_applicable === true;
                     const cellKey = `${line.id}-${pv.id}`;
-                    const cacheKey = variant?.id || `${line.id}:${pv.id}`;
+                    const cacheKey = variant?.id || `${line.id}:${pv.id}:${line.line_level_approved_supplier_id || "none"}`;
                     const cached = supplierCache[cacheKey];
 
                     if (isNA) {
