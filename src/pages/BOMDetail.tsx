@@ -342,6 +342,16 @@ export default function BOMDetail() {
 
   const productById = useMemo(() => new Map(allProducts.map(p => [p.id, p])), [allProducts]);
   const approvedSupplierById = useMemo(() => new Map(approvedSuppliers.map(a => [a.id, a])), [approvedSuppliers]);
+  const lineHasVariantOverride = useMemo(() => {
+    const map = new Map<string, boolean>();
+    const lineSupplier = new Map(bomLines.map((l: any) => [l.id, l.line_level_approved_supplier_id ?? null]));
+    for (const v of bomVariants) {
+      if (!v.approved_supplier_id) continue;
+      const ls = lineSupplier.get(v.bom_line_id);
+      if (v.approved_supplier_id !== ls) map.set(v.bom_line_id, true);
+    }
+    return map;
+  }, [bomVariants, bomLines]);
   const supplierById = useMemo(() => new Map(suppliers.map(s => [s.id, s])), [suppliers]);
 
   // Filter roles by bom_type via list_of_values.depends_on_value_id chain.
@@ -428,22 +438,30 @@ export default function BOMDetail() {
         const sup = as ? supplierById.get(as.supplier_id) : null;
         if (isRouting) {
           const editable = isBomEditable(bom);
+          const hasOverride = lineHasVariantOverride.get(l.id);
           return (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); if (editable) setSupplierPickerLineId(l.id); }}
-              disabled={!editable}
-              className={`w-full text-left text-xs px-2 py-1 rounded border transition-colors ${sup ? "border-border bg-background hover:bg-muted/50" : "border-dashed border-border/70 text-primary hover:bg-primary/5"}`}
-            >
-              {sup ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="font-medium truncate">{sup.name}</span>
-                  {as?.is_primary && <span className="text-[9px] px-1 rounded bg-primary/10 text-primary border border-primary/20">Primary</span>}
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); if (editable) setSupplierPickerLineId(l.id); }}
+                disabled={!editable}
+                className={`w-full text-left text-xs px-2 py-1 rounded border transition-colors ${sup ? "border-border bg-background hover:bg-muted/50" : "border-dashed border-border/70 text-primary hover:bg-primary/5"}`}
+              >
+                {sup ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-medium truncate">{sup.name}</span>
+                    {as?.is_primary && <span className="text-[9px] px-1 rounded bg-primary/10 text-primary border border-primary/20">Primary</span>}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1"><Plus className="w-3 h-3" /> Assign supplier</span>
+                )}
+              </button>
+              {hasOverride && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 self-start">
+                  ⚠ Variants override exist
                 </span>
-              ) : (
-                <span className="flex items-center gap-1"><Plus className="w-3 h-3" /> Assign supplier</span>
               )}
-            </button>
+            </div>
           );
         }
         if (!l.line_level_approved_supplier_id) return <span className="text-muted-foreground/40 text-xs">component default</span>;
@@ -484,7 +502,7 @@ export default function BOMDetail() {
         </div>
       )
     },
-  ]), [productById, approvedSupplierById, supplierById, bom, isRouting, setSupplierPickerLineId]);
+  ]), [productById, approvedSupplierById, supplierById, bom, isRouting, setSupplierPickerLineId, lineHasVariantOverride]);
 
   const pickerLine = supplierPickerLineId ? bomLines.find(l => l.id === supplierPickerLineId) : null;
 
