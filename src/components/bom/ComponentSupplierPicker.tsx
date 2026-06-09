@@ -177,15 +177,15 @@ function CreateApprovedSupplierInline({
   useEffect(() => {
     Promise.all([
       supabase.from("suppliers").select("id,name,code").order("name"),
-      supabase.from("currencies").select("id,code").eq("is_active", true).order("code"),
+      supabase.from("currencies").select("id,code").order("code"),
     ]).then(([s, c]) => {
       setSuppliers(s.data ?? []);
       setCurrencies(c.data ?? []);
     });
   }, []);
 
-  const usedSet = new Set(existingSupplierIds);
-  const availSuppliers = suppliers.filter(s => !usedSet.has(s.id));
+  // Show all suppliers (no filtering for "already approved" — user wants the full list visible)
+  const availSuppliers = suppliers;
 
   const handleCreate = async () => {
     if (!supplierId) { setError("Pick a supplier"); return; }
