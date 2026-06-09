@@ -178,8 +178,8 @@ export default function BOMSupplierMatrix({
           <tbody>
             {bomLines.length === 0 ? (
               <tr>
-                <td colSpan={4 + parentVendors.length + 1} className="px-4 py-12 text-center text-muted-foreground">
-                  No component lines yet.
+                <td colSpan={4 + (isRouting ? 1 : 0) + parentVendors.length + 1} className="px-4 py-12 text-center text-muted-foreground">
+                  {isRouting ? "No operations yet." : "No component lines yet."}
                 </td>
               </tr>
             ) : bomLines.map((line: any) => {
