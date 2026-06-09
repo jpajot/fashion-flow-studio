@@ -489,10 +489,17 @@ export default function BOMDetail() {
   const handleAssignLineSupplier = async (lineId: string, asId: string) => {
     const { data } = await supabase.from("bom_lines").update({ line_level_approved_supplier_id: asId }).eq("id", lineId).select().single();
     if (data) setBomLines(prev => prev.map(l => l.id === lineId ? data : l));
-    // Refresh approved suppliers in case a new one was just created inline
-    if (bom?.product_id) {
-      const { data: apps } = await supabase.from("approved_suppliers").select("*").order("rank");
-      if (apps) setApprovedSuppliers(apps.filter((a: any) => true));
+    // Make sure the chosen approved_supplier row is in local cache (it may have been created inline)
+    if (!approvedSupplierById.has(asId)) {
+      const { data: newAs } = await supabase.from("approved_suppliers").select("*").eq("id", asId).maybeSingle();
+      if (newAs) {
+        setApprovedSuppliers(prev => [...prev, newAs]);
+        // Also ensure supplier name is loaded
+        if (newAs.supplier_id && !supplierById.has(newAs.supplier_id)) {
+          const { data: s } = await supabase.from("suppliers").select("id,name").eq("id", newAs.supplier_id).maybeSingle();
+          if (s) setSuppliers(prev => [...prev, s]);
+        }
+      }
     }
     setSupplierPickerLineId(null);
   };
