@@ -515,7 +515,7 @@ export default function BOMDetail() {
         </div>
       )
     },
-  ]), [productById, approvedSupplierById, supplierById, bom, isRouting, setSupplierPickerLineId, lineHasVariantOverride]);
+  ]), [productById, approvedSupplierById, primaryASByProductId, supplierById, bom, isRouting, setSupplierPickerLineId, lineHasVariantOverride]);
 
   const pickerLine = supplierPickerLineId ? bomLines.find(l => l.id === supplierPickerLineId) : null;
 
