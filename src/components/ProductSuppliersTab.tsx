@@ -16,10 +16,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SupplierStatusBadge } from "@/pages/Suppliers";
-import RoutingLifecycleSection from "@/components/supplier/RoutingLifecycleSection";
 import ProductColorSupplierLinkMatrix from "@/components/bom/ProductColorSupplierLinkMatrix";
 import {
-  Building2, GitBranch, LayoutGrid, Plus, Crown, ArrowUp,
+  Building2, LayoutGrid, Plus, Crown, ArrowUp,
   Pencil, Trash2, CheckCircle2, AlertTriangle, RefreshCw,
 } from "lucide-react";
 
@@ -31,22 +30,15 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
   const { setOptions } = usePageOptions();
   const [loading, setLoading] = useState(true);
   const [approvedSuppliers, setApprovedSuppliers] = useState<any[]>([]);
-  const [routings, setRoutings] = useState<any[]>([]);
-  const [routingSteps, setRoutingSteps] = useState<any[]>([]);
   const [allSuppliers, setAllSuppliers] = useState<any[]>([]);
   const [currencies, setCurrencies] = useState<any[]>([]);
   const [lovValues, setLovValues] = useState<any[]>([]);
   const [lovTypes, setLovTypes] = useState<any[]>([]);
-  const [selectedRoutingId, setSelectedRoutingId] = useState<string | null>(null);
   const [supplierModal, setSupplierModal] = useState<any>(null);
   const [delConfirm, setDelConfirm] = useState<any>(null);
-  const [delRouting, setDelRouting] = useState<any>(null);
 
   const loadData = async () => {
     setLoading(true);
-    // TODO(round 9.3): Load routings/routing steps from the new unified BOM model
-    // (boms.bom_type='routing' + bom_lines). supplier_routings / supplier_routing_steps
-    // were dropped from the schema.
     const [apps, sups, curs, lt, lv] = await Promise.all([
       supabase.from("approved_suppliers").select("*").eq("product_id", product.id).order("rank"),
       supabase.from("suppliers").select("*").order("name"),
@@ -55,12 +47,10 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
       supabase.from("list_of_values").select("*"),
     ]);
     setApprovedSuppliers((apps.data || []).sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99)));
-    setRoutings([]);
     setAllSuppliers(sups.data || []);
     setCurrencies(curs.data || []);
     setLovTypes(lt.data || []);
     setLovValues(lv.data || []);
-    setRoutingSteps([]);
     setLoading(false);
   };
 
@@ -70,7 +60,6 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
     setOptions({
       items: [
         { label: "Add Supplier", icon: Plus, onClick: () => openAddSupplier(), className: "text-primary hover:bg-primary/10" },
-        { label: "Add Routing", icon: GitBranch, onClick: () => { /* RoutingLifecycleSection has its own Add */ } },
         { divider: true },
         { label: "Refresh", icon: RefreshCw, onClick: loadData },
       ],
@@ -142,24 +131,6 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
     loadData();
   };
 
-  const handleToggleDefault = async (_routing: any) => {
-    // TODO(round 9.3): toggle default flag on the routing BOM record.
-    return;
-  };
-
-  const handleStatusChange = async (_routingId: string, _newStatus: string, _extra: any = {}) => {
-    // TODO(round 9.3): status transitions on routing BOMs.
-    return;
-  };
-
-  const handleDeleteRouting = async () => {
-    if (!delRouting) return;
-    // TODO(round 9.3): delete routing BOM + its bom_lines. supplier_routings/_steps no longer exist.
-    setDelRouting(null);
-    setSelectedRoutingId(null);
-    loadData();
-  };
-
   if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
   const moqUomOpts = getLovList(lovTypes, lovValues, "moq_uom");
@@ -170,43 +141,10 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
       {/* 0. Summary */}
       <SourcingSummary
         approvedSuppliers={approvedSuppliers}
-        routings={routings}
         allSuppliers={allSuppliers}
       />
 
-      {/* 1. Routings */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold flex items-center gap-2"><GitBranch className="w-4 h-4" />Manufacturing Routings</h3>
-        </div>
-        <RoutingLifecycleSection
-          mode="multi"
-          productId={product.id}
-          routings={routings}
-          routingSteps={routingSteps}
-          selectedRoutingId={selectedRoutingId}
-          setSelectedRoutingId={setSelectedRoutingId}
-          allSuppliers={allSuppliers}
-          currencies={currencies}
-          lovValues={lovValues}
-          lovTypes={lovTypes}
-          onToggleDefault={handleToggleDefault}
-          onStatusChange={handleStatusChange}
-          onAddStep={loadData}
-          onEditStep={loadData}
-          onDeleteRouting={(r: any) => setDelRouting(r)}
-          onNewRoutingAdded={(newR: any) => {
-            setRoutings((prev) => {
-              const existing = prev.find((x) => x.id === newR.id);
-              return existing ? prev : [...prev, newR];
-            });
-            setSelectedRoutingId(newR.id);
-            loadData();
-          }}
-        />
-      </div>
-
-      {/* 2. Approved Suppliers */}
+      {/* 1. Approved Suppliers */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold flex items-center gap-2"><Building2 className="w-4 h-4" />{product.type === "Service" ? "Approved suppliers for this operation" : "Approved Suppliers"}</h3>
@@ -266,7 +204,7 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
         )}
       </div>
 
-      {/* 3. Matrix */}
+      {/* 2. Matrix */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2"><LayoutGrid className="w-4 h-4" />Colorway Availability Matrix</h3>
         <ProductColorSupplierLinkMatrix
@@ -290,7 +228,7 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
         onSave={handleSaveSupplier}
       />
 
-      {/* Delete confirms */}
+      {/* Delete confirm */}
       <AlertDialog open={!!delConfirm} onOpenChange={(o) => !o && setDelConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -303,24 +241,9 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AlertDialog open={!!delRouting} onOpenChange={(o) => !o && setDelRouting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete routing?</AlertDialogTitle>
-            <AlertDialogDescription>All steps in this routing will be removed. This cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteRouting}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
-
-function READONLY(s?: string) { return ["released", "superseded", "obsolete"].includes(s || ""); }
 
 function getLovList(lovTypes: any[], lovValues: any[], code: string): string[] {
   const t = lovTypes.find((x) => x.code === code);
@@ -328,13 +251,11 @@ function getLovList(lovTypes: any[], lovValues: any[], code: string): string[] {
   return lovValues.filter((v) => v.type_of_lov_id === t.id).map((v) => v.name);
 }
 
-function SourcingSummary({ approvedSuppliers, routings, allSuppliers }: any) {
+function SourcingSummary({ approvedSuppliers, allSuppliers }: any) {
   const primary = approvedSuppliers.find((a: any) => a.is_primary);
-  const defaultRouting = routings.find((r: any) => r.is_default);
   const hasA = approvedSuppliers.length > 0;
-  const hasB = routings.length > 0;
-  const mode = hasA && hasB ? "Hybrid" : hasA ? "Single supplier" : hasB ? "Multi-supplier routing" : "Not configured";
-  const isReady = primary?.status === "active" || defaultRouting?.status === "released";
+  const mode = hasA ? "Single supplier" : "Not configured";
+  const isReady = primary?.status === "active";
   return (
     <div className={`rounded-xl border p-4 flex flex-wrap gap-4 items-center justify-between ${isReady ? "bg-green-50/50 border-green-200" : "bg-amber-50/50 border-amber-200"}`}>
       <div className="flex items-center gap-2">
@@ -343,14 +264,12 @@ function SourcingSummary({ approvedSuppliers, routings, allSuppliers }: any) {
           <p className="text-sm font-semibold">{mode}</p>
           <p className="text-xs text-muted-foreground">
             {!isReady ? "No active sourcing path — sourcing not ready" :
-              primary ? `Primary: ${allSuppliers.find((s: any) => s.id === primary.supplier_id)?.name || "—"}` :
-              defaultRouting ? `Default routing: ${defaultRouting.name}` : ""}
+              primary ? `Primary: ${allSuppliers.find((s: any) => s.id === primary.supplier_id)?.name || "—"}` : ""}
           </p>
         </div>
       </div>
       <div className="flex gap-4 text-center">
         <div><p className="text-lg font-bold">{approvedSuppliers.length}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wide">Suppliers</p></div>
-        <div><p className="text-lg font-bold">{routings.length}</p><p className="text-[10px] text-muted-foreground uppercase tracking-wide">Routings</p></div>
       </div>
     </div>
   );
