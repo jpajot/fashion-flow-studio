@@ -28,10 +28,9 @@ const cachedQuery = async (key: string, fn: () => Promise<any>, ttl = 60000): Pr
 interface Props {
   line: any;
   comp?: any;
-  uom?: string;
 }
 
-export default function BOMSourcingBlock({ line, uom }: Props) {
+export default function BOMSourcingBlock({ line }: Props) {
   const navigate = useNavigate();
   const [primarySupplier, setPrimarySupplier] = useState<any>(null);
   const [noSuppliers, setNoSuppliers] = useState(false);
