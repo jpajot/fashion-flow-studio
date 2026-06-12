@@ -510,7 +510,7 @@ export default function BOMMatrixEditor({
                         ))}
                       </div>
                       <SizeVariationControls line={line} allSizes={allSizes} isReadOnly={isReadOnly} onUpdateLine={onUpdateLine} />
-                      {showSourcing && <BOMSourcingBlock line={line} comp={comp} uom={uom} />}
+                      {showSourcing && <BOMSourcingBlock line={line} comp={comp} />}
                     </div>
                   </td>
                   <td className="px-3 py-2 w-20">
