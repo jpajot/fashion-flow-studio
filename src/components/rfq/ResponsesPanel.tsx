@@ -118,7 +118,7 @@ export default function ResponsesPanel({ line, rfq, productMap, stepMap, supplie
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border shrink-0">
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-snug">
-              Responses — {product?.code || "?"} / Step {step?.position}: {(step?.bom_line_role || "").replace(/_/g, " ")}
+              Responses — {product?.code || "?"} / Step {step?.position}: {(step?.component_role || "").replace(/_/g, " ")}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Recipient: {supplier?.name || "—"}</p>
           </div>

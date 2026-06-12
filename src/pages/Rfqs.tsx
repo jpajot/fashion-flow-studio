@@ -60,7 +60,7 @@ function TrackingBoard() {
       supabase.from("products").select("id,code,name,images"),
       supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex"),
       supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code"),
-      supabase.from("bom_lines").select("id,bom_id,position,bom_line_role,component_product_id"),
+      supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id"),
       supabase.from("suppliers").select("id,name"),
       supabase.from("currencies").select("id,code,decimal_places").eq("is_active",true),
       supabase.from("rfq_rounds").select("id,code,label,sequence").order("sequence"),
@@ -290,7 +290,7 @@ function TrackingBoard() {
                         </div>
                       </td>
                       <td className="px-3 py-2"><span className="text-xs text-muted-foreground">{getGranLabel(line)}</span></td>
-                      <td className="px-3 py-2">{step?<span className="text-xs text-muted-foreground">Step {step.position}: {(step.bom_line_role||"").replace(/_/g," ")}</span>:<span className="text-muted-foreground/40">—</span>}</td>
+                      <td className="px-3 py-2">{step?<span className="text-xs text-muted-foreground">Step {step.position}: {(step.component_role||"").replace(/_/g," ")}</span>:<span className="text-muted-foreground/40">—</span>}</td>
                       <td className="px-3 py-2">{sup?<span className="text-xs">{sup.name}</span>:<span className="text-muted-foreground/40">—</span>}</td>
                       <td className="px-3 py-2"><span className="text-xs text-muted-foreground font-mono">{line.forecasted_qty!=null?`${line.forecasted_qty} ${line.forecasted_qty_uom||""}`.trim():"—"}</span></td>
                       <td className="px-3 py-2">
