@@ -23,7 +23,7 @@ import {
   Download, Upload, Filter,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import ProductTypeBadgeRow from "@/components/shared/ProductTypeBadgeRow";
+import ProductTypeBadgeRow, { ProductTypeBadge } from "@/components/shared/ProductTypeBadgeRow";
 import ResponsesPanel from "@/components/rfq/ResponsesPanel";
 import AddResponseDialog from "@/components/rfq/AddResponseDialog";
 import ExportTodoDialog from "@/components/rfq/ExportTodoDialog";
@@ -790,14 +790,21 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, c
     },
     {
       id: "product", label: "Product", width: 200,
-      sortKey: (l: any) => productMap[l.product_id]?.name || "",
+      sortKey: (l: any) => {
+        const p = productMap[l.product_id];
+        const typeRank = p?.type === "Material" ? "0" : p?.type === "Product" ? "1" : "2";
+        return `${typeRank}|${p?.code || ""}`;
+      },
       render: (l: any) => {
         const p = productMap[l.product_id];
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {p?.images?.[0] && <img src={p.images[0]} className="w-6 h-6 object-contain rounded shrink-0" alt="" />}
-            <div>
-              <p className="text-xs font-medium">{p?.name || "—"}</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <ProductTypeBadge product={p} />
+                <p className="text-xs font-medium truncate">{p?.name || "—"}</p>
+              </div>
               {p?.code && <p className="text-[10px] font-mono text-muted-foreground">{p.code}</p>}
             </div>
           </div>
