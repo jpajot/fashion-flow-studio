@@ -476,8 +476,13 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
           <div className="space-y-6 py-2">
             {/* Step 1 */}
             <div>
-              <SectionHeader number={1} title="Pick Products" done={s1Done} />
-              <ProductPicker products={allProducts} selected={selectedProductIds} onToggle={toggleProduct} />
+              <SectionHeader number={1} title="Pick Products / Materials" done={s1Done} />
+              <ProductPicker
+                styles={allProducts.filter(p => p.type === "Product")}
+                materials={allProducts.filter(p => p.type === "Material")}
+                selected={selectedProductIds}
+                onToggle={toggleProduct}
+              />
             </div>
 
             {/* Step 2 */}
