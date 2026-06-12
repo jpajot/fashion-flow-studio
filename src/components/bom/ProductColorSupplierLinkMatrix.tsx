@@ -22,10 +22,9 @@ type Props = {
   colorVariants: any[];
   approvedSuppliers: any[];
   allSuppliers: any[];
-  currencies: any[];
 };
 
-export default function ProductColorSupplierLinkMatrix({ colorVariants, approvedSuppliers, allSuppliers, currencies }: Props) {
+export default function ProductColorSupplierLinkMatrix({ colorVariants, approvedSuppliers, allSuppliers }: Props) {
   const [links, setLinks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editCell, setEditCell] = useState<any>(null);
@@ -60,9 +59,6 @@ export default function ProductColorSupplierLinkMatrix({ colorVariants, approved
     const payload: any = {
       colorway_supplier_status: form.colorway_supplier_status || "available",
       colorway_supplier_reference: form.colorway_supplier_reference || null,
-      unit_cost_override: form.unit_cost_override ? Number(form.unit_cost_override) : null,
-      currency_override_id: form.currency_override_id || null,
-      lead_time_override_days: form.lead_time_override_days ? Number(form.lead_time_override_days) : null,
       notes: form.notes || null,
     };
     if (editCell.existing) {
@@ -154,31 +150,24 @@ export default function ProductColorSupplierLinkMatrix({ colorVariants, approved
         onClose={() => setEditCell(null)}
         onSave={handleSave}
         colorway={editCell?.colorway}
-        approvedSupplier={editCell?.approvedSupplier}
         supplierName={editCell?.supplierName}
         existing={editCell?.existing}
-        currencies={currencies}
       />
     </div>
   );
 }
 
-function LinkEditModal({ open, onClose, onSave, colorway, approvedSupplier, supplierName, existing, currencies }: any) {
+function LinkEditModal({ open, onClose, onSave, colorway, supplierName, existing }: any) {
   const [form, setForm] = useState<any>({});
   useEffect(() => {
     if (open) {
       setForm(existing ? { ...existing } : {
         colorway_supplier_status: "available",
         colorway_supplier_reference: "",
-        unit_cost_override: "",
-        currency_override_id: "",
-        lead_time_override_days: "",
         notes: "",
       });
     }
   }, [open, existing]);
-
-  const parentCurr = currencies?.find((c: any) => c.id === approvedSupplier?.currency_id);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -202,27 +191,6 @@ function LinkEditModal({ open, onClose, onSave, colorway, approvedSupplier, supp
           <div>
             <Label className="text-xs">Colorway-specific Supplier Reference</Label>
             <Input value={form.colorway_supplier_reference || ""} onChange={(e) => setForm({ ...form, colorway_supplier_reference: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Unit Cost Override</Label>
-              <Input type="number" placeholder="Inherit" value={form.unit_cost_override ?? ""} onChange={(e) => setForm({ ...form, unit_cost_override: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">Lead Time Override (days)</Label>
-              <Input type="number" placeholder="Inherit" value={form.lead_time_override_days ?? ""} onChange={(e) => setForm({ ...form, lead_time_override_days: e.target.value })} />
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs">Currency Override</Label>
-            <Select value={form.currency_override_id || "_none"} onValueChange={(v) => setForm({ ...form, currency_override_id: v === "_none" ? null : v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none">Inherit from parent supplier</SelectItem>
-                {(currencies || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-muted-foreground mt-1">Inheriting: {parentCurr?.code || "—"}</p>
           </div>
           <div>
             <Label className="text-xs">Notes</Label>

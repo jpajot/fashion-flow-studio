@@ -31,7 +31,6 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
   const [loading, setLoading] = useState(true);
   const [approvedSuppliers, setApprovedSuppliers] = useState<any[]>([]);
   const [allSuppliers, setAllSuppliers] = useState<any[]>([]);
-  const [currencies, setCurrencies] = useState<any[]>([]);
   const [lovValues, setLovValues] = useState<any[]>([]);
   const [lovTypes, setLovTypes] = useState<any[]>([]);
   const [supplierModal, setSupplierModal] = useState<any>(null);
@@ -39,16 +38,14 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
 
   const loadData = async () => {
     setLoading(true);
-    const [apps, sups, curs, lt, lv] = await Promise.all([
+    const [apps, sups, lt, lv] = await Promise.all([
       supabase.from("approved_suppliers").select("*").eq("product_id", product.id).order("rank"),
       supabase.from("suppliers").select("*").order("name"),
-      supabase.from("currencies").select("id,code,name").eq("is_active", true).order("code"),
       supabase.from("type_of_lov").select("id,code"),
       supabase.from("list_of_values").select("*"),
     ]);
     setApprovedSuppliers((apps.data || []).sort((a: any, b: any) => (a.rank || 99) - (b.rank || 99)));
     setAllSuppliers(sups.data || []);
-    setCurrencies(curs.data || []);
     setLovTypes(lt.data || []);
     setLovValues(lv.data || []);
     setLoading(false);
@@ -69,9 +66,7 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
   }, []);
 
   const openAddSupplier = () => setSupplierModal({ mode: "add", form: {
-    supplier_id: "", supplier_reference: "", unit_cost: "", currency_id: "",
-    moq: "", moq_uom: "", lead_time_days: "", status: "active",
-    valid_from: "", valid_until: "", notes: "",
+    supplier_id: "", supplier_reference: "", status: "active", notes: "",
   }});
   const openEditSupplier = (as: any) => setSupplierModal({ mode: "edit", as, form: { ...as }});
 
@@ -84,14 +79,7 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
         rank: maxRank + 1,
         is_primary: approvedSuppliers.length === 0,
         supplier_reference: form.supplier_reference || null,
-        unit_cost: form.unit_cost ? Number(form.unit_cost) : null,
-        currency_id: form.currency_id || null,
-        moq: form.moq ? Number(form.moq) : null,
-        moq_uom: form.moq_uom || null,
-        lead_time_days: form.lead_time_days ? Number(form.lead_time_days) : null,
         status: form.status || "active",
-        valid_from: form.valid_from || null,
-        valid_until: form.valid_until || null,
         notes: form.notes || null,
         approved_by: user?.email || null,
         approved_at: new Date().toISOString(),
@@ -101,14 +89,7 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
     } else {
       const payload: any = {
         supplier_reference: form.supplier_reference || null,
-        unit_cost: form.unit_cost ? Number(form.unit_cost) : null,
-        currency_id: form.currency_id || null,
-        moq: form.moq ? Number(form.moq) : null,
-        moq_uom: form.moq_uom || null,
-        lead_time_days: form.lead_time_days ? Number(form.lead_time_days) : null,
         status: form.status || "active",
-        valid_from: form.valid_from || null,
-        valid_until: form.valid_until || null,
         notes: form.notes || null,
       };
       const { error } = await supabase.from("approved_suppliers").update(payload).eq("id", supplierModal.as.id);
@@ -133,7 +114,6 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
-  const moqUomOpts = getLovList(lovTypes, lovValues, "moq_uom");
   const apprStatusOpts = getLovList(lovTypes, lovValues, "approved_supplier_status");
 
   return (
@@ -160,7 +140,6 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
           <div className="space-y-2">
             {approvedSuppliers.map((as, idx) => {
               const sup = allSuppliers.find((s) => s.id === as.supplier_id);
-              const curr = as.currency_id ? currencies.find((c) => c.id === as.currency_id) : null;
               return (
                 <div key={as.id} className="flex items-center gap-3 p-3 bg-card rounded-xl border border-border">
                   <div className="flex flex-col items-center gap-1 shrink-0 w-6">
@@ -181,13 +160,11 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">Primary</span>
                       )}
                     </div>
-                    <div className="flex gap-3 mt-1 flex-wrap text-xs text-muted-foreground">
-                      {as.supplier_reference && <span>Ref: {as.supplier_reference}</span>}
-                      {as.unit_cost && <span>{as.unit_cost} {curr?.code || "—"}</span>}
-                      {as.moq && <span>MOQ: {as.moq} {as.moq_uom || ""}</span>}
-                      {as.lead_time_days && <span>{as.lead_time_days}d</span>}
-                      {as.valid_until && <span>Until: {as.valid_until}</span>}
-                    </div>
+                    {as.supplier_reference && (
+                      <div className="flex gap-3 mt-1 flex-wrap text-xs text-muted-foreground">
+                        <span>Ref: {as.supplier_reference}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button type="button" onClick={() => openEditSupplier(as)} className="p-1.5 rounded hover:bg-muted">
@@ -211,7 +188,6 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
           colorVariants={colorVariants}
           approvedSuppliers={approvedSuppliers}
           allSuppliers={allSuppliers}
-          currencies={currencies}
         />
       </div>
 
@@ -221,8 +197,6 @@ export default function ProductSuppliersTab({ product, colorVariants }: Props) {
         modal={supplierModal}
         allSuppliers={allSuppliers}
         approvedSuppliers={approvedSuppliers}
-        currencies={currencies}
-        moqUomOpts={moqUomOpts}
         statusOpts={apprStatusOpts}
         onClose={() => setSupplierModal(null)}
         onSave={handleSaveSupplier}
@@ -275,7 +249,7 @@ function SourcingSummary({ approvedSuppliers, allSuppliers }: any) {
   );
 }
 
-function ApprovedSupplierModal({ open, modal, allSuppliers, approvedSuppliers, currencies, moqUomOpts, statusOpts, onClose, onSave }: any) {
+function ApprovedSupplierModal({ open, modal, allSuppliers, approvedSuppliers, statusOpts, onClose, onSave }: any) {
   const [form, setForm] = useState<any>({});
   useEffect(() => { if (modal) setForm({ ...modal.form }); }, [modal]);
   const isAdd = modal?.mode === "add";
@@ -312,45 +286,6 @@ function ApprovedSupplierModal({ open, modal, allSuppliers, approvedSuppliers, c
                   {statuses.map((s: string) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Unit Cost</Label>
-              <Input type="number" value={form.unit_cost ?? ""} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">Currency</Label>
-              <Select value={form.currency_id || ""} onValueChange={(v) => setForm({ ...form, currency_id: v })}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  {currencies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">MOQ</Label>
-              <Input type="number" value={form.moq ?? ""} onChange={(e) => setForm({ ...form, moq: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">MOQ Unit</Label>
-              <Select value={form.moq_uom || ""} onValueChange={(v) => setForm({ ...form, moq_uom: v })}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  {moqUomOpts.map((u: string) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Lead Time (days)</Label>
-              <Input type="number" value={form.lead_time_days ?? ""} onChange={(e) => setForm({ ...form, lead_time_days: e.target.value })} />
-            </div>
-            <div />
-            <div>
-              <Label className="text-xs">Valid From</Label>
-              <Input type="date" value={form.valid_from || ""} onChange={(e) => setForm({ ...form, valid_from: e.target.value })} />
-            </div>
-            <div>
-              <Label className="text-xs">Valid Until</Label>
-              <Input type="date" value={form.valid_until || ""} onChange={(e) => setForm({ ...form, valid_until: e.target.value })} />
             </div>
           </div>
           <div>
