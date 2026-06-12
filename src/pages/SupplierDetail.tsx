@@ -18,6 +18,7 @@ import {
 import { SupplierStatusBadge } from "./Suppliers";
 import { ArrowLeft, Trash2, Info, Package, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ProductTypeBadgeRow from "@/components/shared/ProductTypeBadgeRow";
 
 export default function SupplierDetail() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ export default function SupplierDetail() {
     moq_policy: "", notes: "", status: "active",
   } : null);
   const [approvedLinks, setApprovedLinks] = useState<any[]>([]);
-  const [routingSteps, setRoutingSteps] = useState<any[]>([]);
+  const [routingBomLines, setRoutingBomLines] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [routings, setRoutings] = useState<any[]>([]);
   const [lovTypes, setLovTypes] = useState<any[]>([]);
@@ -55,19 +56,37 @@ export default function SupplierDetail() {
         const [sup, apps, prods, lt, lv, curs] = await Promise.all([
           supabase.from("suppliers").select("*").eq("id", id!).single(),
           supabase.from("approved_suppliers").select("*").eq("supplier_id", id!),
-          // TODO(round 9.3): load routing steps for this supplier from bom_lines
-          // joined to boms where bom_type='routing'. supplier_routing_steps no longer exists.
-          supabase.from("products").select("id,name,type,category,images").order("name"),
+          supabase.from("products").select("id,name,code,type,category,images").order("name"),
           ...baseLoaders,
         ]);
         setSupplier(sup.data ?? null);
-        setApprovedLinks(apps.data ?? []);
-        setRoutingSteps([]);
+        const appsData = apps.data ?? [];
+        setApprovedLinks(appsData);
         setProducts(prods.data ?? []);
-        setRoutings([]);
         setLovTypes(lt.data ?? []);
         setLovValues(lv.data ?? []);
         setCurrencies(curs.data ?? []);
+
+        const productIds = [...new Set(appsData.map((a: any) => a.product_id))];
+        let participationRoutings: any[] = [];
+        let participationBomLines: any[] = [];
+        if (productIds.length > 0) {
+          const { data: rRoutings } = await supabase.from("boms")
+            .select("id, product_id, bom_phase, status, version, revision_code, name")
+            .eq("bom_type", "routing")
+            .in("product_id", productIds);
+          participationRoutings = rRoutings ?? [];
+          const routingIds = participationRoutings.map((r: any) => r.id);
+          if (routingIds.length > 0) {
+            const { data: rLines } = await supabase.from("bom_lines")
+              .select("id, bom_id, position, component_role, component_product_id, line_level_approved_supplier_id")
+              .in("bom_id", routingIds)
+              .order("position");
+            participationBomLines = rLines ?? [];
+          }
+        }
+        setRoutings(participationRoutings);
+        setRoutingBomLines(participationBomLines);
       } else {
         const [lt, lv, curs] = await Promise.all(baseLoaders);
         setLovTypes(lt.data ?? []);
@@ -91,7 +110,7 @@ export default function SupplierDetail() {
   const subNavItems = isNew ? [{ id: "profile", label: "Profile", icon: Info }] : [
     { id: "profile", label: "Profile", icon: Info },
     { id: "products", label: "Sourced Products", count: uniqueProductIds.length, icon: Package },
-    { id: "routing", label: "Routing Participation", count: routingSteps.length, icon: GitBranch },
+    { id: "routing", label: "Routing Participation", count: routings.length, icon: GitBranch },
   ];
   useRegisterSubNav(subNavItems, activeTab, setActiveTab, (supplier?.name as string) || "New Supplier");
 
