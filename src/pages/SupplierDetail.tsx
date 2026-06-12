@@ -330,7 +330,7 @@ export default function SupplierDetail() {
             const prod = products.find((p) => p.id === pid);
             const link = approvedLinks.find((a) => a.product_id === pid);
             if (!prod) return null;
-            const curr = link?.currency_id ? currencies.find((c) => c.id === link.currency_id) : null;
+            
             return (
               <div
                 key={pid}
@@ -353,9 +353,6 @@ export default function SupplierDetail() {
                 )}
                 {link?.rank && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">Rank {link.rank}</span>
-                )}
-                {link?.unit_cost && (
-                  <span className="text-xs text-muted-foreground">{link.unit_cost} {curr?.code || "—"}</span>
                 )}
               </div>
             );

@@ -88,7 +88,20 @@ export default function BOMSupplierMatrix({
     return bomLineVariants.find((v: any) => v.bom_line_id === lineId && v.parent_approved_supplier_id === parentVendorId);
   };
 
+  const invalidateCellCache = (lineId: string, pvId: string) => {
+    setSupplierCache((c) => {
+      const next = { ...c };
+      delete next[`${lineId}:${pvId}`];
+      const v = bomLineVariants.find(
+        (x: any) => x.bom_line_id === lineId && x.parent_approved_supplier_id === pvId
+      );
+      if (v?.id) delete next[v.id];
+      return next;
+    });
+  };
+
   const handleAssignSupplier = (line: any, parentVendorId: string, approvedSupplierId: string) => {
+    invalidateCellCache(line.id, parentVendorId);
     onUpsertVariant({
       bom_line_id: line.id,
       parent_approved_supplier_id: parentVendorId,
@@ -101,6 +114,7 @@ export default function BOMSupplierMatrix({
   };
 
   const handleResetSupplier = (line: any, parentVendorId: string) => {
+    invalidateCellCache(line.id, parentVendorId);
     onUpsertVariant({
       bom_line_id: line.id,
       parent_approved_supplier_id: parentVendorId,
@@ -112,6 +126,7 @@ export default function BOMSupplierMatrix({
   };
 
   const handleMarkNA = (line: any, parentVendorId: string) => {
+    invalidateCellCache(line.id, parentVendorId);
     onUpsertVariant({
       bom_line_id: line.id,
       parent_approved_supplier_id: parentVendorId,
@@ -123,6 +138,7 @@ export default function BOMSupplierMatrix({
   };
 
   const handleClearNA = (line: any, parentVendorId: string) => {
+    invalidateCellCache(line.id, parentVendorId);
     onUpsertVariant({
       bom_line_id: line.id,
       parent_approved_supplier_id: parentVendorId,
