@@ -60,23 +60,70 @@ function SectionHeader({ number, title, done }: { number: number; title: string;
   );
 }
 
+// ── Product type badge row (shared) ──────────────────────────────────────────
+function ProductTypeBadgeRow({ product }: { product: any }) {
+  if (!product) return null;
+  const isStyle = product.type === "Product";
+  const badgeClass = isStyle
+    ? "bg-blue-100 text-blue-700 border-blue-200"
+    : "bg-amber-100 text-amber-700 border-amber-200";
+  const label = isStyle ? "STYLE" : "MATERIAL";
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${badgeClass}`}>{label}</span>
+      <span className="font-mono text-[10px] text-muted-foreground">{product.code}</span>
+      <span className="text-muted-foreground">—</span>
+      <span className="text-xs font-semibold">{product.name}</span>
+    </span>
+  );
+}
+
 // ── Product picker (step 1) ──────────────────────────────────────────────────
-function ProductPicker({ products, selected, onToggle }: { products: any[]; selected: string[]; onToggle: (id: string) => void }) {
+function ProductPicker({ styles, materials, selected, onToggle }: {
+  styles: any[];
+  materials: any[];
+  selected: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"styles" | "materials">("styles");
   const [search, setSearch] = useState("");
+  useEffect(() => { setSearch(""); }, [activeTab]);
+
+  const source = activeTab === "styles" ? styles : materials;
   const filtered = useMemo(() => {
-    if (!search.trim()) return products;
+    if (!search.trim()) return source;
     const q = search.toLowerCase();
-    return products.filter(p => (p.code || "").toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
-  }, [products, search]);
+    return source.filter(p => (p.code || "").toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
+  }, [source, search]);
+
+  const stylesSelectedCount = selected.filter(id => styles.some(s => s.id === id)).length;
+  const materialsSelectedCount = selected.filter(id => materials.some(m => m.id === id)).length;
+  const total = selected.length;
 
   return (
     <div className="space-y-2">
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => setActiveTab("styles")}
+          className={`flex-1 text-xs px-3 py-1.5 rounded-md border transition-colors ${activeTab === "styles" ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted border-border"}`}
+        >
+          Products in this project <span className="opacity-70">({styles.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("materials")}
+          className={`flex-1 text-xs px-3 py-1.5 rounded-md border transition-colors ${activeTab === "materials" ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted border-border"}`}
+        >
+          All materials <span className="opacity-70">({materials.length})</span>
+        </button>
+      </div>
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…" className="pl-8 h-8 text-xs" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={activeTab === "styles" ? "Search products…" : "Search materials…"} className="pl-8 h-8 text-xs" />
       </div>
       <div className="max-h-44 overflow-y-auto border border-border rounded-md divide-y divide-border">
-        {filtered.length === 0 && <p className="text-xs text-muted-foreground p-3">No products found.</p>}
+        {filtered.length === 0 && <p className="text-xs text-muted-foreground p-3">No {activeTab === "styles" ? "products" : "materials"} found.</p>}
         {filtered.map(p => {
           const isSel = selected.includes(p.id);
           return (
@@ -94,7 +141,11 @@ function ProductPicker({ products, selected, onToggle }: { products: any[]; sele
           );
         })}
       </div>
-      {selected.length > 0 && <p className="text-[10px] text-muted-foreground">{selected.length} product{selected.length > 1 ? "s" : ""} selected</p>}
+      {total > 0 && (
+        <p className="text-[10px] text-muted-foreground">
+          {total} selected — {stylesSelectedCount} style{stylesSelectedCount === 1 ? "" : "s"}, {materialsSelectedCount} material{materialsSelectedCount === 1 ? "" : "s"}
+        </p>
+      )}
     </div>
   );
 }
@@ -205,8 +256,9 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
 
   useEffect(() => {
     (async () => {
-      const [products, suppliers, routings, steps, colors, pcams, approvedSuppliersRes] = await Promise.all([
-        supabase.from("products").select("id,code,name,images,default_uom,project_ids").contains("project_ids", [projectId]).order("code"),
+              const [stylesRes, materialsRes, suppliers, routings, steps, colors, pcams, approvedSuppliersRes] = await Promise.all([
+        supabase.from("products").select("id,code,name,images,default_uom,project_ids,type").eq("type", "Product").contains("project_ids", [projectId]).order("code"),
+        supabase.from("products").select("id,code,name,images,default_uom,project_ids,type").eq("type", "Material").order("code"),
         supabase.from("suppliers").select("id,name").eq("status", "active").order("name"),
         supabase.from("boms").select("id,product_id,revision_code,version,status,bom_phase").eq("bom_type", "routing"),
         supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id,line_level_approved_supplier_id").order("position"),
@@ -214,7 +266,9 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
         supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code,variant").order("sequence"),
         supabase.from("approved_suppliers").select("id, product_id, supplier_id, is_primary, status, rank").eq("status", "active"),
       ]);
-      setAllProducts(products.data ?? []);
+      const stylesData = stylesRes.data ?? [];
+      const materialsData = materialsRes.data ?? [];
+      setAllProducts([...stylesData, ...materialsData]);
       setAllSuppliers(suppliers.data ?? []);
       setAllRoutings(routings.data ?? []);
       setAllSteps(steps.data ?? []);
@@ -422,8 +476,13 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
           <div className="space-y-6 py-2">
             {/* Step 1 */}
             <div>
-              <SectionHeader number={1} title="Pick Products" done={s1Done} />
-              <ProductPicker products={allProducts} selected={selectedProductIds} onToggle={toggleProduct} />
+              <SectionHeader number={1} title="Pick Products / Materials" done={s1Done} />
+              <ProductPicker
+                styles={allProducts.filter(p => p.type === "Product")}
+                materials={allProducts.filter(p => p.type === "Material")}
+                selected={selectedProductIds}
+                onToggle={toggleProduct}
+              />
             </div>
 
             {/* Step 2 */}
@@ -445,7 +504,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                     const steps = stepsByProduct[pid] || [];
                     return (
                       <div key={pid}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{prod?.name}</p>
+                        <div className="mb-1"><ProductTypeBadgeRow product={prod} /></div>
                         {steps.length === 0 && <p className="text-xs text-muted-foreground pl-2">No routing steps found for this product.</p>}
                         <div className="border border-border rounded-md divide-y divide-border">
                           {steps.map(s => {
@@ -494,7 +553,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                         <div key={row._id} className={`rounded-lg border p-3 space-y-2 ${isDup ? "border-destructive bg-destructive/5" : "border-border bg-card"}`}>
                           {isDup && <p className="text-[10px] text-destructive font-medium">{row._dupExisting ? "Already in this Supplier Request" : "Duplicate in this batch"}</p>}
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-                            <div><span className="text-muted-foreground">Product: </span><span className="font-medium">{row._product?.name}</span><span className="text-muted-foreground font-mono ml-1">{row._product?.code}</span></div>
+                            <div className="flex items-center gap-1.5 flex-wrap"><span className="text-muted-foreground">Product: </span><ProductTypeBadgeRow product={row._product} /></div>
                             <div><span className="text-muted-foreground">Scope: </span><span>{getGranLabel(row)}</span></div>
                             <div className="col-span-2"><span className="text-muted-foreground">Step: </span><span>Step {row._step?.position}: {(row._step?.component_role || "—").replace(/_/g, " ")}</span></div>
                           </div>
