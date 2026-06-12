@@ -196,6 +196,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
   const [allRoutings, setAllRoutings] = useState<any[]>([]);
   const [allSteps, setAllSteps] = useState<any[]>([]);
   const [allSuppliers, setAllSuppliers] = useState<any[]>([]);
+  const [approvedSuppliers, setApprovedSuppliers] = useState<any[]>([]);
 
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [granularity, setGranularity] = useState<Record<string, { level: string; colorIds: string[]; pcamIds: string[] }>>({});
@@ -204,19 +205,21 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
 
   useEffect(() => {
     (async () => {
-      const [products, suppliers, routings, steps, colors, pcams] = await Promise.all([
+      const [products, suppliers, routings, steps, colors, pcams, approvedSuppliersRes] = await Promise.all([
         supabase.from("products").select("id,code,name,images,default_uom,project_ids").contains("project_ids", [projectId]).order("code"),
         supabase.from("suppliers").select("id,name").eq("status", "active").order("name"),
-        // TODO(round 9.3): load routings (boms.bom_type='routing') and bom_lines as the new "steps".
         supabase.from("boms").select("id,product_id,revision_code,version,status,bom_phase").eq("bom_type", "routing"),
-        supabase.from("bom_lines").select("id,bom_id,position,bom_line_role,component_product_id").order("position"),
+        supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id,line_level_approved_supplier_id").order("position"),
         supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex").order("color_name"),
         supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code,variant").order("sequence"),
+        supabase.from("approved_suppliers").select("id, product_id, supplier_id, is_primary, status, rank").eq("status", "active"),
       ]);
       setAllProducts(products.data ?? []);
       setAllSuppliers(suppliers.data ?? []);
       setAllRoutings(routings.data ?? []);
       setAllSteps(steps.data ?? []);
+      setApprovedSuppliers(approvedSuppliersRes.data ?? []);
+
 
       const cbp: Record<string, any[]> = {};
       (colors.data ?? []).forEach((c: any) => { if (!cbp[c.product_id]) cbp[c.product_id] = []; cbp[c.product_id].push(c); });
@@ -252,7 +255,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
   const relevantSteps = useMemo(() => {
     const selPids = new Set(selectedProductIds);
     const relRoutingIds = new Set(allRoutings.filter(r => selPids.has(r.product_id)).map(r => r.id));
-    return allSteps.filter(s => relRoutingIds.has(s.bom_id)).sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+    return allSteps.filter(s => relRoutingIds.has(s.bom_id)).sort((a, b) => (a.position || 0) - (b.position || 0));
   }, [allRoutings, allSteps, selectedProductIds]);
 
   const stepsByProduct = useMemo(() => {
@@ -274,6 +277,17 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
     return false;
   });
   const s3Done = s2Done && selectedStepIds.length > 0;
+
+  const resolveDefaultRecipientSupplierId = (step: any): string => {
+    if (step.line_level_approved_supplier_id) {
+      const as = approvedSuppliers.find(a => a.id === step.line_level_approved_supplier_id);
+      if (as?.supplier_id) return as.supplier_id;
+    }
+    const primary = approvedSuppliers.find(
+      a => a.product_id === step.component_product_id && a.is_primary
+    );
+    return primary?.supplier_id || "";
+  };
 
   const buildPreview = () => {
     const rows: any[] = [];
@@ -303,7 +317,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
             product_color_id: gran.product_color_id,
             product_color_and_more_id: gran.product_color_and_more_id,
             bom_line_id: step.id,
-            recipient_supplier_id: step.supplier_id || "",
+            recipient_supplier_id: resolveDefaultRecipientSupplierId(step),
             forecasted_qty: 0,
             forecasted_qty_uom: prod?.default_uom || "",
             _product: prod,
@@ -435,13 +449,13 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                         {steps.length === 0 && <p className="text-xs text-muted-foreground pl-2">No routing steps found for this product.</p>}
                         <div className="border border-border rounded-md divide-y divide-border">
                           {steps.map(s => {
-                            const supplier = allSuppliers.find(sup => sup.id === s.supplier_id);
+                            const supplier = allSuppliers.find(sup => sup.id === resolveDefaultRecipientSupplierId(s));
                             const sel = selectedStepIds.includes(s.id);
                             return (
                               <button key={s.id} type="button" onClick={() => toggleStep(s.id)}
                                 className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${sel ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}>
-                                <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 border ${sel ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>{s.sequence}</span>
-                                <span className="flex-1 truncate">{(s.bom_line_role || "—").replace(/_/g, " ")}</span>
+                                <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 border ${sel ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>{s.position}</span>
+                                <span className="flex-1 truncate">{(s.component_role || "—").replace(/_/g, " ")}</span>
                                 {supplier && <span className="text-[10px] text-muted-foreground shrink-0">{supplier.name}</span>}
                                 {sel && <span className="text-primary font-bold shrink-0">✓</span>}
                               </button>
@@ -482,7 +496,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
                             <div><span className="text-muted-foreground">Product: </span><span className="font-medium">{row._product?.name}</span><span className="text-muted-foreground font-mono ml-1">{row._product?.code}</span></div>
                             <div><span className="text-muted-foreground">Scope: </span><span>{getGranLabel(row)}</span></div>
-                            <div className="col-span-2"><span className="text-muted-foreground">Step: </span><span>Step {row._step?.sequence}: {(row._step?.bom_line_role || "—").replace(/_/g, " ")}</span></div>
+                            <div className="col-span-2"><span className="text-muted-foreground">Step: </span><span>Step {row._step?.position}: {(row._step?.component_role || "—").replace(/_/g, " ")}</span></div>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
@@ -752,11 +766,11 @@ function RFQLinesTab({ sr, lines, refData, locked, onLinesRefresh, setOptions, c
     },
     {
       id: "step", label: "Routing Step", width: 160,
-      sortKey: (l: any) => stepMap[l.bom_line_id]?.bom_line_role || "",
+      sortKey: (l: any) => stepMap[l.bom_line_id]?.component_role || "",
       render: (l: any) => {
         const s = stepMap[l.bom_line_id];
         return s
-          ? <span className="text-xs text-muted-foreground">Step {s.sequence}: {(s.bom_line_role || "").replace(/_/g, " ")}</span>
+          ? <span className="text-xs text-muted-foreground">Step {s.position}: {(s.component_role || "").replace(/_/g, " ")}</span>
           : <span className="text-muted-foreground/40">—</span>;
       },
     },
@@ -1110,7 +1124,7 @@ export default function SupplierRequestDetail() {
       supabase.from("products").select("id,code,name,images,default_uom,project_ids"),
       supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex"),
       supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code"),
-      supabase.from("bom_lines").select("id,bom_id,position,bom_line_role,component_product_id"),
+      supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id"),
       supabase.from("suppliers").select("id,name"),
     ]);
 
