@@ -18,6 +18,7 @@ import {
 import { SupplierStatusBadge } from "./Suppliers";
 import { ArrowLeft, Trash2, Info, Package, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ProductTypeBadgeRow from "@/components/shared/ProductTypeBadgeRow";
 
 export default function SupplierDetail() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ export default function SupplierDetail() {
     moq_policy: "", notes: "", status: "active",
   } : null);
   const [approvedLinks, setApprovedLinks] = useState<any[]>([]);
-  const [routingSteps, setRoutingSteps] = useState<any[]>([]);
+  const [routingBomLines, setRoutingBomLines] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [routings, setRoutings] = useState<any[]>([]);
   const [lovTypes, setLovTypes] = useState<any[]>([]);
@@ -55,19 +56,37 @@ export default function SupplierDetail() {
         const [sup, apps, prods, lt, lv, curs] = await Promise.all([
           supabase.from("suppliers").select("*").eq("id", id!).single(),
           supabase.from("approved_suppliers").select("*").eq("supplier_id", id!),
-          // TODO(round 9.3): load routing steps for this supplier from bom_lines
-          // joined to boms where bom_type='routing'. supplier_routing_steps no longer exists.
-          supabase.from("products").select("id,name,type,category,images").order("name"),
+          supabase.from("products").select("id,name,code,type,category,images").order("name"),
           ...baseLoaders,
         ]);
         setSupplier(sup.data ?? null);
-        setApprovedLinks(apps.data ?? []);
-        setRoutingSteps([]);
+        const appsData = apps.data ?? [];
+        setApprovedLinks(appsData);
         setProducts(prods.data ?? []);
-        setRoutings([]);
         setLovTypes(lt.data ?? []);
         setLovValues(lv.data ?? []);
         setCurrencies(curs.data ?? []);
+
+        const productIds = [...new Set(appsData.map((a: any) => a.product_id))];
+        let participationRoutings: any[] = [];
+        let participationBomLines: any[] = [];
+        if (productIds.length > 0) {
+          const { data: rRoutings } = await supabase.from("boms")
+            .select("id, product_id, bom_phase, status, version, revision_code, name")
+            .eq("bom_type", "routing")
+            .in("product_id", productIds);
+          participationRoutings = rRoutings ?? [];
+          const routingIds = participationRoutings.map((r: any) => r.id);
+          if (routingIds.length > 0) {
+            const { data: rLines } = await supabase.from("bom_lines")
+              .select("id, bom_id, position, component_role, component_product_id, line_level_approved_supplier_id")
+              .in("bom_id", routingIds)
+              .order("position");
+            participationBomLines = rLines ?? [];
+          }
+        }
+        setRoutings(participationRoutings);
+        setRoutingBomLines(participationBomLines);
       } else {
         const [lt, lv, curs] = await Promise.all(baseLoaders);
         setLovTypes(lt.data ?? []);
@@ -91,7 +110,7 @@ export default function SupplierDetail() {
   const subNavItems = isNew ? [{ id: "profile", label: "Profile", icon: Info }] : [
     { id: "profile", label: "Profile", icon: Info },
     { id: "products", label: "Sourced Products", count: uniqueProductIds.length, icon: Package },
-    { id: "routing", label: "Routing Participation", count: routingSteps.length, icon: GitBranch },
+    { id: "routing", label: "Routing Participation", count: routings.length, icon: GitBranch },
   ];
   useRegisterSubNav(subNavItems, activeTab, setActiveTab, (supplier?.name as string) || "New Supplier");
 
@@ -361,37 +380,60 @@ export default function SupplierDetail() {
       )}
 
       {!isNew && activeTab === "routing" && (
-        <div className="space-y-2">
-          {routingSteps.length === 0 ? (
-            <EmptyState message="This supplier is not part of any manufacturing routing." />
-          ) : routingSteps.map((step) => {
-            const routing = routings.find((r) => r.id === step.supplier_routing_id);
-            const product = routing ? products.find((p) => p.id === routing.product_id) : null;
-            const curr = step.currency_id ? currencies.find((c) => c.id === step.currency_id) : null;
-            return (
-              <div key={step.id} className="p-3 bg-card rounded-xl border border-border">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                    {step.sequence}
-                  </span>
-                  <span className="text-sm font-medium">{step.step_type?.replace(/_/g, " ")}</span>
-                  {routing && <span className="text-xs text-muted-foreground">in "{routing.name}"</span>}
-                  {product && (
-                    <button type="button" onClick={() => navigate(`/products/${product.id}`)} className="text-xs text-primary hover:underline">
-                      {product.name}
+        <div className="space-y-3">
+          {routings.length === 0 ? (
+            <EmptyState message="This supplier is not approved for any product with a routing." />
+          ) : (
+            routings.map((routing) => {
+              const parentProduct = products.find((p) => p.id === routing.product_id);
+              const lines = routingBomLines.filter((bl) => bl.bom_id === routing.id);
+              return (
+                <div key={routing.id} className="bg-card rounded-xl border border-border overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between gap-3 flex-wrap">
+                    <button type="button" onClick={() => parentProduct && navigate(`/products/${parentProduct.id}`)}
+                      className="hover:opacity-80 transition-opacity">
+                      <ProductTypeBadgeRow product={parentProduct} />
                     </button>
+                    <div className="flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground">
+                      <span className="px-1.5 py-0.5 rounded border bg-background capitalize">{routing.bom_phase}</span>
+                      <span className="px-1.5 py-0.5 rounded border bg-background capitalize">{routing.status}</span>
+                      <span className="font-mono">v{routing.version}</span>
+                      {routing.name && <span className="italic">"{routing.name}"</span>}
+                    </div>
+                  </div>
+                  {lines.length === 0 ? (
+                    <p className="px-4 py-3 text-xs text-muted-foreground">No operations defined.</p>
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {lines.map((bl) => {
+                        const comp = products.find((p) => p.id === bl.component_product_id);
+                        const isPinnedToThisSupplier = bl.line_level_approved_supplier_id
+                          && approvedLinks.some((a: any) => a.id === bl.line_level_approved_supplier_id);
+                        return (
+                          <li key={bl.id} className="px-4 py-2 flex items-center gap-2 text-xs">
+                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                              {bl.position}
+                            </span>
+                            <span className="font-medium capitalize">{(bl.component_role || "—").replace(/_/g, " ")}</span>
+                            {comp && (
+                              <span className="text-muted-foreground">
+                                · {comp.name} <span className="font-mono text-[10px]">{comp.code}</span>
+                              </span>
+                            )}
+                            {isPinnedToThisSupplier && (
+                              <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 font-semibold uppercase tracking-wider">
+                                Pinned to this supplier
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </div>
-                {step.description && <p className="text-xs text-muted-foreground mt-1 ml-8">{step.description}</p>}
-                {(step.unit_cost || step.lead_time_days) && (
-                  <div className="flex gap-3 mt-1 ml-8">
-                    {step.unit_cost && <span className="text-xs text-muted-foreground">{step.unit_cost} {curr?.code || "—"}</span>}
-                    {step.lead_time_days && <span className="text-xs text-muted-foreground">{step.lead_time_days}d lead time</span>}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
     </div>
