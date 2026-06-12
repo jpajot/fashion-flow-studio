@@ -108,8 +108,6 @@ export default function ComponentSupplierPicker({
             {filtered.map((as: any) => {
               const sup = supplierMap[as.supplier_id];
               const isSelected = selected === as.id;
-              const cost = as.unit_cost != null ? `${as.unit_cost}` : null;
-              const lt = as.lead_time_days != null ? `${as.lead_time_days}d` : null;
               return (
                 <button key={as.id} type="button" onClick={() => setSelected(isSelected ? null : as.id)}
                   className={`w-full flex items-start gap-2.5 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/50 ${isSelected ? "bg-primary/10" : ""}`}>
@@ -122,10 +120,6 @@ export default function ComponentSupplierPicker({
                       {sup?.country && <span className="text-[9px] text-muted-foreground">{sup.country}</span>}
                     </div>
                     {as.supplier_reference && (<div className="font-mono text-[10px] text-muted-foreground">{as.supplier_reference}</div>)}
-                    <div className="flex gap-2 text-[10px] text-muted-foreground">
-                      {cost && <span>{cost}</span>}
-                      {lt && <span>{lt} lead</span>}
-                    </div>
                   </div>
                   {isSelected && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />}
                 </button>
