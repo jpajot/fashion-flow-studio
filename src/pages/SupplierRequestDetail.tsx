@@ -553,7 +553,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                         <div key={row._id} className={`rounded-lg border p-3 space-y-2 ${isDup ? "border-destructive bg-destructive/5" : "border-border bg-card"}`}>
                           {isDup && <p className="text-[10px] text-destructive font-medium">{row._dupExisting ? "Already in this Supplier Request" : "Duplicate in this batch"}</p>}
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
-                            <div><span className="text-muted-foreground">Product: </span><span className="font-medium">{row._product?.name}</span><span className="text-muted-foreground font-mono ml-1">{row._product?.code}</span></div>
+                            <div className="flex items-center gap-1.5 flex-wrap"><span className="text-muted-foreground">Product: </span><ProductTypeBadgeRow product={row._product} /></div>
                             <div><span className="text-muted-foreground">Scope: </span><span>{getGranLabel(row)}</span></div>
                             <div className="col-span-2"><span className="text-muted-foreground">Step: </span><span>Step {row._step?.position}: {(row._step?.component_role || "—").replace(/_/g, " ")}</span></div>
                           </div>
