@@ -337,8 +337,10 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
       const as = approvedSuppliers.find(a => a.id === step.line_level_approved_supplier_id);
       if (as?.supplier_id) return as.supplier_id;
     }
+    const routing = allRoutings.find(r => r.id === step.bom_id);
+    if (!routing) return "";
     const primary = approvedSuppliers.find(
-      a => a.product_id === step.component_product_id && a.is_primary
+      a => a.product_id === routing.product_id && a.is_primary
     );
     return primary?.supplier_id || "";
   };
