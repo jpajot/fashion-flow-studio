@@ -274,35 +274,10 @@ function CreateApprovedSupplierInline({
             </div>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-[11px]">Unit cost</Label>
-                <Input type="number" step="any" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="h-8 text-xs mt-1" />
-              </div>
-              <div>
-                <Label className="text-[11px]">Currency</Label>
-                <Select value={currencyId} onValueChange={setCurrencyId}>
-                  <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent className="z-[10000]">
-                    {currencies.map(c => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-[11px]">Lead time (days)</Label>
-                <Input type="number" value={leadTime} onChange={(e) => setLeadTime(e.target.value)} className="h-8 text-xs mt-1" />
-              </div>
-              <div>
-                <Label className="text-[11px]">MOQ</Label>
-                <Input type="number" value={moq} onChange={(e) => setMoq(e.target.value)} className="h-8 text-xs mt-1" />
-              </div>
-            </div>
-            <div>
-              <Label className="text-[11px]">Notes</Label>
-              <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-xs mt-1" />
-            </div>
-          </>
+          <div>
+            <Label className="text-[11px]">Notes</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-xs mt-1" />
+          </div>
         )}
         {checking && <p className="text-[10px] text-muted-foreground">Checking…</p>}
         {error && <p className="text-[11px] text-destructive">{error}</p>}
