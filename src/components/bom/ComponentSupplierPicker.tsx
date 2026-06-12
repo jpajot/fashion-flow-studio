@@ -108,8 +108,6 @@ export default function ComponentSupplierPicker({
             {filtered.map((as: any) => {
               const sup = supplierMap[as.supplier_id];
               const isSelected = selected === as.id;
-              const cost = as.unit_cost != null ? `${as.unit_cost}` : null;
-              const lt = as.lead_time_days != null ? `${as.lead_time_days}d` : null;
               return (
                 <button key={as.id} type="button" onClick={() => setSelected(isSelected ? null : as.id)}
                   className={`w-full flex items-start gap-2.5 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/50 ${isSelected ? "bg-primary/10" : ""}`}>
@@ -122,10 +120,6 @@ export default function ComponentSupplierPicker({
                       {sup?.country && <span className="text-[9px] text-muted-foreground">{sup.country}</span>}
                     </div>
                     {as.supplier_reference && (<div className="font-mono text-[10px] text-muted-foreground">{as.supplier_reference}</div>)}
-                    <div className="flex gap-2 text-[10px] text-muted-foreground">
-                      {cost && <span>{cost}</span>}
-                      {lt && <span>{lt} lead</span>}
-                    </div>
                   </div>
                   {isSelected && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />}
                 </button>
@@ -164,12 +158,7 @@ function CreateApprovedSupplierInline({
   onCreated: (newApprovedSupplierId: string) => void;
 }) {
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [currencies, setCurrencies] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
-  const [unitCost, setUnitCost] = useState("");
-  const [currencyId, setCurrencyId] = useState("");
-  const [leadTime, setLeadTime] = useState("");
-  const [moq, setMoq] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,12 +166,8 @@ function CreateApprovedSupplierInline({
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      supabase.from("suppliers").select("id,name,code").order("name"),
-      supabase.from("currencies").select("id,code").order("code"),
-    ]).then(([s, c]) => {
-      setSuppliers(s.data ?? []);
-      setCurrencies(c.data ?? []);
+    supabase.from("suppliers").select("id,name,code").order("name").then(({ data }) => {
+      setSuppliers(data ?? []);
     });
   }, []);
 
@@ -196,7 +181,7 @@ function CreateApprovedSupplierInline({
     setChecking(true);
     supabase
       .from("approved_suppliers")
-      .select("id, is_primary, rank, unit_cost, currency_id")
+      .select("id, is_primary, rank")
       .eq("product_id", componentProductId)
       .eq("supplier_id", supplierId)
       .maybeSingle()
@@ -221,10 +206,6 @@ function CreateApprovedSupplierInline({
       supplier_id: supplierId,
       rank: nextRank,
       is_primary: isFirst,
-      unit_cost: unitCost ? Number(unitCost) : null,
-      currency_id: currencyId || null,
-      lead_time_days: leadTime ? Number(leadTime) : null,
-      moq: moq ? Number(moq) : null,
       notes: notes || null,
       status: "active",
       approved_at: new Date().toISOString(),
@@ -235,7 +216,7 @@ function CreateApprovedSupplierInline({
         // Re-fetch the existing row so the UI can offer "Use this approved supplier"
         const { data: existingRow } = await supabase
           .from("approved_suppliers")
-          .select("id, is_primary, rank, unit_cost, currency_id")
+          .select("id, is_primary, rank")
           .eq("product_id", componentProductId)
           .eq("supplier_id", supplierId)
           .maybeSingle();
@@ -293,35 +274,10 @@ function CreateApprovedSupplierInline({
             </div>
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-[11px]">Unit cost</Label>
-                <Input type="number" step="any" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} className="h-8 text-xs mt-1" />
-              </div>
-              <div>
-                <Label className="text-[11px]">Currency</Label>
-                <Select value={currencyId} onValueChange={setCurrencyId}>
-                  <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent className="z-[10000]">
-                    {currencies.map(c => <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-[11px]">Lead time (days)</Label>
-                <Input type="number" value={leadTime} onChange={(e) => setLeadTime(e.target.value)} className="h-8 text-xs mt-1" />
-              </div>
-              <div>
-                <Label className="text-[11px]">MOQ</Label>
-                <Input type="number" value={moq} onChange={(e) => setMoq(e.target.value)} className="h-8 text-xs mt-1" />
-              </div>
-            </div>
-            <div>
-              <Label className="text-[11px]">Notes</Label>
-              <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-xs mt-1" />
-            </div>
-          </>
+          <div>
+            <Label className="text-[11px]">Notes</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-xs mt-1" />
+          </div>
         )}
         {checking && <p className="text-[10px] text-muted-foreground">Checking…</p>}
         {error && <p className="text-[11px] text-destructive">{error}</p>}
