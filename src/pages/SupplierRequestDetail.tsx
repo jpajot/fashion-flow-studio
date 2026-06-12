@@ -266,7 +266,9 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
         supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code,variant").order("sequence"),
         supabase.from("approved_suppliers").select("id, product_id, supplier_id, is_primary, status, rank").eq("status", "active"),
       ]);
-      setAllProducts(products.data ?? []);
+      const stylesData = stylesRes.data ?? [];
+      const materialsData = materialsRes.data ?? [];
+      setAllProducts([...stylesData, ...materialsData]);
       setAllSuppliers(suppliers.data ?? []);
       setAllRoutings(routings.data ?? []);
       setAllSteps(steps.data ?? []);
