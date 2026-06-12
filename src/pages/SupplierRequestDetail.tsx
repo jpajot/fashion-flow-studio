@@ -256,8 +256,9 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
 
   useEffect(() => {
     (async () => {
-      const [products, suppliers, routings, steps, colors, pcams, approvedSuppliersRes] = await Promise.all([
-        supabase.from("products").select("id,code,name,images,default_uom,project_ids").contains("project_ids", [projectId]).order("code"),
+              const [stylesRes, materialsRes, suppliers, routings, steps, colors, pcams, approvedSuppliersRes] = await Promise.all([
+        supabase.from("products").select("id,code,name,images,default_uom,project_ids,type").eq("type", "Product").contains("project_ids", [projectId]).order("code"),
+        supabase.from("products").select("id,code,name,images,default_uom,project_ids,type").eq("type", "Material").order("code"),
         supabase.from("suppliers").select("id,name").eq("status", "active").order("name"),
         supabase.from("boms").select("id,product_id,revision_code,version,status,bom_phase").eq("bom_type", "routing"),
         supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id,line_level_approved_supplier_id").order("position"),
