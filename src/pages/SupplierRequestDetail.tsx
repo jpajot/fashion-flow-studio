@@ -504,7 +504,7 @@ function LineBuilderDialog({ srId, projectId, existingLines, onSaved, onClose }:
                     const steps = stepsByProduct[pid] || [];
                     return (
                       <div key={pid}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{prod?.name}</p>
+                        <div className="mb-1"><ProductTypeBadgeRow product={prod} /></div>
                         {steps.length === 0 && <p className="text-xs text-muted-foreground pl-2">No routing steps found for this product.</p>}
                         <div className="border border-border rounded-md divide-y divide-border">
                           {steps.map(s => {
