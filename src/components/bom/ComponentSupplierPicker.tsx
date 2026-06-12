@@ -158,12 +158,7 @@ function CreateApprovedSupplierInline({
   onCreated: (newApprovedSupplierId: string) => void;
 }) {
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [currencies, setCurrencies] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
-  const [unitCost, setUnitCost] = useState("");
-  const [currencyId, setCurrencyId] = useState("");
-  const [leadTime, setLeadTime] = useState("");
-  const [moq, setMoq] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,12 +166,8 @@ function CreateApprovedSupplierInline({
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      supabase.from("suppliers").select("id,name,code").order("name"),
-      supabase.from("currencies").select("id,code").order("code"),
-    ]).then(([s, c]) => {
-      setSuppliers(s.data ?? []);
-      setCurrencies(c.data ?? []);
+    supabase.from("suppliers").select("id,name,code").order("name").then(({ data }) => {
+      setSuppliers(data ?? []);
     });
   }, []);
 
@@ -190,7 +181,7 @@ function CreateApprovedSupplierInline({
     setChecking(true);
     supabase
       .from("approved_suppliers")
-      .select("id, is_primary, rank, unit_cost, currency_id")
+      .select("id, is_primary, rank")
       .eq("product_id", componentProductId)
       .eq("supplier_id", supplierId)
       .maybeSingle()
@@ -215,10 +206,6 @@ function CreateApprovedSupplierInline({
       supplier_id: supplierId,
       rank: nextRank,
       is_primary: isFirst,
-      unit_cost: unitCost ? Number(unitCost) : null,
-      currency_id: currencyId || null,
-      lead_time_days: leadTime ? Number(leadTime) : null,
-      moq: moq ? Number(moq) : null,
       notes: notes || null,
       status: "active",
       approved_at: new Date().toISOString(),
@@ -229,7 +216,7 @@ function CreateApprovedSupplierInline({
         // Re-fetch the existing row so the UI can offer "Use this approved supplier"
         const { data: existingRow } = await supabase
           .from("approved_suppliers")
-          .select("id, is_primary, rank, unit_cost, currency_id")
+          .select("id, is_primary, rank")
           .eq("product_id", componentProductId)
           .eq("supplier_id", supplierId)
           .maybeSingle();
