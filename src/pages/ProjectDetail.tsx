@@ -2297,7 +2297,7 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
                           <div><p className="text-xs font-medium">{prod?.name || "—"}</p>{prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
                         </div>
                       </td>
-                      <td className="px-3 py-2">{step ? <span className="text-xs text-muted-foreground">Step {step.position}: {(step.bom_line_role || "").replace(/_/g, " ")}</span> : <span className="text-muted-foreground/40">—</span>}</td>
+                      <td className="px-3 py-2">{step ? <span className="text-xs text-muted-foreground">Step {step.position}: {(step.component_role || "").replace(/_/g, " ")}</span> : <span className="text-muted-foreground/40">—</span>}</td>
                       <td className="px-3 py-2">{sup ? <span className="text-xs">{sup.name}</span> : <span className="text-muted-foreground/40">—</span>}</td>
                       <td className="px-3 py-2">
                         <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold border ${lineResps.length > 0 ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-muted text-muted-foreground border-border"}`}>
