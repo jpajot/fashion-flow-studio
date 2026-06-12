@@ -112,8 +112,6 @@ export default function BOMSourcingBlock({ line }: Props) {
   if (!primarySupplier) return null;
 
   const { as, supplier, isOverride } = primarySupplier;
-  const cost = as.unit_cost != null ? `${as.unit_cost} ${as.currency || ""}/${uom || ""}`.trim() : null;
-  const lt = as.lead_time_days != null ? `${as.lead_time_days}d` : null;
 
   return (
     <div className="flex items-center gap-1 flex-wrap text-[10px] text-muted-foreground mt-1 cursor-pointer hover:text-foreground transition-colors"
@@ -121,8 +119,6 @@ export default function BOMSourcingBlock({ line }: Props) {
       {as.supplier_reference && <span className="font-mono text-foreground/70">{as.supplier_reference}</span>}
       {as.supplier_reference && supplier?.name && <span>@</span>}
       {supplier?.name && <span className="font-medium">{supplier.name}</span>}
-      {cost && <span className="text-muted-foreground/70">· {cost}</span>}
-      {lt && <span className="text-muted-foreground/70">· {lt}</span>}
       {isOverride && (
         <span className="px-1 py-0 rounded bg-amber-100 text-amber-700 border border-amber-200 text-[9px] font-medium">line override</span>
       )}
