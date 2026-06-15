@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Loader2, Search, FileSearch, Pencil, ChevronDown, ChevronRight, Trophy, MoreVertical, ExternalLink, AlertTriangle } from "lucide-react";
 import DataTable from "@/components/shared/DataTable";
+import { ProductTypeBadge } from "@/components/shared/ProductTypeBadgeRow";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
 import ResponsesPanel from "@/components/rfq/ResponsesPanel";
 import { toast } from "sonner";
