@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, AlertCircle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, AlertCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
 import { ProductTypeBadge } from "@/components/shared/ProductTypeBadgeRow";
 import GalleryView from "@/components/GalleryView";
 import DataTable from "@/components/shared/DataTable";
@@ -1781,94 +1781,6 @@ function BOMStatusSection({ linkedStyles }: { linkedStyles:any[] }) {
   );
 }
 
-// ── SOURCING TAB ─────────────────────────────────────────────────────────────
-function SourcingSection({ linkedStyles }: { linkedStyles:any[] }) {
-  const navigate = useNavigate();
-  const [approvedSuppliers, setApprovedSuppliers] = useState<any[]>([]);
-  const [routings, setRoutings] = useState<any[]>([]);
-  const [routingSteps, setRoutingSteps] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(()=>{
-    if(!linkedStyles.length){setLoading(false);return;}
-    const pIds=linkedStyles.map(s=>s.id);
-    Promise.all([
-      supabase.from("approved_suppliers").select("*").in("product_id",pIds),
-      // Routings now live in `boms` with bom_type='routing'.
-      supabase.from("boms").select("*").in("product_id",pIds).eq("bom_type","routing"),
-      // TODO(round 9.3): replace with bom_lines join once routing builder lands.
-      Promise.resolve({ data: [] as any[] }),
-    ]).then(([a,r,s])=>{
-      setApprovedSuppliers(a.data??[]);
-      setRoutings(r.data??[]);
-      setRoutingSteps(s.data??[]);
-      setLoading(false);
-    });
-  },[linkedStyles]);
-
-  const stats=useMemo(()=>{
-    if(!linkedStyles.length) return{noSourcing:[],pendingApproval:[],expiringSoon:[],incompleteRoutings:[]};
-    const today=new Date(); const in60=new Date(today.getTime()+60*24*60*60*1000);
-    return{
-      noSourcing: linkedStyles.filter(p=>!approvedSuppliers.some(a=>a.product_id===p.id&&a.is_primary&&a.status==="active")&&!routings.some(r=>r.product_id===p.id&&r.is_default&&r.status==="released")),
-      pendingApproval: linkedStyles.filter(p=>approvedSuppliers.some(a=>a.product_id===p.id&&a.is_primary&&a.status==="pending_approval")),
-      expiringSoon: linkedStyles.filter(p=>{
-        const pri=approvedSuppliers.find(a=>a.product_id===p.id&&a.is_primary);
-        if(pri?.valid_until){const d=new Date(pri.valid_until);if(d>=today&&d<=in60)return true;}
-        const rt=routings.find(r=>r.product_id===p.id&&r.is_default);
-        if(rt?.valid_until){const d=new Date(rt.valid_until);if(d>=today&&d<=in60)return true;}
-        return false;
-      }),
-      incompleteRoutings: linkedStyles.filter(p=>routings.filter(r=>r.product_id===p.id).some(r=>routingSteps.filter(s=>s.supplier_routing_id===r.id).some(s=>!s.supplier_id))),
-    };
-  },[linkedStyles,approvedSuppliers,routings,routingSteps]);
-
-  if(loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>;
-  if(!linkedStyles.length) return <div className="text-center py-16 text-sm text-muted-foreground">Link styles to this project first to see sourcing status.</div>;
-
-  const total=linkedStyles.length;
-  const ready=total-(stats.noSourcing?.length||0);
-  const pct=total>0?Math.round((ready/total)*100):0;
-
-  const CARDS=[
-    {icon:XCircle,label:"No sourcing path",items:stats.noSourcing,color:"bg-red-50/60 border-red-200 text-red-700"},
-    {icon:Clock,label:"Pending approval",items:stats.pendingApproval,color:"bg-amber-50/60 border-amber-200 text-amber-700"},
-    {icon:AlertTriangle,label:"Expiring within 60 days",items:stats.expiringSoon,color:"bg-orange-50/60 border-orange-200 text-orange-700"},
-    {icon:GitBranch,label:"Routings missing suppliers",items:stats.incompleteRoutings,color:"bg-yellow-50/60 border-yellow-200 text-yellow-700"},
-  ];
-
-  return(
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{ready} of {total} products have an active sourcing path</p>
-        <div className="h-2 w-32 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-green-500 rounded-full transition-all" style={{width:`${pct}%`}}/>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {CARDS.map(({icon:Icon,label,items,color})=>(
-          <div key={label} className={`rounded-xl border p-4 ${color}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2"><Icon className="w-4 h-4"/><span className="text-sm font-semibold">{label}</span></div>
-              <span className="text-2xl font-bold">{items?.length||0}</span>
-            </div>
-            {(items?.length||0)>0&&(
-              <div className="mt-2 pt-2 border-t border-current/20 space-y-1 max-h-32 overflow-y-auto">
-                {items!.map(p=>(
-                  <button key={p.id} type="button" onClick={()=>navigate(`/products/${p.id}`)}
-                    className="w-full text-left flex items-center gap-2 py-0.5 hover:opacity-80 text-xs">
-                    <div className="w-5 h-5 rounded bg-current/10 flex-shrink-0 overflow-hidden">{p.images?.[0]&&<img src={p.images[0]} className="w-full h-full object-contain" alt=""/>}</div>
-                    <span className="truncate font-medium">{p.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── DOCUMENTS TAB ────────────────────────────────────────────────────────────
 function DocumentsSection({ projectId }: { projectId: string }) {
@@ -2757,7 +2669,7 @@ export default function ProjectDetail() {
     { id:"palettes",   label:"Palettes",        count:paletteCount,           icon:SwatchBook },
     { id:"dc_per_cot", label:"DC per CoT",      icon:BarChart2 },
     { id:"bom_status", label:"BOM Status",      icon:ClipboardList },
-    { id:"sourcing",   label:"Sourcing",        icon:Building2 },
+    
     { id:"documents",  label:"Documents",       count:docCount,               icon:FileText },
     { id:"boards",     label:"Boards",          icon:LayoutTemplate },
     { id:"rfqs",       label:"Supplier Requests", icon:FileSearch },
@@ -2852,7 +2764,7 @@ export default function ProjectDetail() {
         {activeTab === "colorways" && <ColorwaysSection projectId={id!} linkedColorways={linkedColorways} onRefresh={loadAll} setOptions={setOptions}/>}
         {activeTab === "variations"&& <VariationsSection projectId={id!} linkedVariations={linkedVariations} onRefresh={loadAll} setOptions={setOptions}/>}
         {activeTab === "bom_status"&& <BOMStatusSection linkedStyles={linkedStyles}/>}
-        {activeTab === "sourcing"  && <SourcingSection  linkedStyles={linkedStyles}/>}
+        
         {activeTab === "documents" && <DocumentsSection projectId={id!}/>}
         {activeTab === "palettes"  && <PalettesSection projectId={id!} setOptions={setOptions}/>}
         {activeTab === "dc_per_cot"&& <DCperCOTSection projectId={id!} linkedVariations={linkedVariations} setOptions={setOptions}/>}
