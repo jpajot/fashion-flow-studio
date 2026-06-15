@@ -287,7 +287,13 @@ function TrackingBoard() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           {prod?.images?.[0]&&<img src={prod.images[0]} className="w-6 h-6 object-contain rounded shrink-0" alt=""/>}
-                          <div><p className="text-xs font-medium">{prod?.name||"—"}</p>{prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <ProductTypeBadge product={prod} />
+                              <p className="text-xs font-medium truncate">{prod?.name||"—"}</p>
+                            </div>
+                            {prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-2"><span className="text-xs text-muted-foreground">{getGranLabel(line)}</span></td>
