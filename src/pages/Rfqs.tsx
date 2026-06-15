@@ -58,7 +58,7 @@ function TrackingBoard() {
     setLoading(true);
     const [srRes,prodRes,colorRes,pcamRes,stepRes,supRes,curRes,roundRes,projRes] = await Promise.all([
       supabase.from("supplier_requests").select("*").order("created_at",{ascending:false}),
-      supabase.from("products").select("id,code,name,images"),
+      supabase.from("products").select("id,code,name,images,type"),
       supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex"),
       supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code"),
       supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id"),
