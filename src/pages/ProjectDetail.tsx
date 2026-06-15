@@ -2295,7 +2295,13 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
                           {prod?.images?.[0] && <img src={prod.images[0]} className="w-5 h-5 object-contain rounded shrink-0" alt="" />}
-                          <div><p className="text-xs font-medium">{prod?.name || "—"}</p>{prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <ProductTypeBadge product={prod} />
+                              <p className="text-xs font-medium truncate">{prod?.name || "—"}</p>
+                            </div>
+                            {prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-2">{step ? <span className="text-xs text-muted-foreground">Step {step.position}: {(step.component_role || "").replace(/_/g, " ")}</span> : <span className="text-muted-foreground/40">—</span>}</td>
