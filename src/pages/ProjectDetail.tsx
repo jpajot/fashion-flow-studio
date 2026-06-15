@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter as AlertFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Loader2, Trash2, Plus, Search, X, Package, Palette, Layers, FileText, Building2, ClipboardList, FileSearch, FlaskConical, SwatchBook, LayoutTemplate, BarChart2, Info, ExternalLink, AlertTriangle, AlertCircle, Clock, GitBranch, XCircle, Upload, LayoutGrid, List as ListIcon, Pencil, Download, Zap, Trophy, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from "lucide-react";
+import { ProductTypeBadge } from "@/components/shared/ProductTypeBadgeRow";
 import GalleryView from "@/components/GalleryView";
 import DataTable from "@/components/shared/DataTable";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
@@ -2129,7 +2130,7 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
     setLoading(true);
     const [srRes, prodRes, stepRes, supRes, curRes] = await Promise.all([
       supabase.from("supplier_requests").select("*").eq("project_id", projectId).order("created_at", { ascending: false }),
-      supabase.from("products").select("id,code,name,images"),
+      supabase.from("products").select("id,code,name,images,type"),
       supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id"),
       supabase.from("suppliers").select("id,name"),
       supabase.from("currencies").select("id,code,decimal_places").eq("is_active", true),
@@ -2294,7 +2295,13 @@ function ProjectTrackingBoard({ projectId }: { projectId: string }) {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1.5">
                           {prod?.images?.[0] && <img src={prod.images[0]} className="w-5 h-5 object-contain rounded shrink-0" alt="" />}
-                          <div><p className="text-xs font-medium">{prod?.name || "—"}</p>{prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <ProductTypeBadge product={prod} />
+                              <p className="text-xs font-medium truncate">{prod?.name || "—"}</p>
+                            </div>
+                            {prod?.code && <p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-2">{step ? <span className="text-xs text-muted-foreground">Step {step.position}: {(step.component_role || "").replace(/_/g, " ")}</span> : <span className="text-muted-foreground/40">—</span>}</td>

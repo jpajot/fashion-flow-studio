@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Loader2, Search, FileSearch, Pencil, ChevronDown, ChevronRight, Trophy, MoreVertical, ExternalLink, AlertTriangle } from "lucide-react";
 import DataTable from "@/components/shared/DataTable";
+import { ProductTypeBadge } from "@/components/shared/ProductTypeBadgeRow";
 import ViewDrawerContent from "@/components/ViewDrawerContent";
 import ResponsesPanel from "@/components/rfq/ResponsesPanel";
 import { toast } from "sonner";
@@ -57,7 +58,7 @@ function TrackingBoard() {
     setLoading(true);
     const [srRes,prodRes,colorRes,pcamRes,stepRes,supRes,curRes,roundRes,projRes] = await Promise.all([
       supabase.from("supplier_requests").select("*").order("created_at",{ascending:false}),
-      supabase.from("products").select("id,code,name,images"),
+      supabase.from("products").select("id,code,name,images,type"),
       supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex"),
       supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code"),
       supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id"),
@@ -286,7 +287,13 @@ function TrackingBoard() {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           {prod?.images?.[0]&&<img src={prod.images[0]} className="w-6 h-6 object-contain rounded shrink-0" alt=""/>}
-                          <div><p className="text-xs font-medium">{prod?.name||"—"}</p>{prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}</div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <ProductTypeBadge product={prod} />
+                              <p className="text-xs font-medium truncate">{prod?.name||"—"}</p>
+                            </div>
+                            {prod?.code&&<p className="text-[10px] font-mono text-muted-foreground">{prod.code}</p>}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-2"><span className="text-xs text-muted-foreground">{getGranLabel(line)}</span></td>
