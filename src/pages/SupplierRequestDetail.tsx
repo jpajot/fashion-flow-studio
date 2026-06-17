@@ -1173,7 +1173,7 @@ export default function SupplierRequestDetail() {
       srData.target_currency_id ? supabase.from("currencies").select("id,code,name").eq("id", srData.target_currency_id).single() : Promise.resolve({ data: null }),
       srData.project_id ? supabase.from("projects").select("id,name").eq("id", srData.project_id).single() : Promise.resolve({ data: null }),
       supabase.from("rfq_lines").select("*").eq("supplier_request_id", id).order("created_at"),
-      supabase.from("products").select("id,code,name,images,default_uom,project_ids"),
+      supabase.from("products").select("id,code,name,images,default_uom,project_ids,type"),
       supabase.from("product_colors").select("id,product_id,color_name,colorway_code,color_hex"),
       supabase.from("product_color_and_more").select("id,product_color_id,name,sequence,pack_code"),
       supabase.from("bom_lines").select("id,bom_id,position,component_role,component_product_id"),
