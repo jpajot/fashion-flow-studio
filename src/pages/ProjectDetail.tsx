@@ -589,6 +589,8 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   const [sizes, setSizes] = useState<any[]>([]);
   const [linkMap, setLinkMap] = useState<Record<string,any>>({});
   const [channelOptions, setChannelOptions] = useState<string[]>([]);
+  const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
@@ -597,8 +599,10 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   const [showViewMenu, setShowViewMenu] = useState(false);
 
   useEffect(() => {
-    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,image_url,product_color_id,size_ids,product_colors(color_name,colorway_code,color_hex,products(name,images))").order("created_at",{ascending:false}).then(({data})=>setAllVariations(data??[]));
+    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,image_url,product_color_id,size_ids,product_colors(color_name,colorway_code,color_hex,products(id,code,name,images))").order("created_at",{ascending:false}).then(({data})=>setAllVariations(data??[]));
     supabase.from("sizes").select("id,name,size_code").then(({data})=>setSizes(data??[]));
+    supabase.from("technical_colors").select("id,hex,code,name").then(({data})=>setTechColors(data??[]));
+    supabase.from("commercial_colors").select("id,sub_type,linked_technical_color_ids,code,color_name").then(({data})=>setCommColors(data??[]));
     supabase.from("type_of_lov").select("id,code").eq("code","ChannelOfTrade").single().then(({data:lov})=>{
       if (!lov) return;
       supabase.from("list_of_values").select("name").eq("type_of_lov_id",lov.id).order("name").then(({data:vals})=>{
@@ -634,6 +638,12 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
 
   useEffect(() => { localStorage.setItem("proj_variations_view", view); }, [view]);
   const getSizes = (v: any) => ((v.size_ids||[]) as string[]).map((sid:string)=>sizes.find(s=>s.id===sid)).filter(Boolean);
+  const getLinkedHexes = (pc: any) => {
+    const cc = commColors.find(x=>x.id===pc?.linked_color_id);
+    if (!cc || cc.sub_type !== "Combined") return null;
+    const hexes = (cc.linked_technical_color_ids||[]).map((id:string)=>techColors.find(t=>t.id===id)?.hex).filter(Boolean) as string[];
+    return hexes.length > 1 ? hexes : null;
+  };
   const filtered = search.trim() ? linkedVariations.filter(v=>`${v.name||""} ${v.sequence||""} ${v.pack_code||""} ${v.variant||""}`.toLowerCase().includes(search.toLowerCase())) : linkedVariations;
 
   const handleLink = async (ids: string[]) => {
@@ -679,7 +689,16 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
     { id:"pack_code", label:"Pack Code", getValue:(v:any)=>v.pack_code, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.pack_code||"—"}</span> },
     { id:"variant", label:"Variant", getValue:(v:any)=>v.variant, render:(v:any)=><span className="text-[10px] text-muted-foreground">{v.variant||"—"}</span> },
     { id:"colorway", label:"Colorway", getValue:(v:any)=>(v as any).product_colors?.color_name||"",
-      render:(v:any)=><div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full border border-border shrink-0" style={{backgroundColor:(v as any).product_colors?.color_hex||"#e5e7eb"}}/><span className="text-[10px] text-muted-foreground truncate">{(v as any).product_colors?.color_name||"—"}</span></div> },
+      render:(v:any)=>{ const pc=(v as any).product_colors; const hexes=getLinkedHexes(pc);
+        return <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded-sm border border-border shrink-0 overflow-hidden flex">
+            {hexes ? hexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>) : <div className="w-full h-full" style={{backgroundColor:pc?.color_hex||"#e5e7eb"}}/>}
+          </div>
+          <span className="text-[10px] text-muted-foreground truncate">{pc?.color_name||"—"}</span>
+        </div>; } },
+    { id:"product_image", label:"Image", getValue:()=>"",
+      render:(v:any)=>{ const img=(v as any).product_colors?.products?.images?.[0];
+        return img ? <img src={img} alt="" className="w-6 h-6 rounded object-contain border border-border"/> : <span className="text-muted-foreground/40">—</span>; } },
     { id:"sizes", label:"Sizes", getValue:(v:any)=>getSizes(v).map((s:any)=>s.name||s.size_code).join(","),
       render:(v:any)=>{ const sz=getSizes(v); return sz.length ? <div className="flex flex-wrap gap-0.5">{sz.slice(0,5).map((s:any)=><span key={s.id} className="text-[9px] px-1 bg-secondary text-secondary-foreground rounded">{s.name||s.size_code}</span>)}{sz.length>5&&<span className="text-[9px] text-muted-foreground">+{sz.length-5}</span>}</div> : <span className="text-muted-foreground/40">—</span>; } },
     { id:"link_forecasted_qty", label:"Fcst. Qty",
@@ -698,7 +717,7 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
       getValue:(v:any)=>linkMap[v.id]?.notes||"",
       render:(v:any)=><LinkCell value={linkMap[v.id]?.notes} onSave={val=>saveLinkField(v.id,"notes",val)}/> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sizes, linkMap, channelOptions]);
+  ], [sizes, linkMap, channelOptions, techColors, commColors]);
 
   const tableColumns = useMemo(() => [
     { id:"swatch", label:"", width:36,
@@ -713,7 +732,16 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
     { id:"pack_code", label:"Pack Code", width:110, sortKey:(v:any)=>v.pack_code||"", render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.pack_code||"—"}</span> },
     { id:"variant", label:"Variant", width:110, sortKey:(v:any)=>v.variant||"", render:(v:any)=><span className="text-xs text-muted-foreground">{v.variant||"—"}</span> },
     { id:"colorway", label:"Colorway", width:160, sortKey:(v:any)=>(v as any).product_colors?.color_name||"",
-      render:(v:any)=><div className="flex items-center gap-1.5"><div className="w-3.5 h-3.5 rounded-full border border-border shrink-0" style={{backgroundColor:(v as any).product_colors?.color_hex||"#e5e7eb"}}/><span className="text-xs text-muted-foreground">{(v as any).product_colors?.color_name||"—"}</span></div> },
+      render:(v:any)=>{ const pc=(v as any).product_colors; const hexes=getLinkedHexes(pc);
+        return <div className="flex items-center gap-1.5">
+          <div className="w-3.5 h-3.5 rounded-sm border border-border shrink-0 overflow-hidden flex">
+            {hexes ? hexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>) : <div className="w-full h-full" style={{backgroundColor:pc?.color_hex||"#e5e7eb"}}/>}
+          </div>
+          <span className="text-xs text-muted-foreground">{pc?.color_name||"—"}</span>
+        </div>; } },
+    { id:"product_image", label:"Image", width:60,
+      render:(v:any)=>{ const img=(v as any).product_colors?.products?.images?.[0];
+        return img ? <img src={img} alt="" className="w-8 h-8 rounded object-contain border border-border"/> : <span className="text-muted-foreground/40 text-xs">—</span>; } },
     { id:"sizes", label:"Sizes", width:180,
       render:(v:any)=>{ const sz=getSizes(v); return sz.length ? <div className="flex flex-wrap gap-0.5">{sz.slice(0,6).map((s:any)=><span key={s.id} className="text-[10px] px-1 bg-secondary text-secondary-foreground rounded">{s.name||s.size_code}</span>)}{sz.length>6&&<span className="text-[10px] text-muted-foreground">+{sz.length-6}</span>}</div> : <span className="text-muted-foreground/40">—</span>; } },
     { id:"link_forecasted_qty", label:"Fcst. Qty", width:90,
@@ -731,7 +759,7 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
     { id:"unlink", label:"", width:44,
       render:(v:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(v.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sizes, linkMap, channelOptions]);
+  ], [sizes, linkMap, channelOptions, techColors, commColors]);
 
   useEffect(() => {
     setOptions({
@@ -2653,7 +2681,7 @@ export default function ProjectDetail() {
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("product_project_links").select("product_id, product:product_id(id,code,name,type,sub_type,category,images)").eq("project_id", id),
       supabase.from("product_color_project_links").select("product_color_id, pc:product_color_id(id,color_name,colorway_code,color_hex,colorway_status,product_id,linked_color_id,linked_color_type,linked_tech_color_id,image_url,project_ids)").eq("project_id", id),
-      supabase.from("product_color_and_more_project_links").select("product_color_and_more_id, v:product_color_and_more_id(id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code,products(id,code,name)))").eq("project_id", id),
+      supabase.from("product_color_and_more_project_links").select("product_color_and_more_id, v:product_color_and_more_id(id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code,color_hex,linked_color_id,linked_color_type,linked_tech_color_id,products(id,code,name,images)))").eq("project_id", id),
       supabase.from("color_palettes").select("id",{count:"exact",head:true}).eq("project_id", id),
       supabase.from("uploaded_documents").select("id",{count:"exact",head:true}).eq("project_id", id),
       supabase.from("samples").select("id",{count:"exact",head:true}).eq("project_id", id),
