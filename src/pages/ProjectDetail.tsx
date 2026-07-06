@@ -717,7 +717,7 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
       getValue:(v:any)=>linkMap[v.id]?.notes||"",
       render:(v:any)=><LinkCell value={linkMap[v.id]?.notes} onSave={val=>saveLinkField(v.id,"notes",val)}/> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sizes, linkMap, channelOptions]);
+  ], [sizes, linkMap, channelOptions, techColors, commColors]);
 
   const tableColumns = useMemo(() => [
     { id:"swatch", label:"", width:36,
