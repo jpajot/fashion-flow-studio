@@ -599,8 +599,10 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   const [showViewMenu, setShowViewMenu] = useState(false);
 
   useEffect(() => {
-    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,image_url,product_color_id,size_ids,product_colors(color_name,colorway_code,color_hex,products(name,images))").order("created_at",{ascending:false}).then(({data})=>setAllVariations(data??[]));
+    supabase.from("product_color_and_more").select("id,name,sequence,pack_code,variant,color_hex,image_url,product_color_id,size_ids,product_colors(color_name,colorway_code,color_hex,products(id,code,name,images))").order("created_at",{ascending:false}).then(({data})=>setAllVariations(data??[]));
     supabase.from("sizes").select("id,name,size_code").then(({data})=>setSizes(data??[]));
+    supabase.from("technical_colors").select("id,hex,code,name").then(({data})=>setTechColors(data??[]));
+    supabase.from("commercial_colors").select("id,sub_type,linked_technical_color_ids,code,color_name").then(({data})=>setCommColors(data??[]));
     supabase.from("type_of_lov").select("id,code").eq("code","ChannelOfTrade").single().then(({data:lov})=>{
       if (!lov) return;
       supabase.from("list_of_values").select("name").eq("type_of_lov_id",lov.id).order("name").then(({data:vals})=>{
