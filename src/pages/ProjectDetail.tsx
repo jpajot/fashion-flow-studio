@@ -689,7 +689,16 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
     { id:"pack_code", label:"Pack Code", getValue:(v:any)=>v.pack_code, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.pack_code||"—"}</span> },
     { id:"variant", label:"Variant", getValue:(v:any)=>v.variant, render:(v:any)=><span className="text-[10px] text-muted-foreground">{v.variant||"—"}</span> },
     { id:"colorway", label:"Colorway", getValue:(v:any)=>(v as any).product_colors?.color_name||"",
-      render:(v:any)=><div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full border border-border shrink-0" style={{backgroundColor:(v as any).product_colors?.color_hex||"#e5e7eb"}}/><span className="text-[10px] text-muted-foreground truncate">{(v as any).product_colors?.color_name||"—"}</span></div> },
+      render:(v:any)=>{ const pc=(v as any).product_colors; const hexes=getLinkedHexes(pc);
+        return <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded-sm border border-border shrink-0 overflow-hidden flex">
+            {hexes ? hexes.map((h:string,i:number)=><div key={i} className="flex-1 h-full" style={{backgroundColor:h}}/>) : <div className="w-full h-full" style={{backgroundColor:pc?.color_hex||"#e5e7eb"}}/>}
+          </div>
+          <span className="text-[10px] text-muted-foreground truncate">{pc?.color_name||"—"}</span>
+        </div>; } },
+    { id:"product_image", label:"Image", getValue:()=>"",
+      render:(v:any)=>{ const img=(v as any).product_colors?.products?.images?.[0];
+        return img ? <img src={img} alt="" className="w-6 h-6 rounded object-contain border border-border"/> : <span className="text-muted-foreground/40">—</span>; } },
     { id:"sizes", label:"Sizes", getValue:(v:any)=>getSizes(v).map((s:any)=>s.name||s.size_code).join(","),
       render:(v:any)=>{ const sz=getSizes(v); return sz.length ? <div className="flex flex-wrap gap-0.5">{sz.slice(0,5).map((s:any)=><span key={s.id} className="text-[9px] px-1 bg-secondary text-secondary-foreground rounded">{s.name||s.size_code}</span>)}{sz.length>5&&<span className="text-[9px] text-muted-foreground">+{sz.length-5}</span>}</div> : <span className="text-muted-foreground/40">—</span>; } },
     { id:"link_forecasted_qty", label:"Fcst. Qty",
