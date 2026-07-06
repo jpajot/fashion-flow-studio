@@ -638,6 +638,12 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
 
   useEffect(() => { localStorage.setItem("proj_variations_view", view); }, [view]);
   const getSizes = (v: any) => ((v.size_ids||[]) as string[]).map((sid:string)=>sizes.find(s=>s.id===sid)).filter(Boolean);
+  const getLinkedHexes = (pc: any) => {
+    const cc = commColors.find(x=>x.id===pc?.linked_color_id);
+    if (!cc || cc.sub_type !== "Combined") return null;
+    const hexes = (cc.linked_technical_color_ids||[]).map((id:string)=>techColors.find(t=>t.id===id)?.hex).filter(Boolean) as string[];
+    return hexes.length > 1 ? hexes : null;
+  };
   const filtered = search.trim() ? linkedVariations.filter(v=>`${v.name||""} ${v.sequence||""} ${v.pack_code||""} ${v.variant||""}`.toLowerCase().includes(search.toLowerCase())) : linkedVariations;
 
   const handleLink = async (ids: string[]) => {
