@@ -671,6 +671,11 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   const galleryFields = useMemo(() => [
     { id:"sequence", label:"Seq.", getValue:(v:any)=>v.sequence, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.sequence||"—"}</span> },
     { id:"name", label:"Name", getValue:(v:any)=>v.name, render:(v:any)=><span className="font-medium text-xs">{v.name||"—"}</span> },
+    { id:"product_code", label:"Product Code", getValue:(v:any)=>(v as any).product_colors?.products?.code||"",
+      render:(v:any)=>{ const pid=(v as any).product_colors?.products?.id; const code=(v as any).product_colors?.products?.code;
+        return pid
+          ? <button type="button" onClick={e=>{e.stopPropagation();navigate(`/products/${pid}?tab=more`);}} className="font-mono text-[10px] text-primary hover:underline">{code||"—"}</button>
+          : <span className="font-mono text-[10px] text-muted-foreground">{code||"—"}</span>; } },
     { id:"pack_code", label:"Pack Code", getValue:(v:any)=>v.pack_code, render:(v:any)=><span className="font-mono text-[10px] text-muted-foreground">{v.pack_code||"—"}</span> },
     { id:"variant", label:"Variant", getValue:(v:any)=>v.variant, render:(v:any)=><span className="text-[10px] text-muted-foreground">{v.variant||"—"}</span> },
     { id:"colorway", label:"Colorway", getValue:(v:any)=>(v as any).product_colors?.color_name||"",
@@ -700,6 +705,11 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
       render:(v:any)=>{ const hex=v.color_hex||(v as any).product_colors?.color_hex; return <div className="w-5 h-5 rounded border border-border shrink-0" style={{backgroundColor:hex||"#e5e7eb"}}/>; } },
     { id:"sequence", label:"Seq.", width:80, sortKey:(v:any)=>v.sequence||"", render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.sequence||"—"}</span> },
     { id:"name", label:"Name", width:180, sortKey:(v:any)=>v.name||"", render:(v:any)=><span className="font-medium text-sm">{v.name||"—"}</span> },
+    { id:"product_code", label:"Product Code", width:120, sortKey:(v:any)=>(v as any).product_colors?.products?.code||"",
+      render:(v:any)=>{ const pid=(v as any).product_colors?.products?.id; const code=(v as any).product_colors?.products?.code;
+        return pid
+          ? <button type="button" onClick={e=>{e.stopPropagation();navigate(`/products/${pid}?tab=more`);}} className="font-mono text-xs text-primary hover:underline">{code||"—"}</button>
+          : <span className="font-mono text-xs text-muted-foreground">{code||"—"}</span>; } },
     { id:"pack_code", label:"Pack Code", width:110, sortKey:(v:any)=>v.pack_code||"", render:(v:any)=><span className="font-mono text-xs text-muted-foreground">{v.pack_code||"—"}</span> },
     { id:"variant", label:"Variant", width:110, sortKey:(v:any)=>v.variant||"", render:(v:any)=><span className="text-xs text-muted-foreground">{v.variant||"—"}</span> },
     { id:"colorway", label:"Colorway", width:160, sortKey:(v:any)=>(v as any).product_colors?.color_name||"",
@@ -2643,7 +2653,7 @@ export default function ProjectDetail() {
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("product_project_links").select("product_id, product:product_id(id,code,name,type,sub_type,category,images)").eq("project_id", id),
       supabase.from("product_color_project_links").select("product_color_id, pc:product_color_id(id,color_name,colorway_code,color_hex,colorway_status,product_id,linked_color_id,linked_color_type,linked_tech_color_id,image_url,project_ids)").eq("project_id", id),
-      supabase.from("product_color_and_more_project_links").select("product_color_and_more_id, v:product_color_and_more_id(id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code))").eq("project_id", id),
+      supabase.from("product_color_and_more_project_links").select("product_color_and_more_id, v:product_color_and_more_id(id,name,sequence,pack_code,variant,color_hex,product_color_id,product_colors(color_name,colorway_code,products(id,code,name)))").eq("project_id", id),
       supabase.from("color_palettes").select("id",{count:"exact",head:true}).eq("project_id", id),
       supabase.from("uploaded_documents").select("id",{count:"exact",head:true}).eq("project_id", id),
       supabase.from("samples").select("id",{count:"exact",head:true}).eq("project_id", id),

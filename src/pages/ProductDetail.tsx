@@ -41,7 +41,11 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState<any>(isNew ? { type: qsType, name: "", description: "" } : null);
   const [loading, setLoading] = useState(!isNew);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState(() => {
+    const qsTab = new URLSearchParams(location.search).get("tab");
+    const validTabs = ["details", "colorways", "sizes", "more", "suppliers", "boms", "routings", "samples"];
+    return qsTab && validTabs.includes(qsTab) ? qsTab : "details";
+  });
   const [colorwayCount, setColorwayCount] = useState(0);
   const [bomCount, setBomCount] = useState(0);
 
