@@ -759,7 +759,7 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
     { id:"unlink", label:"", width:44,
       render:(v:any)=><button type="button" onClick={e=>{e.stopPropagation();handleUnlink(v.id);}} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5"/></button> },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [sizes, linkMap, channelOptions]);
+  ], [sizes, linkMap, channelOptions, techColors, commColors]);
 
   useEffect(() => {
     setOptions({
