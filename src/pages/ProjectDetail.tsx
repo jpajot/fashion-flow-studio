@@ -589,6 +589,8 @@ function VariationsSection({ projectId, linkedVariations, onRefresh, setOptions 
   const [sizes, setSizes] = useState<any[]>([]);
   const [linkMap, setLinkMap] = useState<Record<string,any>>({});
   const [channelOptions, setChannelOptions] = useState<string[]>([]);
+  const [techColors, setTechColors] = useState<any[]>([]);
+  const [commColors, setCommColors] = useState<any[]>([]);
   const [showLink, setShowLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [search, setSearch] = useState("");
